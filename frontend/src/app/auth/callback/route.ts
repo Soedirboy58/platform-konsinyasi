@@ -9,8 +9,26 @@ export async function GET(request: Request) {
   if (code) {
     const supabase = createRouteHandlerClient({ cookies })
     await supabase.auth.exchangeCodeForSession(code)
+    
+    // Get user profile to determine redirect
+    const { data: { user } } = await supabase.auth.getUser()
+    
+    if (user) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single()
+      
+      // Redirect based on role
+      if (profile?.role === 'ADMIN') {
+        return NextResponse.redirect(`${requestUrl.origin}/admin`)
+      } else if (profile?.role === 'SUPPLIER') {
+        return NextResponse.redirect(`${requestUrl.origin}/supplier`)
+      }
+    }
   }
 
-  // URL to redirect to after sign in process completes
+  // Default redirect to home
   return NextResponse.redirect(requestUrl.origin)
 }
