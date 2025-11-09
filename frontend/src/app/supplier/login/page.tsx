@@ -78,9 +78,13 @@ export default function SupplierLogin() {
 
           if (supplierError) throw supplierError
 
-          toast.success('Registrasi berhasil! Menunggu approval admin.')
-          await new Promise(resolve => setTimeout(resolve, 100))
-          window.location.href = '/supplier'
+          toast.success('✅ Registrasi berhasil! Silakan cek email Anda untuk verifikasi akun.', {
+            duration: 6000,
+            description: 'Setelah verifikasi, tunggu approval admin untuk mulai berjualan.'
+          })
+          
+          // Don't redirect, let user know to check email
+          setLoading(false)
         }
       } else {
         // Login
