@@ -18,6 +18,19 @@ type AdminStats = {
   todayShipments: number
   needsReview: number
   monthlyProductsReceived: number
+  // Revenue & alerts
+  totalRevenue: number
+  lowStockCount: number
+  outOfStockCount: number
+}
+
+type TopProduct = {
+  product_id: string
+  product_name: string
+  supplier_name: string
+  total_quantity: number
+  total_sales: number
+  transaction_count: number
 }
 
 export default function AdminDashboard() {
@@ -34,7 +47,11 @@ export default function AdminDashboard() {
     todayShipments: 0,
     needsReview: 0,
     monthlyProductsReceived: 0,
+    totalRevenue: 0,
+    lowStockCount: 0,
+    outOfStockCount: 0,
   })
+  const [topProducts, setTopProducts] = useState<TopProduct[]>([])
   const [profile, setProfile] = useState<any>(null)
 
   useEffect(() => {
@@ -154,6 +171,42 @@ export default function AdminDashboard() {
 
       const monthlyProductsReceived = monthlyItems?.reduce((sum, item) => sum + (item.quantity || 0), 0) || 0
 
+      // Get revenue from RPC
+      const { data: revenueData, error: revenueError } = await supabase
+        .rpc('get_platform_revenue', {
+          p_start_date: null,
+          p_end_date: null
+        })
+        .single()
+
+      if (revenueError) {
+        console.error('Revenue error:', revenueError)
+      }
+
+      // Get inventory alerts from RPC
+      const { data: dashboardSummary, error: summaryError } = await supabase
+        .rpc('get_admin_dashboard_summary')
+        .single()
+
+      if (summaryError) {
+        console.error('Dashboard summary error:', summaryError)
+      }
+
+      // Get top products
+      const { data: topProductsData, error: topProductsError } = await supabase
+        .rpc('get_top_selling_products', {
+          p_start_date: null,
+          p_end_date: null,
+          p_limit: 10,
+          p_location_id: null
+        })
+
+      if (topProductsError) {
+        console.error('Top products error:', topProductsError)
+      } else {
+        setTopProducts(topProductsData || [])
+      }
+
       setStats({
         totalSuppliers: supplierCount || 0,
         pendingSuppliers: pendingSupplierCount || 0,
@@ -165,6 +218,9 @@ export default function AdminDashboard() {
         todayShipments: todayShipmentsCount || 0,
         needsReview: needsReviewCount || 0,
         monthlyProductsReceived: monthlyProductsReceived,
+        totalRevenue: revenueData?.completed_revenue || 0,
+        lowStockCount: dashboardSummary?.low_stock_count || 0,
+        outOfStockCount: dashboardSummary?.out_of_stock_count || 0,
       })
     } catch (error) {
       console.error('Error loading stats:', error)
@@ -232,15 +288,15 @@ export default function AdminDashboard() {
         <StatCard
           icon={<DollarSign className="w-8 h-8" />}
           title="Revenue"
-          value="Rp 0"
-          subtitle="this month"
+          value={`Rp ${(stats.totalRevenue / 1000).toFixed(0)}K`}
+          subtitle="completed sales"
           color="bg-emerald-500"
         />
         <StatCard
           icon={<AlertCircle className="w-8 h-8" />}
-          title="Pending Approval"
-          value={stats.pendingSuppliers + stats.pendingProducts}
-          subtitle="items need review"
+          title="Stock Alerts"
+          value={stats.lowStockCount + stats.outOfStockCount}
+          subtitle={`${stats.outOfStockCount} out of stock`}
           color="bg-red-500"
         />
       </div>
@@ -278,10 +334,41 @@ export default function AdminDashboard() {
       </div>
 
       {/* Recent Activity */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <h2 className="text-xl font-semibold mb-4">Recent Activity</h2>
-        <div className="text-center py-8 text-gray-500">
-          <p>Activity log coming soon</p>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Top Selling Products */}
+        <div className="bg-white rounded-lg shadow p-6">
+          <h2 className="text-xl font-semibold mb-4">Top 10 Produk Terlaris</h2>
+          {topProducts.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">
+              <p>Belum ada data penjualan</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {topProducts.map((product, idx) => (
+                <div key={product.product_id} className="flex items-center justify-between border-b pb-2">
+                  <div className="flex items-center gap-3">
+                    <span className="text-lg font-bold text-gray-400 w-6">{idx + 1}</span>
+                    <div>
+                      <p className="font-medium text-gray-900">{product.product_name}</p>
+                      <p className="text-xs text-gray-500">{product.supplier_name}</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-semibold text-gray-900">{product.total_quantity} unit</p>
+                    <p className="text-xs text-gray-500">Rp {(product.total_sales / 1000).toFixed(0)}K</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Recent Activity Placeholder */}
+        <div className="bg-white rounded-lg shadow p-6">
+          <h2 className="text-xl font-semibold mb-4">Recent Activity</h2>
+          <div className="text-center py-8 text-gray-500">
+            <p>Activity log coming soon</p>
+          </div>
         </div>
       </div>
     </div>
