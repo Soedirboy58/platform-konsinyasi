@@ -68,9 +68,13 @@ BEGIN
         VALUES (gen_random_uuid(), rec.product_id, v_location, rec.quantity, NOW(), NOW(), NOW());
       END IF;
 
-      -- Catat activity log
-      INSERT INTO public.activity_logs(id, user_id, action, table_name, record_id, new_values, created_at)
-      VALUES (gen_random_uuid(), p_admin_id, 'APPROVE_RETURN_ADJUST_STOCK', 'inventory_levels', rec.product_id, jsonb_build_object('added_quantity', rec.quantity, 'location_id', v_location), NOW());
+      -- Catat activity log (skip jika tabel/kolom tidak sesuai)
+      BEGIN
+        INSERT INTO public.activity_logs(id, user_id, action, table_name, record_id, new_values, created_at)
+        VALUES (gen_random_uuid(), p_admin_id, 'APPROVE_RETURN_ADJUST_STOCK', 'inventory_levels', rec.product_id, jsonb_build_object('added_quantity', rec.quantity, 'location_id', v_location), NOW());
+      EXCEPTION WHEN undefined_column OR undefined_table THEN
+        NULL; -- skip log jika activity_logs tidak punya kolom new_values atau tabel tidak ada
+      END;
     END LOOP;
   END IF;
 
@@ -103,9 +107,13 @@ BEGIN
       WHERE id = v_wallet_id;
     END;
 
-    -- Catat activity log untuk refund
-    INSERT INTO public.activity_logs(id, user_id, action, table_name, record_id, new_values, created_at)
-    VALUES (gen_random_uuid(), p_admin_id, 'APPROVE_RETURN_FINANCIAL_ADJUST', 'supplier_wallets', v_wallet_id, jsonb_build_object('amount', v_total_refund, 'return_id', p_return_id), NOW());
+    -- Catat activity log untuk refund (skip jika tabel/kolom tidak sesuai)
+    BEGIN
+      INSERT INTO public.activity_logs(id, user_id, action, table_name, record_id, new_values, created_at)
+      VALUES (gen_random_uuid(), p_admin_id, 'APPROVE_RETURN_FINANCIAL_ADJUST', 'supplier_wallets', v_wallet_id, jsonb_build_object('amount', v_total_refund, 'return_id', p_return_id), NOW());
+    EXCEPTION WHEN undefined_column OR undefined_table THEN
+      NULL; -- skip log
+    END;
   END IF;
 
   RETURN TRUE;
