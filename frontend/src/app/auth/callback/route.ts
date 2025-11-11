@@ -20,10 +20,21 @@ export async function GET(request: Request) {
         .eq('id', user.id)
         .single()
       
+      // Check if supplier record exists
+      const { data: supplier } = await supabase
+        .from('suppliers')
+        .select('id')
+        .eq('profile_id', user.id)
+        .single()
+      
       // Redirect based on role
       if (profile?.role === 'ADMIN') {
         return NextResponse.redirect(`${requestUrl.origin}/admin`)
       } else if (profile?.role === 'SUPPLIER') {
+        // If no supplier record yet, go to onboarding
+        if (!supplier) {
+          return NextResponse.redirect(`${requestUrl.origin}/supplier/onboarding`)
+        }
         return NextResponse.redirect(`${requestUrl.origin}/supplier`)
       }
     }

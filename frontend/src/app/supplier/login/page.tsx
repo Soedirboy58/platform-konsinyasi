@@ -14,8 +14,6 @@ export default function SupplierLogin() {
     email: '',
     password: '',
     fullName: '',
-    businessName: '',
-    phone: '',
   })
 
   async function handleSubmit(e: React.FormEvent) {
@@ -54,33 +52,9 @@ export default function SupplierLogin() {
         }
 
         if (data.user) {
-          // Wait for profile to be created by trigger
-          await new Promise(resolve => setTimeout(resolve, 500))
-          
-          // Update profile role to SUPPLIER
-          const { error: profileError } = await supabase
-            .from('profiles')
-            .update({ role: 'SUPPLIER' })
-            .eq('id', data.user.id)
-          
-          if (profileError) console.error('Profile update error:', profileError)
-
-          // Create supplier record
-          const { error: supplierError } = await supabase
-            .from('suppliers')
-            .insert({
-              profile_id: data.user.id,
-              business_name: formData.businessName,
-              business_address: 'Belum diisi',
-              phone: formData.phone,
-              status: 'PENDING',
-            })
-
-          if (supplierError) throw supplierError
-
           toast.success('✅ Registrasi berhasil! Silakan cek email Anda untuk verifikasi akun.', {
             duration: 6000,
-            description: 'Setelah verifikasi, tunggu approval admin untuk mulai berjualan.'
+            description: 'Klik link verifikasi di email, lalu login kembali untuk melengkapi data supplier.'
           })
           
           // Don't redirect, let user know to check email
@@ -88,18 +62,45 @@ export default function SupplierLogin() {
         }
       } else {
         // Login
-        const { error } = await supabase.auth.signInWithPassword({
+        const { data: loginData, error } = await supabase.auth.signInWithPassword({
           email: formData.email.toLowerCase().trim(),
           password: formData.password,
         })
 
         if (error) throw error
 
+        // Update profile role to SUPPLIER if not set yet
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', loginData.user.id)
+          .single()
+
+        if (!profile || profile.role !== 'SUPPLIER') {
+          await supabase
+            .from('profiles')
+            .update({ role: 'SUPPLIER' })
+            .eq('id', loginData.user.id)
+        }
+
+        // Check if supplier record exists
+        const { data: supplier } = await supabase
+          .from('suppliers')
+          .select('id')
+          .eq('profile_id', loginData.user.id)
+          .single()
+
         toast.success('Login berhasil!')
         
         // Wait a bit for session to be stored, then redirect
-        await new Promise(resolve => setTimeout(resolve, 100))
-        window.location.href = '/supplier'
+        await new Promise(resolve => setTimeout(resolve, 500))
+        
+        // Redirect to onboarding if no supplier record, else to dashboard
+        if (!supplier) {
+          window.location.href = '/supplier/onboarding'
+        } else {
+          window.location.href = '/supplier'
+        }
       }
     } catch (error: any) {
       console.error('Auth error:', error)
@@ -128,49 +129,19 @@ export default function SupplierLogin() {
         <div className="bg-white rounded-xl shadow-lg p-8">
           <form onSubmit={handleSubmit} className="space-y-4">
             {isRegister && (
-              <>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Nama Lengkap
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.fullName}
-                    onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                    placeholder="John Doe"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Nama Bisnis
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.businessName}
-                    onChange={(e) => setFormData({ ...formData, businessName: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                    placeholder="Toko ABC"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Nomor Telepon
-                  </label>
-                  <input
-                    type="tel"
-                    required
-                    value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                    placeholder="08123456789"
-                  />
-                </div>
-              </>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Nama Lengkap
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={formData.fullName}
+                  onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  placeholder="John Doe"
+                />
+              </div>
             )}
 
             <div>
@@ -230,8 +201,11 @@ export default function SupplierLogin() {
         {isRegister && (
           <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
             <p className="text-sm text-blue-800">
-              <strong>Catatan:</strong> Setelah registrasi, akun Anda akan direview oleh admin. 
-              Anda akan mendapat notifikasi setelah akun disetujui.
+              <strong>Langkah registrasi:</strong><br/>
+              1. Isi nama, email & password<br/>
+              2. Cek email untuk verifikasi<br/>
+              3. Login kembali setelah verifikasi<br/>
+              4. Lengkapi data bisnis Anda
             </p>
           </div>
         )}

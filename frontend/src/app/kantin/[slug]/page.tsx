@@ -1,9 +1,9 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useParams } from 'next/navigation'
+import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { ShoppingCart, Scan, Plus, Minus } from 'lucide-react'
+import { ShoppingCart, Scan, Plus, Minus, Search, Filter, X } from 'lucide-react'
 import { toast } from 'sonner'
 
 type Product = {
@@ -14,22 +14,59 @@ type Product = {
   barcode: string | null
   photo_url: string | null
   supplier_name: string
+  total_sales?: number
+  sort_priority?: number
 }
 
 type CartItem = Product & { cartQuantity: number }
 
+// Kategori untuk kantin kejujuran
+const CATEGORIES = [
+  { id: 'all', label: 'Semua', emoji: '🏪' },
+  { id: 'kue_kering', label: 'Kue Kering', emoji: '🍪' },
+  { id: 'snack', label: 'Snack', emoji: '🥨' },
+  { id: 'kue_basah', label: 'Kue Basah', emoji: '🍰' },
+  { id: 'minuman', label: 'Minuman', emoji: '🥤' },
+  { id: 'jajanan', label: 'Jajanan', emoji: '🍡' },
+  { id: 'lainnya', label: 'Lainnya', emoji: '🛒' },
+]
+
 export default function KantinPage() {
   const params = useParams()
+  const router = useRouter()
   const locationSlug = params.slug as string
   
   const [products, setProducts] = useState<Product[]>([])
   const [cart, setCart] = useState<CartItem[]>([])
   const [loading, setLoading] = useState(true)
   const [locationName, setLocationName] = useState('')
+  const [selectedCategory, setSelectedCategory] = useState('all')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [showCart, setShowCart] = useState(false)
 
   useEffect(() => {
     loadProducts()
+    loadCartFromStorage()
   }, [locationSlug])
+
+  function loadCartFromStorage() {
+    try {
+      const savedCart = sessionStorage.getItem(`cart_${locationSlug}`)
+      if (savedCart) {
+        setCart(JSON.parse(savedCart))
+      }
+    } catch (error) {
+      console.error('Load cart error:', error)
+    }
+  }
+
+  function saveCartToStorage(cartData: CartItem[]) {
+    try {
+      sessionStorage.setItem(`cart_${locationSlug}`, JSON.stringify(cartData))
+    } catch (error) {
+      console.error('Save cart error:', error)
+    }
+  }
 
   async function loadProducts() {
     try {
@@ -37,15 +74,21 @@ export default function KantinPage() {
       
       // Get products by location QR code
       const { data, error } = await supabase
-        .rpc('get_products_by_location', { qr_code_input: locationSlug })
+        .rpc('get_products_by_location', { 
+          location_qr_code: locationSlug 
+        })
       
-      if (error) throw error
+      if (error) {
+        console.error('RPC Error:', error)
+        throw error
+      }
       
+      console.log('Products loaded:', data?.length || 0, 'items')
       setProducts(data || [])
-      setLocationName(locationSlug.replace(/-/g, ' ').toUpperCase())
-    } catch (error) {
+      setLocationName(locationSlug.replace(/_/g, ' ').toUpperCase())
+    } catch (error: any) {
       console.error('Error loading products:', error)
-      toast.error('Gagal memuat produk')
+      toast.error(error.message || 'Gagal memuat produk. Pastikan function RPC sudah dijalankan di Supabase.')
     } finally {
       setLoading(false)
     }
@@ -55,23 +98,26 @@ export default function KantinPage() {
     setCart(prev => {
       const existing = prev.find(item => item.product_id === product.product_id)
       
+      let newCart: CartItem[]
       if (existing) {
         // Check stock availability
         if (existing.cartQuantity >= product.quantity) {
           toast.error('Stok tidak cukup')
           return prev
         }
-        return prev.map(item =>
+        newCart = prev.map(item =>
           item.product_id === product.product_id
             ? { ...item, cartQuantity: item.cartQuantity + 1 }
             : item
         )
+      } else {
+        newCart = [...prev, { ...product, cartQuantity: 1 }]
       }
       
-      return [...prev, { ...product, cartQuantity: 1 }]
+      saveCartToStorage(newCart)
+      toast.success('Ditambahkan ke keranjang')
+      return newCart
     })
-    
-    toast.success('Ditambahkan ke keranjang')
   }
 
   function removeFromCart(productId: string) {
@@ -79,38 +125,50 @@ export default function KantinPage() {
       const item = prev.find(i => i.product_id === productId)
       if (!item) return prev
       
+      let newCart: CartItem[]
       if (item.cartQuantity === 1) {
-        return prev.filter(i => i.product_id !== productId)
+        newCart = prev.filter(i => i.product_id !== productId)
+      } else {
+        newCart = prev.map(i =>
+          i.product_id === productId
+            ? { ...i, cartQuantity: i.cartQuantity - 1 }
+            : i
+        )
       }
       
-      return prev.map(i =>
-        i.product_id === productId
-          ? { ...i, cartQuantity: i.cartQuantity - 1 }
-          : i
-      )
+      saveCartToStorage(newCart)
+      return newCart
     })
   }
 
   const totalPrice = cart.reduce((sum, item) => sum + (item.price * item.cartQuantity), 0)
   const totalItems = cart.reduce((sum, item) => sum + item.cartQuantity, 0)
 
-  async function checkout() {
+  // Filter products by search only (no category filter)
+  const filteredProducts = products.filter(product => {
+    const matchSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase())
+    return matchSearch
+  })
+
+  function goToCheckout() {
     if (cart.length === 0) {
       toast.error('Keranjang kosong')
       return
     }
 
-    try {
-      const supabase = createClient()
-      
-      // Here you would call your checkout function
-      // For now, just show success message
-      toast.success(`Checkout berhasil! Total: Rp ${totalPrice.toLocaleString('id-ID')}`)
-      setCart([])
-    } catch (error) {
-      console.error('Checkout error:', error)
-      toast.error('Gagal checkout')
-    }
+    // Save cart to sessionStorage before navigating
+    const cartForCheckout = cart.map(item => ({
+      product_id: item.product_id,
+      name: item.name,
+      price: item.price,
+      quantity: item.cartQuantity,
+      supplier_name: item.supplier_name
+    }))
+    
+    sessionStorage.setItem(`cart_${locationSlug}`, JSON.stringify(cartForCheckout))
+    
+    // Navigate to checkout page
+    router.push(`/kantin/${locationSlug}/checkout`)
   }
 
   if (loading) {
@@ -125,113 +183,305 @@ export default function KantinPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 pb-32">
       {/* Header */}
-      <header className="bg-primary-600 text-white sticky top-0 z-10 shadow-lg">
+      <header className="bg-gradient-to-r from-red-600 to-orange-600 text-white sticky top-0 z-20 shadow-lg">
         <div className="max-w-7xl mx-auto px-4 py-4">
           <div className="flex justify-between items-center">
             <div>
-              <h1 className="text-2xl font-bold">Kantin Kejujuran</h1>
-              <p className="text-sm text-primary-100">{locationName}</p>
+              <h1 className="text-2xl font-bold">🏪 Kantin Kejujuran</h1>
+              <p className="text-sm text-red-100">{locationName}</p>
             </div>
-            <div className="relative">
+            <button
+              onClick={() => setShowCart(!showCart)}
+              className="relative"
+            >
               <ShoppingCart className="w-8 h-8" />
               {totalItems > 0 && (
-                <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center">
+                <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center animate-pulse">
                   {totalItems}
                 </span>
               )}
-            </div>
+            </button>
           </div>
         </div>
       </header>
 
-      {/* Products Grid */}
-      <main className="max-w-7xl mx-auto px-4 py-6">
-        {products.length === 0 ? (
+      {/* Search Bar */}
+      <div className="sticky top-[72px] z-10 bg-white shadow-md">
+        <div className="max-w-7xl mx-auto px-4 py-3">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Cari produk..."
+              className="w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Products Grid - Remove Category Filter */}
+      <main className="max-w-7xl mx-auto px-4 py-6 mt-4">
+        {loading ? (
           <div className="text-center py-12">
-            <p className="text-gray-500 text-lg">Tidak ada produk tersedia</p>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-600 mx-auto"></div>
+            <p className="mt-4 text-gray-600">Memuat produk...</p>
+          </div>
+        ) : filteredProducts.length === 0 ? (
+          <div className="text-center py-12">
+            <p className="text-gray-500 text-lg mb-2">
+              {searchQuery ? '🔍 Produk tidak ditemukan' : '📦 Belum ada produk tersedia'}
+            </p>
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="text-red-600 hover:text-red-700 font-medium"
+              >
+                Hapus pencarian
+              </button>
+            )}
           </div>
         ) : (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {products.map(product => (
-              <div key={product.product_id} className="bg-white rounded-lg shadow-md overflow-hidden">
-                <div className="aspect-square bg-gray-200 flex items-center justify-center">
-                  {product.photo_url ? (
-                    <img src={product.photo_url} alt={product.name} className="w-full h-full object-cover" />
-                  ) : (
-                    <span className="text-4xl">📦</span>
-                  )}
-                </div>
-                <div className="p-4">
-                  <h3 className="font-semibold text-gray-900 mb-1">{product.name}</h3>
-                  <p className="text-xs text-gray-500 mb-2">{product.supplier_name}</p>
-                  <p className="text-lg font-bold text-primary-600 mb-2">
-                    Rp {product.price.toLocaleString('id-ID')}
-                  </p>
-                  <p className="text-xs text-gray-600 mb-3">Stok: {product.quantity}</p>
-                  <button
-                    onClick={() => addToCart(product)}
-                    disabled={product.quantity === 0}
-                    className="w-full bg-primary-600 text-white py-2 rounded-lg font-semibold hover:bg-primary-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+          <>
+            {/* Products Count */}
+            <div className="mb-4 text-sm text-gray-600">
+              Menampilkan {filteredProducts.length} produk
+            </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {filteredProducts.map(product => {
+                const inCart = cart.find(item => item.product_id === product.product_id)
+              
+                return (
+                  <div 
+                    key={product.product_id} 
+                    className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition-shadow duration-300"
                   >
-                    {product.quantity === 0 ? 'Habis' : 'Tambah'}
-                  </button>
+                    {/* Product Image */}
+                    <div className="relative aspect-square bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
+                      {product.photo_url ? (
+                        <img 
+                          src={product.photo_url} 
+                          alt={product.name} 
+                          className="w-full h-full object-cover" 
+                        />
+                      ) : (
+                        <span className="text-6xl">�</span>
+                      )}
+                    {/* Stock & Priority Badges */}
+                    <div className="absolute top-2 left-2 right-2 flex justify-between items-start">
+                      {/* Priority Badge */}
+                      {product.sort_priority === 1 && product.quantity > 0 && (
+                        <div className="bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full shadow-lg">
+                          ⚡ URGENT
+                        </div>
+                      )}
+                      {product.sort_priority === 2 && (
+                        <div className="bg-green-500 text-white text-xs font-bold px-2 py-1 rounded-full shadow-lg opacity-0">
+                          {/* Spacer */}
+                        </div>
+                      )}
+                      {/* Stock Badge */}
+                      {product.quantity <= 5 && product.quantity > 0 && (
+                        <div className="bg-orange-500 text-white text-xs font-bold px-2 py-1 rounded-full shadow-lg ml-auto">
+                          Sisa {product.quantity}
+                        </div>
+                      )}
+                    </div>
+                    
+                    {/* Out of Stock Overlay */}
+                    {product.quantity === 0 && (
+                      <div className="absolute inset-0 bg-black bg-opacity-70 flex flex-col items-center justify-center">
+                        <span className="text-white font-bold text-2xl mb-2">HABIS</span>
+                        <span className="text-white text-xs opacity-90">Sedang restock</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Product Info */}
+                  <div className="p-3">
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-gray-900 text-sm leading-tight line-clamp-2 mb-1">
+                          {product.name}
+                        </h3>
+                        <p className="text-xs text-gray-500">{product.supplier_name}</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-baseline justify-between mb-3">
+                      <p className="text-lg font-bold text-red-600">
+                        Rp {product.price.toLocaleString('id-ID')}
+                      </p>
+                      <div className="text-right">
+                        <p className="text-xs text-gray-500">
+                          Stok: {product.quantity}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Add to cart button or counter */}
+                    {inCart ? (
+                      <div className="flex items-center justify-between bg-orange-50 rounded-lg p-2">
+                        <button
+                          onClick={() => removeFromCart(product.product_id)}
+                          className="w-8 h-8 rounded-full bg-white shadow flex items-center justify-center hover:bg-gray-50 active:scale-95 transition"
+                        >
+                          <Minus className="w-4 h-4 text-red-600" />
+                        </button>
+                        <span className="font-bold text-red-600 text-lg">{inCart.cartQuantity}</span>
+                        <button
+                          onClick={() => addToCart(product)}
+                          disabled={inCart.cartQuantity >= product.quantity}
+                          className="w-8 h-8 rounded-full bg-red-600 shadow flex items-center justify-center hover:bg-red-700 active:scale-95 transition disabled:bg-gray-300"
+                        >
+                          <Plus className="w-4 h-4 text-white" />
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => addToCart(product)}
+                        disabled={product.quantity === 0}
+                        className="w-full bg-gradient-to-r from-red-600 to-orange-600 text-white py-2.5 rounded-lg font-semibold hover:from-red-700 hover:to-orange-700 active:scale-95 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed transition-all"
+                      >
+                        {product.quantity === 0 ? '😔 Habis' : '🛒 Tambah'}
+                      </button>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              )
+            })}
+            </div>
+          </>
         )}
       </main>
 
-      {/* Cart Footer */}
+      <style jsx>{`
+        .hide-scrollbar::-webkit-scrollbar {
+          display: none;
+        }
+        .hide-scrollbar {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
+        .line-clamp-2 {
+          display: -webkit-box;
+          -webkit-line-clamp: 2;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
+        }
+      `}</style>
+
+      {/* Cart Footer - Improved */}
       {cart.length > 0 && (
-        <div className="fixed bottom-0 left-0 right-0 bg-white border-t shadow-lg">
-          <div className="max-w-7xl mx-auto px-4 py-4">
-            <div className="space-y-3">
-              {cart.map(item => (
-                <div key={item.product_id} className="flex items-center justify-between">
-                  <div className="flex-1">
-                    <p className="font-medium text-sm">{item.name}</p>
-                    <p className="text-xs text-gray-500">
-                      Rp {item.price.toLocaleString('id-ID')} x {item.cartQuantity}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => removeFromCart(item.product_id)}
-                      className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center hover:bg-gray-300"
-                    >
-                      <Minus className="w-4 h-4" />
-                    </button>
-                    <span className="w-8 text-center font-semibold">{item.cartQuantity}</span>
-                    <button
-                      onClick={() => addToCart(item)}
-                      className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center hover:bg-gray-300"
-                    >
-                      <Plus className="w-4 h-4" />
-                    </button>
-                  </div>
-                  <p className="font-bold text-right ml-4 min-w-[80px]">
-                    Rp {(item.price * item.cartQuantity).toLocaleString('id-ID')}
-                  </p>
-                </div>
-              ))}
-              <div className="flex items-center justify-between pt-3 border-t">
-                <p className="text-lg font-bold">Total:</p>
-                <p className="text-2xl font-bold text-primary-600">
-                  Rp {totalPrice.toLocaleString('id-ID')}
-                </p>
-              </div>
+        <>
+          {/* Backdrop when cart is shown */}
+          {showCart && (
+            <div 
+              className="fixed inset-0 bg-black bg-opacity-50 z-30"
+              onClick={() => setShowCart(false)}
+            />
+          )}
+          
+          {/* Floating Cart Button (when collapsed) */}
+          {!showCart && (
+            <div className="fixed bottom-6 left-4 right-4 z-30">
               <button
-                onClick={checkout}
-                className="w-full bg-green-600 text-white py-4 rounded-lg text-lg font-bold hover:bg-green-700 transition-colors"
+                onClick={() => setShowCart(true)}
+                className="w-full bg-green-600 text-white py-4 rounded-2xl shadow-2xl font-bold text-lg hover:bg-green-700 active:scale-95 transition-all flex items-center justify-between px-6"
               >
-                Checkout ({totalItems} item)
+                <span>🛒 {totalItems} Item</span>
+                <span>Rp {totalPrice.toLocaleString('id-ID')}</span>
               </button>
             </div>
-          </div>
-        </div>
+          )}
+
+          {/* Expanded Cart Panel */}
+          {showCart && (
+            <div className="fixed bottom-0 left-0 right-0 bg-white rounded-t-3xl shadow-2xl z-40 max-h-[70vh] overflow-hidden flex flex-col">
+              {/* Cart Header */}
+              <div className="flex items-center justify-between px-6 py-4 border-b sticky top-0 bg-white">
+                <h3 className="text-xl font-bold">🛒 Keranjang Belanja</h3>
+                <button
+                  onClick={() => setShowCart(false)}
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+
+              {/* Cart Items - Scrollable */}
+              <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3">
+                {cart.map(item => (
+                  <div key={item.product_id} className="flex items-center gap-3 bg-gray-50 p-3 rounded-xl">
+                    <div className="w-16 h-16 bg-gray-200 rounded-lg flex items-center justify-center flex-shrink-0">
+                      {item.photo_url ? (
+                        <img src={item.photo_url} alt={item.name} className="w-full h-full object-cover rounded-lg" />
+                      ) : (
+                        <span className="text-2xl">�</span>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-sm truncate">{item.name}</p>
+                      <p className="text-xs text-gray-500 mb-1">{item.supplier_name}</p>
+                      <p className="text-red-600 font-bold">
+                        Rp {item.price.toLocaleString('id-ID')}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => removeFromCart(item.product_id)}
+                        className="w-7 h-7 rounded-full bg-white shadow flex items-center justify-center hover:bg-gray-50"
+                      >
+                        <Minus className="w-3.5 h-3.5" />
+                      </button>
+                      <span className="w-8 text-center font-bold">{item.cartQuantity}</span>
+                      <button
+                        onClick={() => addToCart(item)}
+                        className="w-7 h-7 rounded-full bg-green-600 shadow flex items-center justify-center hover:bg-green-700"
+                      >
+                        <Plus className="w-3.5 h-3.5 text-white" />
+                      </button>
+                    </div>
+                    <p className="font-bold text-right min-w-[90px]">
+                      Rp {(item.price * item.cartQuantity).toLocaleString('id-ID')}
+                    </p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Cart Footer - Checkout */}
+              <div className="px-6 py-4 border-t bg-white">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <p className="text-gray-600 text-sm">Total Belanja</p>
+                    <p className="text-xs text-gray-500">{totalItems} item</p>
+                  </div>
+                  <p className="text-3xl font-bold text-green-600">
+                    Rp {totalPrice.toLocaleString('id-ID')}
+                  </p>
+                </div>
+                <button
+                  onClick={goToCheckout}
+                  className="w-full bg-green-600 text-white py-4 rounded-xl text-lg font-bold hover:bg-green-700 active:scale-95 transition-all shadow-lg"
+                >
+                  Lanjut ke Pembayaran 💳
+                </button>
+              </div>
+            </div>
+          )}
+        </>
       )}
     </div>
   )

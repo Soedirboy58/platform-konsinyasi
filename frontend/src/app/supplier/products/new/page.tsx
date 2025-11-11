@@ -10,11 +10,11 @@ export default function NewProductPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [supplierId, setSupplierId] = useState<string | null>(null)
+  const [commissionRate, setCommissionRate] = useState('30')
   const [formData, setFormData] = useState({
     name: '',
     description: '',
     price: '',
-    commissionRate: '15',
     barcode: '',
     expiryDurationDays: '30',
   })
@@ -23,6 +23,7 @@ export default function NewProductPage() {
 
   useEffect(() => {
     checkAuth()
+    loadPlatformSettings()
   }, [])
 
   async function checkAuth() {
@@ -51,6 +52,23 @@ export default function NewProductPage() {
     } catch (error) {
       console.error('Auth error:', error)
       router.push('/supplier/login')
+    }
+  }
+
+  async function loadPlatformSettings() {
+    try {
+      const supabase = createClient()
+      const { data } = await supabase
+        .from('platform_settings')
+        .select('value')
+        .eq('key', 'commission_rate')
+        .single()
+
+      if (data) {
+        setCommissionRate(data.value)
+      }
+    } catch (error) {
+      console.warn('Could not load platform settings, using default')
     }
   }
 
@@ -115,7 +133,7 @@ export default function NewProductPage() {
           name: formData.name,
           description: formData.description || null,
           price: parseFloat(formData.price),
-          commission_rate: parseFloat(formData.commissionRate),
+          commission_rate: parseFloat(commissionRate), // From platform settings
           barcode: formData.barcode || null,
           expiry_duration_days: parseInt(formData.expiryDurationDays),
           status: 'PENDING',
@@ -235,20 +253,18 @@ export default function NewProductPage() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Komisi Platform (%) <span className="text-red-500">*</span>
+                  Komisi Platform (%)
                 </label>
                 <input
                   type="number"
-                  required
-                  min="0"
-                  max="100"
-                  step="0.1"
-                  value={formData.commissionRate}
-                  onChange={(e) => setFormData({ ...formData, commissionRate: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                  placeholder="15"
+                  readOnly
+                  disabled
+                  value={commissionRate}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600 cursor-not-allowed"
                 />
-                <p className="text-xs text-gray-500 mt-1">Default: 15%</p>
+                <p className="text-xs text-gray-500 mt-1">
+                  Diatur oleh platform: {commissionRate}% untuk platform, {100 - parseFloat(commissionRate)}% untuk supplier
+                </p>
               </div>
             </div>
 

@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, MapPin, QrCode, Plus, Edit, Trash2 } from 'lucide-react'
+import { ArrowLeft, MapPin, QrCode, Plus, Edit, Trash2, Download, Eye } from 'lucide-react'
 import { toast } from 'sonner'
 
 type Location = {
@@ -181,12 +181,42 @@ export default function AdminLocations() {
   }
 
   function generateQRCode() {
+    if (!formData.name.trim()) {
+      toast.error('Isi Location Name dulu!')
+      return
+    }
+    
     const slug = formData.name
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '_')
       .replace(/^_|_$/g, '')
     
-    setFormData({ ...formData, qr_code: slug || 'LOCATION_' + Date.now() })
+    const qrCode = slug || 'location_' + Date.now()
+    setFormData({ ...formData, qr_code: qrCode })
+    toast.success('QR code generated: ' + qrCode)
+  }
+
+  function downloadQRCode(location: Location) {
+    const url = `https://platform-konsinyasi-v1.vercel.app/kantin/${location.qr_code}`
+    
+    // Open QR code generator with URL
+    const qrGenUrl = `https://api.qrserver.com/v1/create-qr-code/?size=500x500&data=${encodeURIComponent(url)}`
+    
+    // Download QR image
+    const link = document.createElement('a')
+    link.href = qrGenUrl
+    link.download = `${location.qr_code}_qr.png`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    
+    toast.success('QR Code downloaded!')
+  }
+
+  function viewQRCode(location: Location) {
+    const url = `https://platform-konsinyasi-v1.vercel.app/kantin/${location.qr_code}`
+    const qrGenUrl = `https://api.qrserver.com/v1/create-qr-code/?size=500x500&data=${encodeURIComponent(url)}`
+    window.open(qrGenUrl, '_blank')
   }
 
   if (loading) {
@@ -293,13 +323,22 @@ export default function AdminLocations() {
                     <button
                       type="button"
                       onClick={generateQRCode}
-                      className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+                      disabled={!formData.name.trim()}
+                      className={`px-4 py-2 rounded-lg transition ${
+                        formData.name.trim()
+                          ? 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                          : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                      }`}
+                      title={!formData.name.trim() ? 'Isi Location Name dulu' : 'Generate slug dari nama'}
                     >
                       Generate
                     </button>
                   </div>
                   <p className="text-xs text-gray-500 mt-1">
-                    PWA URL: /kantin/{formData.qr_code}
+                    {formData.qr_code 
+                      ? `URL: /kantin/${formData.qr_code}`
+                      : 'Klik Generate atau ketik manual'
+                    }
                   </p>
                 </div>
 
@@ -354,8 +393,31 @@ export default function AdminLocations() {
 
                 <div className="flex items-center gap-2 mb-4 p-3 bg-gray-50 rounded">
                   <QrCode className="w-5 h-5 text-gray-400" />
-                  <span className="text-sm font-mono text-gray-700">{location.qr_code}</span>
+                  <span className="text-sm font-mono text-gray-700 flex-1">{location.qr_code}</span>
+                  <button
+                    onClick={() => viewQRCode(location)}
+                    className="p-1.5 bg-blue-50 text-blue-600 rounded hover:bg-blue-100"
+                    title="View QR Code"
+                  >
+                    <Eye className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => downloadQRCode(location)}
+                    className="p-1.5 bg-green-50 text-green-600 rounded hover:bg-green-100"
+                    title="Download QR Code"
+                  >
+                    <Download className="w-4 h-4" />
+                  </button>
                 </div>
+
+                {location.type === 'OUTLET' && (
+                  <div className="mb-4 p-3 bg-blue-50 rounded">
+                    <p className="text-xs text-blue-600 font-medium mb-1">Customer URL:</p>
+                    <p className="text-xs text-blue-800 font-mono break-all">
+                      https://platform-konsinyasi-v1.vercel.app/kantin/{location.qr_code}
+                    </p>
+                  </div>
+                )}
 
                 <div className="flex items-center justify-between mb-4">
                   <span className="text-sm text-gray-600">Status:</span>

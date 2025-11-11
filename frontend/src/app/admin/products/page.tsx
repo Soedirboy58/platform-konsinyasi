@@ -12,6 +12,7 @@ type Product = {
   supplier_id: string
   name: string
   description: string | null
+  photo_url: string
   price: number
   commission_rate: number
   barcode: string | null
@@ -125,6 +126,30 @@ export default function AdminProducts() {
     }
   }
 
+  async function deleteProduct(productId: string, productName: string) {
+    if (!confirm(`Hapus permanen produk "${productName}"? Tindakan ini tidak bisa dibatalkan.`)) {
+      return
+    }
+
+    try {
+      const supabase = createClient()
+
+      const { error } = await supabase
+        .from('products')
+        .delete()
+        .eq('id', productId)
+
+      if (error) throw error
+
+      toast.success('Produk berhasil dihapus')
+      loadProducts()
+      setSelectedProduct(null)
+    } catch (error) {
+      console.error('Error deleting product:', error)
+      toast.error('Gagal menghapus produk')
+    }
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -181,13 +206,16 @@ export default function AdminProducts() {
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Product Info
+                    Foto
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Product
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Supplier
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Price & Commission
+                    Harga
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Status
@@ -200,6 +228,16 @@ export default function AdminProducts() {
               <tbody className="bg-white divide-y divide-gray-200">
                 {products.map((product) => (
                   <tr key={product.id}>
+                    <td className="px-6 py-4">
+                      <img 
+                        src={product.photo_url} 
+                        alt={product.name}
+                        className="w-16 h-16 object-cover rounded"
+                        onError={(e) => {
+                          e.currentTarget.src = 'https://placehold.co/100x100?text=No+Image'
+                        }}
+                      />
+                    </td>
                     <td className="px-6 py-4">
                       <div>
                         <p className="font-semibold text-gray-900">{product.name}</p>
@@ -237,6 +275,15 @@ export default function AdminProducts() {
                           <Eye className="w-4 h-4" />
                           Detail
                         </button>
+                        {product.status === 'REJECTED' && (
+                          <button
+                            onClick={() => deleteProduct(product.id, product.name)}
+                            className="flex items-center gap-1 px-3 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200 text-sm"
+                          >
+                            <XCircle className="w-4 h-4" />
+                            Hapus
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -254,6 +301,18 @@ export default function AdminProducts() {
             <h2 className="text-2xl font-bold mb-4">Product Detail</h2>
             
             <div className="space-y-4">
+              <div>
+                <label className="text-sm font-medium text-gray-700">Product Photo</label>
+                <img 
+                  src={selectedProduct.photo_url} 
+                  alt={selectedProduct.name}
+                  className="w-full max-w-md h-64 object-cover rounded-lg mt-2"
+                  onError={(e) => {
+                    e.currentTarget.src = 'https://placehold.co/400x300?text=No+Image'
+                  }}
+                />
+              </div>
+
               <div>
                 <label className="text-sm font-medium text-gray-700">Product Name</label>
                 <p className="text-lg font-semibold">{selectedProduct.name}</p>

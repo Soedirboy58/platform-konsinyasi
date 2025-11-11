@@ -1,0 +1,27 @@
+# Files to ignore when deploying frontend to Vercel
+# Keep this file in `frontend/` so Vercel's root-directory deploys ignore unrelated artifacts
+
+# Local env and editor
+.env
+.env.*
+.vscode/
+
+# Node modules and build outputs
+node_modules/
+.next/
+
+# Backend/database and large assets not needed for frontend build
+../backend/
+../database/
+backend/
+database/
+
+# Logs, OS files
+*.log
+.DS_Store
+Thumbs.db
+
+# Optional: lockfiles if you prefer
+# package-lock.json
+# yarn.lock
+# pnpm-lock.yaml

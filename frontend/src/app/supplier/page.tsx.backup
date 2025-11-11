@@ -1,0 +1,620 @@
+'use client'
+
+import { useEffect, useState } from 'react'
+import { createClient } from '@/lib/supabase/client'
+import { useRouter } from 'next/navigation'
+import { Package, Plus, TrendingUp, AlertCircle, DollarSign, Truck, Wallet } from 'lucide-react'
+import { toast } from 'sonner'
+import ShipmentTimeline from '@/components/ShipmentTimeline'
+
+type SupplierStats = {
+  totalProducts: number
+  unsoldProducts: number
+  approvedProducts: number
+  soldProducts: number
+  todaySales: number
+  lowStockProducts: number
+  monthlyGrowth: number
+  totalReturns: number
+  // Shipment KPIs
+  pendingShipments: number
+  approvedShipments: number
+  rejectedShipments: number
+  totalProductsShipped: number
+}
+
+type TopProduct = {
+  id: string
+  name: string
+  soldQuantity: number
+  revenue: number
+}
+
+type SalesActivity = {
+  id: string
+  product_name: string
+  quantity: number
+  price: number
+  supplier_revenue: number
+  sold_at: string
+  location_name: string
+}
+
+type RecentShipment = {
+  id: string
+  location_name: string
+  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'COMPLETED' | 'CANCELLED'
+  created_at: string
+  approved_at: string | null
+  rejected_at: string | null
+  completed_at: string | null
+  rejection_reason: string | null
+  total_items: number
+  total_quantity: number
+}
+
+export default function SupplierDashboard() {
+  const router = useRouter()
+  const [loading, setLoading] = useState(true)
+  const [stats, setStats] = useState<SupplierStats>({
+    totalProducts: 0,
+    unsoldProducts: 0,
+    approvedProducts: 0,
+    soldProducts: 0,
+    todaySales: 0,
+    lowStockProducts: 0,
+    monthlyGrowth: 0,
+    totalReturns: 0,
+    pendingShipments: 0,
+    approvedShipments: 0,
+    rejectedShipments: 0,
+    totalProductsShipped: 0,
+  })
+  const [topProducts, setTopProducts] = useState<TopProduct[]>([])
+  const [salesActivities, setSalesActivities] = useState<SalesActivity[]>([])
+  const [activityPage, setActivityPage] = useState(1)
+  const [activityPerPage, setActivityPerPage] = useState(10)
+  const [recentShipments, setRecentShipments] = useState<RecentShipment[]>([])
+  const [profile, setProfile] = useState<any>(null)
+
+  useEffect(() => {
+    checkAuth()
+  }, [])
+
+  async function checkAuth() {
+    try {
+      const supabase = createClient()
+      
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+      
+      if (sessionError || !session) {
+        console.log('No session found, redirecting to login')
+        router.replace('/supplier/login')
+        return
+      }
+
+      // Get profile
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', session.user.id)
+        .single()
+
+      if (profileError) {
+        console.error('Profile error:', profileError)
+        router.replace('/supplier/login')
+        return
+      }
+
+      // Check if user has supplier record
+      const { data: supplierData } = await supabase
+        .from('suppliers')
+        .select('id')
+        .eq('profile_id', session.user.id)
+        .single()
+
+      // If no profile or no supplier record, redirect to onboarding
+      if (!profileData || !supplierData) {
+        console.log('No supplier record found, redirect to onboarding')
+        router.replace('/supplier/onboarding')
+        return
+      }
+
+      // Only reject if role is explicitly set to something else (ADMIN, CUSTOMER)
+      if (profileData.role && profileData.role !== 'SUPPLIER') {
+        console.log('Access denied, role:', profileData.role)
+        toast.error('Akses ditolak. Halaman ini hanya untuk supplier.')
+        await supabase.auth.signOut()
+        router.replace('/supplier/login')
+        return
+      }
+
+      // If role is null or SUPPLIER, allow access
+      console.log('Auth check passed, loading dashboard')
+      setProfile(profileData)
+      await loadStats(session.user.id)
+      setLoading(false)
+    } catch (error) {
+      console.error('Auth error:', error)
+      router.replace('/supplier/login')
+      setLoading(false)
+    }
+  }
+
+  async function loadStats(userId: string) {
+    try {
+      const supabase = createClient()
+      
+      // Get supplier ID
+      const { data: supplier } = await supabase
+        .from('suppliers')
+        .select('id')
+        .eq('profile_id', userId)
+        .single()
+
+      if (!supplier) return
+
+      // Get platform commission rate
+      const { data: settingsData } = await supabase
+        .from('platform_settings')
+        .select('value')
+        .eq('key', 'commission_rate')
+        .single()
+
+      const platformCommissionRate = settingsData?.value || '30'
+
+      // Count total products
+      const { count: productCount } = await supabase
+        .from('products')
+        .select('*', { count: 'exact', head: true })
+        .eq('supplier_id', supplier.id)
+
+      // Count pending products
+      const { count: pendingCount } = await supabase
+        .from('products')
+        .select('*', { count: 'exact', head: true })
+        .eq('supplier_id', supplier.id)
+        .eq('status', 'PENDING')
+
+      // Count approved products
+      const { count: approvedCount } = await supabase
+        .from('products')
+        .select('*', { count: 'exact', head: true })
+        .eq('supplier_id', supplier.id)
+        .eq('status', 'APPROVED')
+
+      // Count low stock products (stock < 10)
+      const { data: lowStockData } = await supabase
+        .from('inventory_levels')
+        .select('product_id, products!inner(id, supplier_id)')
+        .eq('products.supplier_id', supplier.id)
+        .lt('quantity', 10)
+      
+      const lowStockCount = lowStockData?.length || 0
+
+      // Calculate sold products and revenue from actual sales
+      const { data: salesData } = await supabase
+        .from('sales_transaction_items')
+        .select(`
+          quantity,
+          price,
+          subtotal,
+          supplier_revenue,
+          commission_amount,
+          sales_transactions!inner(status),
+          products!inner(supplier_id)
+        `)
+        .eq('products.supplier_id', supplier.id)
+        .eq('sales_transactions.status', 'COMPLETED')
+
+      const soldCount = salesData?.reduce((sum, item) => sum + (item.quantity || 0), 0) || 0
+      
+      // Use supplier_revenue (already has commission deducted)
+      const estimatedRevenue = salesData?.reduce((sum, item) => sum + (item.supplier_revenue || 0), 0) || 0
+      
+      // Total platform commission earned
+      const totalCommission = salesData?.reduce((sum, item) => sum + (item.commission_amount || 0), 0) || 0
+
+      // Calculate monthly growth
+      const now = new Date()
+      const firstDayThisMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+      const firstDayLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+      const lastDayLastMonth = new Date(now.getFullYear(), now.getMonth(), 0)
+
+      const { data: thisMonthSales } = await supabase
+        .from('sales_transaction_items')
+        .select(`
+          supplier_revenue,
+          sales_transactions!inner(status, created_at),
+          products!inner(supplier_id)
+        `)
+        .eq('products.supplier_id', supplier.id)
+        .eq('sales_transactions.status', 'COMPLETED')
+        .gte('sales_transactions.created_at', firstDayThisMonth.toISOString())
+
+      const { data: lastMonthSales } = await supabase
+        .from('sales_transaction_items')
+        .select(`
+          supplier_revenue,
+          sales_transactions!inner(status, created_at),
+          products!inner(supplier_id)
+        `)
+        .eq('products.supplier_id', supplier.id)
+        .eq('sales_transactions.status', 'COMPLETED')
+        .gte('sales_transactions.created_at', firstDayLastMonth.toISOString())
+        .lte('sales_transactions.created_at', lastDayLastMonth.toISOString())
+
+      const thisMonthTotal = thisMonthSales?.reduce((sum, item) => sum + (item.supplier_revenue || 0), 0) || 0
+      const lastMonthTotal = lastMonthSales?.reduce((sum, item) => sum + (item.supplier_revenue || 0), 0) || 0
+      
+      let monthlyGrowth = 0
+      if (lastMonthTotal > 0) {
+        monthlyGrowth = Math.round(((thisMonthTotal - lastMonthTotal) / lastMonthTotal) * 100)
+      } else if (thisMonthTotal > 0) {
+        monthlyGrowth = 100 // First month with sales
+      }
+
+      // Get top selling products
+      const { data: topProductsData } = await supabase
+        .from('sales_transaction_items')
+        .select(`
+          product_id,
+          quantity,
+          supplier_revenue,
+          products!inner(name, supplier_id),
+          sales_transactions!inner(status)
+        `)
+        .eq('products.supplier_id', supplier.id)
+        .eq('sales_transactions.status', 'COMPLETED')
+
+      // Group by product and calculate totals
+      const productMap = new Map<string, { name: string; quantity: number; revenue: number }>()
+      
+      topProductsData?.forEach((item: any) => {
+        const existing = productMap.get(item.product_id)
+        if (existing) {
+          existing.quantity += item.quantity || 0
+          existing.revenue += item.supplier_revenue || 0 // Already has commission deducted
+        } else {
+          productMap.set(item.product_id, {
+            name: item.products.name,
+            quantity: item.quantity || 0,
+            revenue: item.supplier_revenue || 0,
+          })
+        }
+      })
+
+      // Sort by quantity sold and take top 5
+      const topProductsArray = Array.from(productMap.entries())
+        .map(([id, data]) => ({
+          id,
+          name: data.name,
+          soldQuantity: data.quantity,
+          revenue: Math.round(data.revenue), // Supplier's revenue (after commission)
+        }))
+        .sort((a, b) => b.soldQuantity - a.soldQuantity)
+        .slice(0, 5)
+
+      setTopProducts(topProductsArray)
+
+      // Get shipment stats
+      const { count: pendingShipmentsCount } = await supabase
+        .from('stock_movements')
+        .select('*', { count: 'exact', head: true })
+        .eq('supplier_id', supplier.id)
+        .eq('status', 'PENDING')
+
+      const { count: approvedShipmentsCount } = await supabase
+        .from('stock_movements')
+        .select('*', { count: 'exact', head: true })
+        .eq('supplier_id', supplier.id)
+        .eq('status', 'APPROVED')
+
+      const { count: rejectedShipmentsCount } = await supabase
+        .from('stock_movements')
+        .select('*', { count: 'exact', head: true })
+        .eq('supplier_id', supplier.id)
+        .eq('status', 'REJECTED')
+
+      // Calculate total products shipped (SUM of quantities in approved shipments)
+      const { data: shippedItems } = await supabase
+        .from('stock_movement_items')
+        .select('quantity, stock_movements!inner(status, supplier_id)')
+        .eq('stock_movements.supplier_id', supplier.id)
+        .eq('stock_movements.status', 'APPROVED')
+
+      const totalProductsShipped = shippedItems?.reduce((sum, item) => sum + (item.quantity || 0), 0) || 0
+
+      // Get recent shipments with timeline
+      const { data: shipmentsData } = await supabase
+        .from('stock_movements')
+        .select(`
+          id,
+          location_name,
+          status,
+          created_at,
+          approved_at,
+          completed_at,
+          rejection_reason,
+          stock_movement_items(quantity)
+        `)
+        .eq('supplier_id', supplier.id)
+        .order('created_at', { ascending: false })
+        .limit(5)
+
+      const formattedShipments = shipmentsData?.map(shipment => ({
+        id: shipment.id,
+        location_name: shipment.location_name,
+        status: shipment.status,
+        created_at: shipment.created_at,
+        approved_at: shipment.approved_at,
+        rejected_at: shipment.status === 'REJECTED' ? shipment.completed_at : null,
+        completed_at: shipment.completed_at,
+        rejection_reason: shipment.rejection_reason,
+        total_items: shipment.stock_movement_items?.length || 0,
+        total_quantity: shipment.stock_movement_items?.reduce((sum: number, item: any) => sum + (item.quantity || 0), 0) || 0,
+      })) || []
+
+      setRecentShipments(formattedShipments)
+
+      setStats({
+        totalProducts: productCount || 0,
+        pendingProducts: pendingCount || 0,
+        approvedProducts: approvedCount || 0,
+        soldProducts: soldCount,
+        estimatedRevenue: estimatedRevenue,
+        lowStockProducts: lowStockCount,
+        monthlyGrowth: monthlyGrowth,
+        totalReturns: 0, // Placeholder - akan dihitung dari shipment_returns setelah migration
+        pendingShipments: pendingShipmentsCount || 0,
+        approvedShipments: approvedShipmentsCount || 0,
+        rejectedShipments: rejectedShipmentsCount || 0,
+        totalProductsShipped: totalProductsShipped,
+      })
+    } catch (error) {
+      console.error('Error loading stats:', error)
+    }
+  }
+
+  async function logout() {
+    const supabase = createClient()
+    await supabase.auth.signOut()
+    router.push('/')
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading...</p>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div>
+      {/* Page Title */}
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
+        <p className="text-gray-600 mt-1">Selamat datang, {profile?.full_name}</p>
+      </div>
+
+      {/* Alert for pending products */}
+      {stats.pendingProducts > 0 && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="w-5 h-5 text-yellow-600" />
+            <p className="text-sm text-yellow-800">
+              <strong>Perhatian:</strong> {stats.pendingProducts} produk menunggu persetujuan admin.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Alert for low stock */}
+      {stats.lowStockProducts > 0 && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="w-5 h-5 text-red-600" />
+            <p className="text-sm text-red-800">
+              <strong>Stok Menipis!</strong> {stats.lowStockProducts} produk memiliki stok kurang dari 10 unit.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Stats Grid - Row 1 */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+        <StatCard
+          icon={<Package className="w-8 h-8" />}
+          title="Total Jenis Produk"
+          value={stats.totalProducts}
+          subtitle={`${stats.approvedProducts} diterima, ${stats.pendingProducts} pending`}
+          color="bg-blue-500"
+        />
+        <StatCard
+          icon={<TrendingUp className="w-8 h-8" />}
+          title="Produk Terjual"
+          value={stats.soldProducts}
+          subtitle="real-time"
+          color="bg-green-500"
+        />
+        <StatCard
+          icon={<DollarSign className="w-8 h-8" />}
+          title="Saldo Estimasi"
+          value={`Rp ${stats.estimatedRevenue.toLocaleString('id-ID')}`}
+          subtitle="dari produk terjual"
+          color="bg-emerald-500"
+        />
+        <StatCard
+          icon={<AlertCircle className="w-8 h-8" />}
+          title="Pending Approval"
+          value={stats.pendingProducts}
+          subtitle="menunggu disetujui"
+          color="bg-orange-500"
+        />
+      </div>
+
+      {/* Stats Grid - Row 2: Returns & Performance KPIs */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+        <StatCard
+          icon={<AlertCircle className="w-8 h-8" />}
+          title="Total Retur"
+          value={stats.totalReturns}
+          subtitle="produk dikembalikan"
+          color="bg-red-500"
+        />
+        <StatCard
+          icon={<AlertCircle className="w-8 h-8" />}
+          title="Produk Hampir Habis"
+          value={stats.lowStockProducts}
+          subtitle="stok < 10 unit"
+          color="bg-orange-500"
+        />
+        <StatCard
+          icon={<TrendingUp className="w-8 h-8" />}
+          title="Performa Bulanan"
+          value={stats.monthlyGrowth >= 0 ? `+${stats.monthlyGrowth}%` : `${stats.monthlyGrowth}%`}
+          subtitle={stats.monthlyGrowth >= 0 ? "pertumbuhan" : "penurunan"}
+          color={stats.monthlyGrowth >= 0 ? "bg-green-500" : "bg-red-500"}
+        />
+      </div>
+
+      {/* Stats Grid - Row 3: Shipment KPIs */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <StatCard
+          icon={<Truck className="w-8 h-8" />}
+          title="Pengiriman Pending"
+          value={stats.pendingShipments}
+          subtitle="menunggu review admin"
+          color="bg-yellow-500"
+        />
+        <StatCard
+          icon={<Truck className="w-8 h-8" />}
+          title="Pengiriman Disetujui"
+          value={stats.approvedShipments}
+          subtitle="telah diterima"
+          color="bg-green-500"
+        />
+        <StatCard
+          icon={<Truck className="w-8 h-8" />}
+          title="Pengiriman Ditolak"
+          value={stats.rejectedShipments}
+          subtitle="perlu revisi"
+          color="bg-red-500"
+        />
+        <StatCard
+          icon={<Package className="w-8 h-8" />}
+          title="Total Produk Terkirim"
+          value={stats.totalProductsShipped}
+          subtitle="unit approved"
+          color="bg-blue-500"
+        />
+      </div>
+
+      {/* Recent Shipments with Timeline */}
+      {recentShipments.length > 0 && (
+        <div className="bg-white rounded-lg shadow p-6 mb-8">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-xl font-semibold">📦 Status Pengiriman Terbaru</h2>
+            <button
+              onClick={() => router.push('/supplier/shipments')}
+              className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+            >
+              Lihat Semua →
+            </button>
+          </div>
+          <div className="space-y-6">
+            {recentShipments.map(shipment => (
+              <div key={shipment.id} className="border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow">
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4">
+                  <div>
+                    <h3 className="font-semibold text-lg">{shipment.location_name}</h3>
+                    <p className="text-sm text-gray-500 mt-1">
+                      {shipment.total_items} produk • {shipment.total_quantity} unit total
+                    </p>
+                  </div>
+                  <div className="text-right mt-2 md:mt-0">
+                    <p className="text-sm text-gray-500">
+                      Diajukan {new Date(shipment.created_at).toLocaleDateString('id-ID', {
+                        day: 'numeric',
+                        month: 'short',
+                        year: 'numeric'
+                      })}
+                    </p>
+                  </div>
+                </div>
+                <ShipmentTimeline
+                  currentStatus={shipment.status}
+                  createdAt={shipment.created_at}
+                  approvedAt={shipment.approved_at || undefined}
+                  completedAt={shipment.rejected_at || shipment.completed_at || undefined}
+                  rejectionReason={shipment.rejection_reason || undefined}
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Top Products Section */}
+      {topProducts.length > 0 && (
+        <div className="bg-white rounded-lg shadow p-6 mb-8">
+          <h2 className="text-xl font-semibold mb-4">🏆 Produk Terlaris</h2>
+          <div className="space-y-3">
+            {topProducts.map((product, index) => (
+              <div key={product.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <div className={`w-8 h-8 flex items-center justify-center rounded-full ${
+                    index === 0 ? 'bg-yellow-400 text-white' : 
+                    index === 1 ? 'bg-gray-300 text-gray-700' : 
+                    index === 2 ? 'bg-orange-400 text-white' : 
+                    'bg-blue-100 text-blue-700'
+                  } font-bold`}>
+                    {index + 1}
+                  </div>
+                  <div>
+                    <p className="font-medium text-gray-900">{product.name}</p>
+                    <p className="text-sm text-gray-500">{product.soldQuantity} unit terjual</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="font-semibold text-green-600">
+                    Rp {product.revenue.toLocaleString('id-ID')}
+                  </p>
+                  <p className="text-xs text-gray-500">revenue</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Recent Activity */}
+      <div className="bg-white rounded-lg shadow p-6">
+        <h2 className="text-xl font-semibold mb-4">Aktivitas Terbaru</h2>
+        <div className="text-center py-8 text-gray-500">
+          <p>Belum ada aktivitas</p>
+          <p className="text-sm mt-2">Mulai dengan menambahkan produk baru</p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function StatCard({ icon, title, value, subtitle, color }: any) {
+  return (
+    <div className="bg-white rounded-lg shadow p-6">
+      <div className="flex items-center justify-between mb-4">
+        <div className={`${color} text-white p-3 rounded-lg`}>
+          {icon}
+        </div>
+      </div>
+      <p className="text-sm text-gray-600 mb-1">{title}</p>
+      <p className="text-2xl font-bold text-gray-900 mb-1">{value}</p>
+      {subtitle && <p className="text-xs text-gray-500">{subtitle}</p>}
+    </div>
+  )
+}

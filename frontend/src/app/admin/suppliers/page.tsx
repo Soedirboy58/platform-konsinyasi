@@ -114,6 +114,29 @@ export default function AdminSuppliers() {
     }
   }
 
+  async function deleteSupplier(supplierId: string, businessName: string) {
+    if (!confirm(`Hapus permanen supplier "${businessName}"? Tindakan ini tidak bisa dibatalkan.`)) {
+      return
+    }
+
+    try {
+      const supabase = createClient()
+
+      const { error } = await supabase
+        .from('suppliers')
+        .delete()
+        .eq('id', supplierId)
+
+      if (error) throw error
+
+      toast.success('Supplier berhasil dihapus')
+      loadSuppliers()
+    } catch (error) {
+      console.error('Error deleting supplier:', error)
+      toast.error('Gagal menghapus supplier')
+    }
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -233,12 +256,22 @@ export default function AdminSuppliers() {
                         </button>
                       )}
                       {supplier.status === 'REJECTED' && (
-                        <button
-                          onClick={() => updateStatus(supplier.id, 'APPROVED')}
-                          className="px-3 py-1 bg-green-100 text-green-700 rounded hover:bg-green-200 text-sm"
-                        >
-                          Restore
-                        </button>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => updateStatus(supplier.id, 'APPROVED')}
+                            className="flex items-center gap-1 px-3 py-1 bg-green-100 text-green-700 rounded hover:bg-green-200 text-sm"
+                          >
+                            <CheckCircle className="w-4 h-4" />
+                            Restore
+                          </button>
+                          <button
+                            onClick={() => deleteSupplier(supplier.id, supplier.business_name)}
+                            className="flex items-center gap-1 px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 text-sm"
+                          >
+                            <XCircle className="w-4 h-4" />
+                            Hapus
+                          </button>
+                        </div>
                       )}
                     </td>
                   </tr>
