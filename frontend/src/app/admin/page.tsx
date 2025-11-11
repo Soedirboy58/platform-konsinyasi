@@ -218,9 +218,9 @@ export default function AdminDashboard() {
         todayShipments: todayShipmentsCount || 0,
         needsReview: needsReviewCount || 0,
         monthlyProductsReceived: monthlyProductsReceived,
-        totalRevenue: revenueData?.completed_revenue || 0,
-        lowStockCount: dashboardSummary?.low_stock_count || 0,
-        outOfStockCount: dashboardSummary?.out_of_stock_count || 0,
+        totalRevenue: ((revenueData as any)?.completed_revenue as number) || 0,
+        lowStockCount: ((dashboardSummary as any)?.low_stock_count as number) || 0,
+        outOfStockCount: ((dashboardSummary as any)?.out_of_stock_count as number) || 0,
       })
     } catch (error) {
       console.error('Error loading stats:', error)
