@@ -100,10 +100,10 @@ export default function CreateReturnPage() {
       // Filter products that have inventory
       const productsWithInventory = (data || []).filter(p => 
         p.inventory_levels && p.inventory_levels.some(inv => inv.quantity > 0)
-      )
+      ) as any[]
 
-      setProducts(productsWithInventory)
-      setFilteredProducts(productsWithInventory)
+      setProducts(productsWithInventory as Product[])
+      setFilteredProducts(productsWithInventory as Product[])
     } catch (error) {
       console.error('Error loading products:', error)
       alert('Gagal memuat produk')
