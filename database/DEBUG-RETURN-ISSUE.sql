@@ -102,7 +102,6 @@ SELECT
     n.title,
     n.message,
     n.type,
-    n.read,
     n.created_at,
     p.full_name as recipient_name
 FROM notifications n
