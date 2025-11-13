@@ -105,7 +105,7 @@ export default function CheckoutPage() {
     }
   }
 
-  async function confirmPayment() {
+  async function confirmPayment(paymentMethod: 'CASH' | 'QRIS' = 'QRIS') {
     if (!checkoutResult?.transaction_id) return
 
     setConfirming(true)
@@ -113,8 +113,9 @@ export default function CheckoutPage() {
       const supabase = createClient()
       
       const { data, error } = await supabase
-        .rpc('confirm_payment', {
-          p_transaction_id: checkoutResult.transaction_id
+        .rpc('confirm_payment_with_method', {
+          p_transaction_id: checkoutResult.transaction_id,
+          p_payment_method: paymentMethod
         })
 
       if (error) throw error
@@ -122,6 +123,9 @@ export default function CheckoutPage() {
       if (data && data.length > 0 && data[0].success) {
         // Clear cart
         sessionStorage.removeItem(`cart_${locationSlug}`)
+        
+        // Show success message
+        toast.success(data[0].message)
         
         // Redirect to success page
         router.push(`/kantin/${locationSlug}/success?code=${checkoutResult.transaction_code}`)
@@ -260,22 +264,31 @@ export default function CheckoutPage() {
           {/* Cash Payment Button */}
           <button
             onClick={() => {
-              if (confirm('Yakin bayar tunai? Serahkan uang ke kasir.')) {
-                confirmPayment()
+              if (confirm('Yakin bayar tunai? Serahkan uang ke kasir sekarang dan klik OK.')) {
+                confirmPayment('CASH')
               }
             }}
             disabled={confirming}
             className="w-full bg-orange-600 text-white py-4 rounded-lg font-semibold hover:bg-orange-700 transition disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
-            </svg>
-            💵 Bayar Tunai
+            {confirming ? (
+              <>
+                <Loader2 className="w-5 h-5 animate-spin" />
+                Memproses...
+              </>
+            ) : (
+              <>
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
+                💵 Bayar Tunai
+              </>
+            )}
           </button>
 
           {/* QRIS Verification Button */}
           <button
-            onClick={confirmPayment}
+            onClick={() => confirmPayment('QRIS')}
             disabled={confirming}
             className="w-full bg-green-600 text-white py-4 rounded-lg font-semibold hover:bg-green-700 transition disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >

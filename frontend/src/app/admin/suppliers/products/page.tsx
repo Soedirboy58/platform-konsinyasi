@@ -1,0 +1,745 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+import { Package, Check, X, Search, Edit, Trash2, Eye, Image as ImageIcon } from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
+import { useSearchParams } from 'next/navigation'
+
+interface Product {
+  id: string
+  name: string
+  description: string
+  sku: string
+  price: number
+  status: string
+  supplier_id: string
+  category_id: string
+  image_url: string
+  created_at: string
+}
+
+interface Supplier {
+  id: string
+  business_name: string
+}
+
+export default function ProductsApproval() {
+  const searchParams = useSearchParams()
+  const supplierFilter = searchParams.get('supplier')
+  
+  const [products, setProducts] = useState<Product[]>([])
+  const [suppliers, setSuppliers] = useState<Supplier[]>([])
+  const [loading, setLoading] = useState(true)
+  const [searchTerm, setSearchTerm] = useState('')
+  const [statusFilter, setStatusFilter] = useState<string>('PENDING')
+  const [selectedSupplier, setSelectedSupplier] = useState<string>(supplierFilter || 'ALL')
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
+  
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1)
+  const [itemsPerPage, setItemsPerPage] = useState(10)
+  
+  // Bulk selection
+  const [selectedProducts, setSelectedProducts] = useState<string[]>([])
+  const [isDeleting, setIsDeleting] = useState(false)
+
+  useEffect(() => {
+    loadData()
+  }, [])
+
+  async function loadData() {
+    try {
+      const supabase = createClient()
+      
+      // Load products
+      const { data: productsData, error: productsError } = await supabase
+        .from('products')
+        .select('*')
+        .order('created_at', { ascending: false })
+
+      if (productsError) {
+        console.error('Error loading products:', productsError)
+      } else {
+        setProducts(productsData || [])
+      }
+
+      // Load suppliers
+      const { data: suppliersData, error: suppliersError } = await supabase
+        .from('suppliers')
+        .select('id, business_name')
+
+      if (suppliersError) {
+        console.error('Error loading suppliers:', suppliersError)
+      } else {
+        setSuppliers(suppliersData || [])
+      }
+
+      setLoading(false)
+    } catch (error) {
+      console.error('Error loading data:', error)
+      setLoading(false)
+    }
+  }
+
+  async function handleApproveProduct(productId: string) {
+    try {
+      const supabase = createClient()
+      const { error } = await supabase
+        .from('products')
+        .update({ status: 'APPROVED' })
+        .eq('id', productId)
+        .select()
+
+      if (error) throw error
+      alert('Produk berhasil di-approve')
+      loadData()
+      setSelectedProduct(null)
+    } catch (error) {
+      console.error('Error approving product:', error)
+      alert('Gagal menyetujui produk')
+    }
+  }
+
+  async function handleRejectProduct(productId: string) {
+    try {
+      const supabase = createClient()
+      const { error } = await supabase
+        .from('products')
+        .update({ status: 'REJECTED' })
+        .eq('id', productId)
+        .select()
+
+      if (error) throw error
+      alert('Produk berhasil di-reject')
+      loadData()
+      setSelectedProduct(null)
+    } catch (error) {
+      console.error('Error rejecting product:', error)
+      alert('Gagal menolak produk')
+    }
+  }
+
+  async function handleDeleteProduct(productId: string) {
+    if (!confirm('Apakah Anda yakin ingin menghapus produk ini? Tindakan ini tidak dapat dibatalkan.')) {
+      return
+    }
+
+    try {
+      const supabase = createClient()
+      const { error } = await supabase
+        .from('products')
+        .delete()
+        .eq('id', productId)
+
+      if (error) throw error
+      alert('Produk berhasil dihapus')
+      loadData()
+      setSelectedProduct(null)
+      setSelectedProducts(selectedProducts.filter(id => id !== productId))
+    } catch (error) {
+      console.error('Error deleting product:', error)
+      alert('Gagal menghapus produk')
+    }
+  }
+
+  async function handleBulkApprove() {
+    if (selectedProducts.length === 0) {
+      alert('Pilih produk terlebih dahulu')
+      return
+    }
+
+    if (!confirm(`Approve ${selectedProducts.length} produk?`)) return
+
+    try {
+      const supabase = createClient()
+      const { error } = await supabase
+        .from('products')
+        .update({ status: 'APPROVED' })
+        .in('id', selectedProducts)
+
+      if (error) throw error
+      alert(`${selectedProducts.length} produk berhasil di-approve`)
+      setSelectedProducts([])
+      loadData()
+    } catch (error) {
+      console.error('Error bulk approving:', error)
+      alert('Gagal approve produk')
+    }
+  }
+
+  async function handleBulkReject() {
+    if (selectedProducts.length === 0) {
+      alert('Pilih produk terlebih dahulu')
+      return
+    }
+
+    if (!confirm(`Reject ${selectedProducts.length} produk?`)) return
+
+    try {
+      const supabase = createClient()
+      const { error } = await supabase
+        .from('products')
+        .update({ status: 'REJECTED' })
+        .in('id', selectedProducts)
+
+      if (error) throw error
+      alert(`${selectedProducts.length} produk berhasil di-reject`)
+      setSelectedProducts([])
+      loadData()
+    } catch (error) {
+      console.error('Error bulk rejecting:', error)
+      alert('Gagal reject produk')
+    }
+  }
+
+  async function handleBulkDelete() {
+    if (selectedProducts.length === 0) {
+      alert('Pilih produk terlebih dahulu')
+      return
+    }
+
+    if (!confirm(`HAPUS PERMANEN ${selectedProducts.length} produk? Tindakan ini tidak dapat dibatalkan!`)) return
+
+    try {
+      setIsDeleting(true)
+      const supabase = createClient()
+      const { error } = await supabase
+        .from('products')
+        .delete()
+        .in('id', selectedProducts)
+
+      if (error) throw error
+      alert(`${selectedProducts.length} produk berhasil dihapus`)
+      setProducts(products.filter(p => !selectedProducts.includes(p.id)))
+      setSelectedProducts([])
+    } catch (error) {
+      console.error('Error bulk deleting:', error)
+      alert('Gagal menghapus produk')
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
+  function toggleProductSelection(productId: string) {
+    setSelectedProducts(prev => 
+      prev.includes(productId) 
+        ? prev.filter(id => id !== productId)
+        : [...prev, productId]
+    )
+  }
+
+  function toggleSelectAll() {
+    if (selectedProducts.length === paginatedProducts.length && paginatedProducts.length > 0) {
+      setSelectedProducts([])
+    } else {
+      setSelectedProducts(paginatedProducts.map((p: Product) => p.id))
+    }
+  }
+
+  const getSupplierName = (supplierId: string) => {
+    const supplier = suppliers.find(s => s.id === supplierId)
+    return supplier?.business_name || 'Unknown'
+  }
+
+  const getSupplierProductCount = (supplierId: string) => {
+    return products.filter(p => p.supplier_id === supplierId && p.status === 'APPROVED').length
+  }
+
+  const filteredProducts = products.filter(product => {
+    const matchesSearch = 
+      product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      product.sku?.toLowerCase().includes(searchTerm.toLowerCase())
+    
+    const matchesStatus = 
+      statusFilter === 'ALL' ? true : product.status === statusFilter
+
+    const matchesSupplier =
+      selectedSupplier === 'ALL' ? true : product.supplier_id === selectedSupplier
+
+    return matchesSearch && matchesStatus && matchesSupplier
+  })
+
+  // Pagination
+  const totalPages = Math.ceil(filteredProducts.length / itemsPerPage)
+  const startIndex = (currentPage - 1) * itemsPerPage
+  const endIndex = startIndex + itemsPerPage
+  const paginatedProducts = filteredProducts.slice(startIndex, endIndex)
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchTerm, statusFilter, selectedSupplier])
+
+  const stats = {
+    total: products.length,
+    pending: products.filter(p => p.status === 'PENDING').length,
+    approved: products.filter(p => p.status === 'APPROVED').length,
+    rejected: products.filter(p => p.status === 'REJECTED').length
+  }
+
+  function getStatusBadge(status: string) {
+    const colors = {
+      PENDING: 'bg-yellow-100 text-yellow-800',
+      APPROVED: 'bg-green-100 text-green-800',
+      REJECTED: 'bg-red-100 text-red-800',
+    }
+    return (
+      <span className={`px-2 py-1 rounded-full text-xs font-medium ${colors[status as keyof typeof colors]}`}>
+        {status}
+      </span>
+    )
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <header className="bg-white shadow">
+        <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
+          <h1 className="text-2xl font-bold text-gray-900">Kurasi Produk Supplier</h1>
+          <p className="text-gray-600 mt-1">Review dan approve produk yang disubmit supplier</p>
+        </div>
+      </header>
+
+      <main className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+          <div className="bg-white rounded-lg shadow p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div className="bg-blue-600 text-white p-3 rounded-lg">
+                <Package className="w-6 h-6" />
+              </div>
+            </div>
+            <p className="text-sm text-gray-600 mb-1">Total Produk</p>
+            <p className="text-2xl font-bold text-gray-900 mb-1">{stats.total}</p>
+            <p className="text-xs text-gray-500">Semua produk terdaftar</p>
+          </div>
+
+          <div className="bg-white rounded-lg shadow p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div className="bg-orange-600 text-white p-3 rounded-lg">
+                <Package className="w-6 h-6" />
+              </div>
+            </div>
+            <p className="text-sm text-gray-600 mb-1">Pending Review</p>
+            <p className="text-2xl font-bold text-orange-600 mb-1">{stats.pending}</p>
+            <p className="text-xs text-gray-500">Menunggu approval</p>
+          </div>
+
+          <div className="bg-white rounded-lg shadow p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div className="bg-green-600 text-white p-3 rounded-lg">
+                <Check className="w-6 h-6" />
+              </div>
+            </div>
+            <p className="text-sm text-gray-600 mb-1">Approved</p>
+            <p className="text-2xl font-bold text-green-600 mb-1">{stats.approved}</p>
+            <p className="text-xs text-gray-500">Produk disetujui</p>
+          </div>
+
+          <div className="bg-white rounded-lg shadow p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div className="bg-red-600 text-white p-3 rounded-lg">
+                <X className="w-6 h-6" />
+              </div>
+            </div>
+            <p className="text-sm text-gray-600 mb-1">Rejected</p>
+            <p className="text-2xl font-bold text-red-600 mb-1">{stats.rejected}</p>
+            <p className="text-xs text-gray-500">Produk ditolak</p>
+          </div>
+        </div>
+
+        {/* Filters */}
+        <div className="bg-white rounded-lg shadow p-4 mb-4">
+          <div className="flex flex-col md:flex-row gap-4">
+            {/* Search */}
+            <div className="flex-1 relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+              <input
+                type="text"
+                placeholder="Cari produk atau SKU..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+
+            {/* Status Filter */}
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="ALL">Semua Status</option>
+              <option value="PENDING">Pending Review</option>
+              <option value="APPROVED">Approved</option>
+              <option value="REJECTED">Rejected</option>
+            </select>
+
+            {/* Supplier Filter */}
+            <select
+              value={selectedSupplier}
+              onChange={(e) => setSelectedSupplier(e.target.value)}
+              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="ALL">Semua Supplier</option>
+              {suppliers.map(supplier => (
+                <option key={supplier.id} value={supplier.id}>
+                  {supplier.business_name} ({getSupplierProductCount(supplier.id)} produk)
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {/* Bulk Actions Bar */}
+        {selectedProducts.length > 0 && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Package className="w-5 h-5 text-blue-600" />
+              <span className="text-sm font-medium text-blue-900">
+                {selectedProducts.length} produk dipilih
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setSelectedProducts([])}
+                className="px-4 py-2 text-sm text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+              >
+                Batal Pilih
+              </button>
+              <button
+                onClick={handleBulkApprove}
+                className="px-4 py-2 text-sm text-white bg-green-600 rounded-lg hover:bg-green-700 flex items-center gap-2"
+              >
+                <Check className="w-4 h-4" />
+                Approve Semua
+              </button>
+              <button
+                onClick={handleBulkReject}
+                className="px-4 py-2 text-sm text-white bg-orange-600 rounded-lg hover:bg-orange-700 flex items-center gap-2"
+              >
+                <X className="w-4 h-4" />
+                Reject Semua
+              </button>
+              <button
+                onClick={handleBulkDelete}
+                disabled={isDeleting}
+                className="px-4 py-2 text-sm text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                <Trash2 className="w-4 h-4" />
+                {isDeleting ? 'Menghapus...' : `Hapus ${selectedProducts.length} Produk`}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Table */}
+        {paginatedProducts.length === 0 ? (
+          <div className="bg-white rounded-lg shadow p-12 text-center">
+            <Package className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">Tidak ada produk ditemukan</h3>
+            <p className="text-gray-600">Coba ubah filter atau pencarian Anda</p>
+          </div>
+        ) : (
+          <div className="bg-white rounded-lg shadow overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left">
+                      <input
+                        type="checkbox"
+                        checked={selectedProducts.length === paginatedProducts.length && paginatedProducts.length > 0}
+                        onChange={toggleSelectAll}
+                        className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                      />
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Produk
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Supplier
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Harga
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Status
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      SKU
+                    </th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Aksi
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {paginatedProducts.map((product) => (
+                    <tr 
+                      key={product.id} 
+                      className={`hover:bg-gray-50 ${selectedProducts.includes(product.id) ? 'bg-blue-50' : ''}`}
+                    >
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <input
+                          type="checkbox"
+                          checked={selectedProducts.includes(product.id)}
+                          onChange={() => toggleProductSelection(product.id)}
+                          className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                        />
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center">
+                          <div className="flex-shrink-0 h-10 w-10 bg-gray-200 rounded flex items-center justify-center">
+                            {product.image_url ? (
+                              <img src={product.image_url} alt={product.name} className="h-10 w-10 rounded object-cover" />
+                            ) : (
+                              <ImageIcon className="w-6 h-6 text-gray-400" />
+                            )}
+                          </div>
+                          <div className="ml-4">
+                            <div className="text-sm font-medium text-gray-900">{product.name}</div>
+                            <div className="text-sm text-gray-500">{new Date(product.created_at).toLocaleDateString('id-ID')}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-900">{getSupplierName(product.supplier_id)}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-900">Rp {product.price.toLocaleString('id-ID')}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {getStatusBadge(product.status)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {product.sku || '-'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <button
+                          onClick={() => setSelectedProduct(product)}
+                          className="text-blue-600 hover:text-blue-900 mr-4"
+                          title="Lihat Detail"
+                        >
+                          <Eye className="w-5 h-5 inline" />
+                        </button>
+                        {product.status === 'PENDING' && (
+                          <>
+                            <button
+                              onClick={() => handleApproveProduct(product.id)}
+                              className="text-green-600 hover:text-green-900 mr-4"
+                              title="Approve"
+                            >
+                              <Check className="w-5 h-5 inline" />
+                            </button>
+                            <button
+                              onClick={() => handleRejectProduct(product.id)}
+                              className="text-red-600 hover:text-red-900"
+                              title="Reject"
+                            >
+                              <X className="w-5 h-5 inline" />
+                            </button>
+                          </>
+                        )}
+                        {product.status === 'REJECTED' && (
+                          <button
+                            onClick={() => handleDeleteProduct(product.id)}
+                            className="text-red-600 hover:text-red-900"
+                            title="Hapus Permanen"
+                          >
+                            <Trash2 className="w-5 h-5 inline" />
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Pagination */}
+            <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200">
+              <div className="flex items-center gap-4">
+                <p className="text-sm text-gray-600">
+                  Menampilkan {startIndex + 1} - {Math.min(endIndex, filteredProducts.length)} dari {filteredProducts.length} produk
+                </p>
+                <select
+                  value={itemsPerPage}
+                  onChange={(e) => {
+                    setItemsPerPage(Number(e.target.value))
+                    setCurrentPage(1)
+                  }}
+                  className="border border-gray-300 rounded-md px-3 py-1 text-sm"
+                >
+                  <option value={10}>10 baris</option>
+                  <option value={25}>25 baris</option>
+                  <option value={50}>50 baris</option>
+                </select>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                  disabled={currentPage === 1}
+                  className="px-3 py-1 border border-gray-300 rounded-md text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                >
+                  Previous
+                </button>
+                
+                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                  let pageNum
+                  if (totalPages <= 5) {
+                    pageNum = i + 1
+                  } else if (currentPage <= 3) {
+                    pageNum = i + 1
+                  } else if (currentPage >= totalPages - 2) {
+                    pageNum = totalPages - 4 + i
+                  } else {
+                    pageNum = currentPage - 2 + i
+                  }
+                  
+                  return (
+                    <button
+                      key={pageNum}
+                      onClick={() => setCurrentPage(pageNum)}
+                      className={`px-3 py-1 border rounded-md text-sm ${
+                        currentPage === pageNum
+                          ? 'bg-blue-600 text-white border-blue-600'
+                          : 'border-gray-300 hover:bg-gray-50'
+                      }`}
+                    >
+                      {pageNum}
+                    </button>
+                  )
+                })}
+                
+                <button
+                  onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                  disabled={currentPage === totalPages}
+                  className="px-3 py-1 border border-gray-300 rounded-md text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </main>
+
+      {/* Product Detail Modal */}
+      {selectedProduct && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-start justify-between mb-4">
+                <h2 className="text-2xl font-bold text-gray-900">Detail Produk</h2>
+                <button
+                  onClick={() => setSelectedProduct(null)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+
+              {/* Product Image */}
+              <div className="aspect-video bg-gray-100 rounded-lg mb-4 relative">
+                {selectedProduct.image_url ? (
+                  <img
+                    src={selectedProduct.image_url}
+                    alt={selectedProduct.name}
+                    className="w-full h-full object-cover rounded-lg"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <ImageIcon className="w-24 h-24 text-gray-300" />
+                  </div>
+                )}
+              </div>
+
+              {/* Product Details */}
+              <div className="space-y-4">
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Nama Produk</label>
+                  <p className="text-gray-900 mt-1">{selectedProduct.name}</p>
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Deskripsi</label>
+                  <p className="text-gray-900 mt-1">{selectedProduct.description || 'Tidak ada deskripsi'}</p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">SKU</label>
+                    <p className="text-gray-900 mt-1">{selectedProduct.sku}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Harga</label>
+                    <p className="text-gray-900 mt-1">Rp {selectedProduct.price.toLocaleString('id-ID')}</p>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Supplier</label>
+                  <p className="text-gray-900 mt-1">{getSupplierName(selectedProduct.supplier_id)}</p>
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Status</label>
+                  <div className="mt-1">
+                    {getStatusBadge(selectedProduct.status)}
+                  </div>
+                </div>
+              </div>
+
+              {/* Actions */}
+              {selectedProduct.status === 'PENDING' && (
+                <div className="flex gap-3 mt-6 pt-6 border-t border-gray-200">
+                  <button
+                    onClick={() => handleApproveProduct(selectedProduct.id)}
+                    className="flex-1 px-4 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-lg transition-colors flex items-center justify-center gap-2"
+                  >
+                    <Check className="w-5 h-5" />
+                    Approve Produk
+                  </button>
+                  <button
+                    onClick={() => handleRejectProduct(selectedProduct.id)}
+                    className="flex-1 px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors flex items-center justify-center gap-2"
+                  >
+                    <X className="w-5 h-5" />
+                    Reject Produk
+                  </button>
+                </div>
+              )}
+
+              {selectedProduct.status === 'REJECTED' && (
+                <div className="mt-6 pt-6 border-t border-gray-200">
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+                    <p className="text-sm text-red-700">
+                      Produk ini sudah ditolak. Anda dapat menghapus produk ini secara permanen dari database.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => handleDeleteProduct(selectedProduct.id)}
+                    className="w-full px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors flex items-center justify-center gap-2"
+                  >
+                    <Trash2 className="w-5 h-5" />
+                    Hapus Produk Permanen
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}

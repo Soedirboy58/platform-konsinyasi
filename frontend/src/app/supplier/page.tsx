@@ -101,11 +101,12 @@ export default function SupplierDashboard() {
 
       const { data: salesData } = await supabase
         .from('sales_transaction_items')
-        .select('quantity, price_at_sale')
+        .select('quantity, supplier_revenue, sales_transactions!inner(status)')
         .in('product_id', productIds)
+        .eq('sales_transactions.status', 'COMPLETED')
 
       const actualRevenue = salesData?.reduce((sum, item) => 
-        sum + (item.quantity * item.price_at_sale), 0
+        sum + (item.supplier_revenue || 0), 0
       ) || 0
 
       const { data: inventoryData } = await supabase
@@ -134,8 +135,9 @@ export default function SupplierDashboard() {
 
       const { data: topSalesData } = await supabase
         .from('sales_transaction_items')
-        .select('product_id, quantity, price_at_sale, products(name)')
+        .select('product_id, quantity, supplier_revenue, products(name), sales_transactions!inner(status)')
         .in('product_id', productIds)
+        .eq('sales_transactions.status', 'COMPLETED')
 
       const productSales = topSalesData?.reduce((acc: any, item: any) => {
         const pid = item.product_id
@@ -148,7 +150,7 @@ export default function SupplierDashboard() {
           }
         }
         acc[pid].total_sold += item.quantity
-        acc[pid].total_revenue += item.quantity * item.price_at_sale
+        acc[pid].total_revenue += item.supplier_revenue || 0
         return acc
       }, {})
 
@@ -156,27 +158,68 @@ export default function SupplierDashboard() {
         .sort((a: any, b: any) => b.total_sold - a.total_sold)
         .slice(0, 10) as TopProduct[]
 
-      const { data: recentSales } = await supabase
+      const { data: recentSales, error: recentSalesError } = await supabase
         .from('sales_transaction_items')
         .select(`
           id,
           quantity,
-          price_at_sale,
-          products(name),
-          sales_transactions!inner(created_at, locations(name))
+          supplier_revenue,
+          products!inner(name),
+          sales_transactions!inner(
+            created_at,
+            status,
+            location_id
+          )
         `)
         .in('product_id', productIds)
+        .eq('sales_transactions.status', 'COMPLETED')
         .order('sales_transactions(created_at)', { ascending: false })
         .limit(50)
+
+      if (recentSalesError) {
+        console.error('❌ Error fetching recent sales:', recentSalesError)
+      }
+
+      // Get location names separately to avoid ambiguous relationship
+      const locationIds = Array.from(new Set(recentSales?.map((s: any) => s.sales_transactions?.location_id).filter(Boolean)))
+      const { data: locationsData } = await supabase
+        .from('locations')
+        .select('id, name')
+        .in('id', locationIds)
+      
+      const locationMap = new Map(locationsData?.map(l => [l.id, l.name]) || [])
 
       const salesNotifs: SalesNotification[] = recentSales?.map((item: any) => ({
         id: item.id,
         product_name: item.products?.name || 'Unknown',
         quantity: item.quantity,
-        price: item.price_at_sale,
-        outlet_name: item.sales_transactions?.locations?.name || 'Unknown',
+        price: item.supplier_revenue || 0,
+        outlet_name: locationMap.get(item.sales_transactions?.location_id) || 'Unknown',
         sold_at: item.sales_transactions?.created_at || new Date().toISOString()
       })) || []
+
+      console.log('📊 Sales Notifications Debug:')
+      console.log('  - Product IDs count:', productIds.length)
+      console.log('  - Recent sales count:', recentSales?.length || 0)
+      console.log('  - Sales notifs count:', salesNotifs.length)
+      console.log('  - Sample recent sales:', recentSales?.slice(0, 2))
+      console.log('  - Sample notifs:', salesNotifs.slice(0, 2))
+
+      if (salesNotifs.length === 0 && productIds.length > 0) {
+        console.warn('⚠️ No sales notifications despite having products. Checking...')
+        
+        // Debug query: check if ANY sales exist for this supplier
+        const { data: debugSales, error: debugError } = await supabase
+          .from('sales_transaction_items')
+          .select('id, product_id, sales_transactions!inner(status)')
+          .in('product_id', productIds)
+          .limit(5)
+        
+        console.log('🔍 Debug raw sales data:')
+        console.log('  - Count:', debugSales?.length || 0)
+        console.log('  - Data:', debugSales)
+        console.log('  - Error:', debugError)
+      }
 
       setStats({
         totalProducts: approvedCount, // ONLY approved products

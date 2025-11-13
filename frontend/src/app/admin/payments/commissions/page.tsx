@@ -1,0 +1,807 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+import { createClient } from '@/lib/supabase/client'
+import { DollarSign, Upload, Check, Clock, Filter, Download, Eye, X } from 'lucide-react'
+
+interface Commission {
+  supplier_id: string
+  supplier_name: string
+  total_sales: number
+  commission_rate: number
+  commission_amount: number
+  products_sold: number
+  transactions: number
+  status: 'UNPAID' | 'PAID' | 'PENDING'
+  payment_date?: string
+  payment_proof?: string
+  payment_reference?: string
+  bank_name?: string
+  bank_account?: string
+  bank_holder?: string
+}
+
+export default function CommissionsPage() {
+  const [commissions, setCommissions] = useState<Commission[]>([])
+  const [filteredCommissions, setFilteredCommissions] = useState<Commission[]>([])
+  const [loading, setLoading] = useState(true)
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'UNPAID' | 'PAID' | 'PENDING'>('ALL')
+  const [periodFilter, setPeriodFilter] = useState<'THIS_MONTH' | 'LAST_MONTH' | 'THIS_YEAR' | 'ALL'>('THIS_MONTH')
+  const [selectedCommission, setSelectedCommission] = useState<Commission | null>(null)
+  const [showPaymentModal, setShowPaymentModal] = useState(false)
+  const [showDetailModal, setShowDetailModal] = useState(false)
+
+  // Payment form
+  const [paymentReference, setPaymentReference] = useState('')
+  const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split('T')[0])
+  const [paymentNotes, setPaymentNotes] = useState('')
+  const [paymentProof, setPaymentProof] = useState<File | null>(null)
+
+  useEffect(() => {
+    loadCommissions()
+  }, [periodFilter])
+
+  useEffect(() => {
+    applyFilters()
+  }, [commissions, statusFilter])
+
+  async function loadCommissions() {
+    try {
+      setLoading(true)
+      const supabase = createClient()
+
+      // Calculate date range
+      const now = new Date()
+      let startDate = new Date()
+      
+      if (periodFilter === 'THIS_MONTH') {
+        startDate = new Date(now.getFullYear(), now.getMonth(), 1)
+      } else if (periodFilter === 'LAST_MONTH') {
+        startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+      } else if (periodFilter === 'THIS_YEAR') {
+        startDate = new Date(now.getFullYear(), 0, 1)
+      } else {
+        startDate = new Date(2020, 0, 1) // All time
+      }
+
+      // OPTIMIZED: Single query with JOIN instead of loop
+      // Get all sales with supplier info in one query
+      const { data: salesItems, error: salesError } = await supabase
+        .from('sales_transaction_items')
+        .select(`
+          quantity,
+          subtotal,
+          supplier_revenue,
+          commission_amount,
+          sales_transactions!inner(
+            id,
+            status,
+            created_at
+          ),
+          products!inner(
+            id,
+            name,
+            supplier_id,
+            suppliers!inner(
+              id,
+              business_name,
+              bank_name,
+              bank_account_number,
+              bank_account_holder,
+              status
+            )
+          )
+        `)
+        .gte('sales_transactions.created_at', startDate.toISOString())
+        .eq('sales_transactions.status', 'COMPLETED')
+        .eq('products.suppliers.status', 'APPROVED')
+
+      if (salesError) {
+        console.error('Error loading sales:', salesError)
+        setLoading(false)
+        return
+      }
+
+      // Get all supplier wallets in one query
+      const { data: wallets } = await supabase
+        .from('supplier_wallets')
+        .select('supplier_id, available_balance, pending_balance')
+
+      const walletMap = new Map(
+        wallets?.map(w => [w.supplier_id, w]) || []
+      )
+
+      // Get payment records for the period to check who has been paid
+      const { data: paymentRecords } = await supabase
+        .from('supplier_payments')
+        .select('supplier_id, amount, payment_date, payment_reference')
+        .gte('payment_date', startDate.toISOString().split('T')[0])
+        .eq('status', 'COMPLETED')
+
+      // Group payments by supplier
+      const paymentMap = new Map<string, any[]>()
+      if (paymentRecords) {
+        for (const payment of paymentRecords) {
+          if (!paymentMap.has(payment.supplier_id)) {
+            paymentMap.set(payment.supplier_id, [])
+          }
+          paymentMap.get(payment.supplier_id)!.push(payment)
+        }
+      }
+
+      // Group by supplier
+      const supplierSalesMap = new Map<string, any[]>()
+      
+      if (salesItems) {
+        for (const item of salesItems) {
+          const supplier = (item.products as any)?.suppliers
+          if (!supplier) continue
+
+          const supplierId = supplier.id
+          if (!supplierSalesMap.has(supplierId)) {
+            supplierSalesMap.set(supplierId, [])
+          }
+          supplierSalesMap.get(supplierId)!.push({
+            ...item,
+            supplier: supplier
+          })
+        }
+      }
+
+      // Calculate commissions for each supplier
+      const commissionsData: Commission[] = []
+
+      // Convert Map to Array to avoid downlevelIteration issue
+      const supplierEntries = Array.from(supplierSalesMap.entries())
+      
+      for (const [supplierId, sales] of supplierEntries) {
+        const supplier = sales[0].supplier
+        
+        // Calculate totals
+        const totalSales = sales.reduce((sum: number, item: any) => sum + (item.subtotal || 0), 0)
+        const totalRevenue = sales.reduce((sum: number, item: any) => sum + (item.supplier_revenue || 0), 0)
+        const totalCommission = sales.reduce((sum: number, item: any) => sum + (item.commission_amount || 0), 0)
+        const productsSold = sales.reduce((sum: number, item: any) => sum + (item.quantity || 0), 0)
+        
+        // Get unique transaction count
+        const uniqueTransactions = new Set(
+          sales.map((item: any) => {
+            const tx = item.sales_transactions
+            return Array.isArray(tx) ? tx[0]?.id : tx?.id
+          }).filter(Boolean)
+        ).size
+
+        // Get wallet info
+        const wallet = walletMap.get(supplierId)
+        const walletBalance = wallet?.available_balance || 0
+        const pendingBalance = wallet?.pending_balance || 0
+
+        // Check if this supplier has been paid in this period
+        const payments = paymentMap.get(supplierId) || []
+        const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0)
+        const latestPayment = payments.length > 0 
+          ? payments.sort((a, b) => new Date(b.payment_date).getTime() - new Date(a.payment_date).getTime())[0]
+          : null
+
+        // Status logic - UPDATED to check payment records
+        let status: 'UNPAID' | 'PAID' | 'PENDING' = 'UNPAID'
+        
+        // 1. Check if manual payment exists for this period
+        if (totalPaid >= totalRevenue) {
+          status = 'PAID'
+        }
+        // 2. Check if pending withdrawal request
+        else if (pendingBalance > 0) {
+          status = 'PENDING'
+        }
+        // 3. Otherwise unpaid
+        else {
+          status = 'UNPAID'
+        }
+
+        commissionsData.push({
+          supplier_id: supplierId,
+          supplier_name: supplier.business_name,
+          total_sales: totalSales,
+          commission_rate: totalSales > 0 ? totalCommission / totalSales : 0.10,
+          commission_amount: totalRevenue,
+          products_sold: productsSold,
+          transactions: uniqueTransactions,
+          status: status,
+          payment_date: latestPayment?.payment_date,
+          payment_reference: latestPayment?.payment_reference,
+          bank_name: supplier.bank_name,
+          bank_account: supplier.bank_account_number,
+          bank_holder: supplier.bank_account_holder
+        })
+      }
+
+      console.log('📊 Commissions Data:', {
+        totalSuppliers: commissionsData.length,
+        loadTime: 'Optimized with single query',
+        sampleData: commissionsData.slice(0, 2)
+      })
+
+      setCommissions(commissionsData)
+      setLoading(false)
+    } catch (error) {
+      console.error('Error loading commissions:', error)
+      setLoading(false)
+    }
+  }
+
+  function applyFilters() {
+    let filtered = [...commissions]
+
+    if (statusFilter !== 'ALL') {
+      filtered = filtered.filter(c => c.status === statusFilter)
+    }
+
+    setFilteredCommissions(filtered)
+  }
+
+  function generatePaymentReference(supplierName: string): string {
+    // Format: TRF-YYYYMMDD-XXX-INITIALS
+    // Example: TRF-20241113-001-KBI (Kue Basah Ibu)
+    const now = new Date()
+    const dateStr = now.getFullYear().toString() + 
+                    (now.getMonth() + 1).toString().padStart(2, '0') + 
+                    now.getDate().toString().padStart(2, '0')
+    
+    // Generate random 3-digit number
+    const randomNum = Math.floor(Math.random() * 900) + 100 // 100-999
+    
+    // Get initials from supplier name (max 3 letters)
+    const initials = supplierName
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase())
+      .join('')
+      .substring(0, 3)
+    
+    return `TRF-${dateStr}-${randomNum}-${initials}`
+  }
+
+  function handleOpenPaymentModal(commission: Commission) {
+    setSelectedCommission(commission)
+    // Auto-generate payment reference
+    const autoReference = generatePaymentReference(commission.supplier_name)
+    setPaymentReference(autoReference)
+    setPaymentDate(new Date().toISOString().split('T')[0])
+    setPaymentNotes('')
+    setPaymentProof(null)
+    setShowPaymentModal(true)
+  }
+
+  function handleOpenDetailModal(commission: Commission) {
+    setSelectedCommission(commission)
+    setShowDetailModal(true)
+  }
+
+  async function handleSubmitPayment() {
+    if (!selectedCommission) return
+    
+    if (!paymentReference.trim()) {
+      alert('Masukkan nomor referensi pembayaran')
+      return
+    }
+
+    try {
+      const supabase = createClient()
+
+      // Get current user (admin)
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        alert('Session expired. Please login again.')
+        return
+      }
+
+      // Get supplier wallet ID
+      const { data: wallet } = await supabase
+        .from('supplier_wallets')
+        .select('id')
+        .eq('supplier_id', selectedCommission.supplier_id)
+        .single()
+
+      // Calculate period (current month)
+      const now = new Date()
+      const periodStart = new Date(now.getFullYear(), now.getMonth(), 1)
+      const periodEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0)
+
+      // Insert payment record
+      const { data: payment, error } = await supabase
+        .from('supplier_payments')
+        .insert({
+          supplier_id: selectedCommission.supplier_id,
+          wallet_id: wallet?.id || null,
+          amount: selectedCommission.commission_amount,
+          payment_reference: paymentReference,
+          payment_date: paymentDate,
+          payment_method: 'BANK_TRANSFER',
+          bank_name: selectedCommission.bank_name,
+          bank_account_number: selectedCommission.bank_account,
+          bank_account_holder: selectedCommission.bank_holder,
+          notes: paymentNotes || null,
+          status: 'COMPLETED',
+          period_start: periodStart.toISOString().split('T')[0],
+          period_end: periodEnd.toISOString().split('T')[0],
+          created_by: user.id
+        })
+        .select()
+        .single()
+
+      if (error) {
+        console.error('Error saving payment:', error)
+        alert(`Gagal menyimpan pembayaran: ${error.message}`)
+        return
+      }
+
+      // TODO: Upload payment proof if exists
+      if (paymentProof) {
+        // Handle file upload to storage (implement later)
+        console.log('Payment proof to upload:', paymentProof.name)
+      }
+
+      // Update local state
+      const updatedCommissions = commissions.map(c => 
+        c.supplier_id === selectedCommission.supplier_id
+          ? { ...c, status: 'PAID' as const, payment_date: paymentDate, payment_reference: paymentReference }
+          : c
+      )
+
+      setCommissions(updatedCommissions)
+      setShowPaymentModal(false)
+      alert('Pembayaran berhasil dicatat!')
+      
+      // Reload to get fresh data
+      loadCommissions()
+    } catch (error) {
+      console.error('Error submitting payment:', error)
+      alert('Terjadi kesalahan. Silakan coba lagi.')
+    }
+  }
+
+  const stats = {
+    totalUnpaid: filteredCommissions
+      .filter(c => c.status === 'UNPAID')
+      .reduce((sum, c) => sum + c.commission_amount, 0),
+    totalPaid: filteredCommissions
+      .filter(c => c.status === 'PAID')
+      .reduce((sum, c) => sum + c.commission_amount, 0),
+    totalPending: filteredCommissions
+      .filter(c => c.status === 'PENDING')
+      .reduce((sum, c) => sum + c.commission_amount, 0),
+    totalSuppliers: filteredCommissions.length
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <header className="bg-white shadow">
+        <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">Pembayaran ke Supplier</h1>
+              <p className="text-gray-600 mt-1">Kelola transfer pembayaran hasil penjualan (sudah dipotong komisi platform)</p>
+            </div>
+            <button className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2">
+              <Download className="w-4 h-4" />
+              Export Excel
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <main className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+          <div className="bg-white rounded-lg shadow p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">Total Belum Bayar</p>
+                <h3 className="text-2xl font-bold text-red-600 mt-1">
+                  Rp {stats.totalUnpaid.toLocaleString('id-ID')}
+                </h3>
+                <p className="text-xs text-gray-500 mt-1">Jumlah yang harus ditransfer ke supplier</p>
+              </div>
+              <div className="p-3 bg-red-100 rounded-full">
+                <Clock className="w-6 h-6 text-red-600" />
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-lg shadow p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">Total Sudah Bayar</p>
+                <h3 className="text-2xl font-bold text-green-600 mt-1">
+                  Rp {stats.totalPaid.toLocaleString('id-ID')}
+                </h3>
+              </div>
+              <div className="p-3 bg-green-100 rounded-full">
+                <Check className="w-6 h-6 text-green-600" />
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-lg shadow p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">Pending Verifikasi</p>
+                <h3 className="text-2xl font-bold text-orange-600 mt-1">
+                  Rp {stats.totalPending.toLocaleString('id-ID')}
+                </h3>
+              </div>
+              <div className="p-3 bg-orange-100 rounded-full">
+                <Filter className="w-6 h-6 text-orange-600" />
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-lg shadow p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">Total Supplier</p>
+                <h3 className="text-2xl font-bold text-blue-600 mt-1">
+                  {stats.totalSuppliers}
+                </h3>
+              </div>
+              <div className="p-3 bg-blue-100 rounded-full">
+                <DollarSign className="w-6 h-6 text-blue-600" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Filters */}
+        <div className="bg-white rounded-lg shadow p-4 mb-6">
+          <div className="flex flex-wrap gap-4">
+            <div>
+              <label className="text-sm font-medium text-gray-700 block mb-2">Periode</label>
+              <select
+                value={periodFilter}
+                onChange={(e) => setPeriodFilter(e.target.value as any)}
+                className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="THIS_MONTH">Bulan Ini</option>
+                <option value="LAST_MONTH">Bulan Lalu</option>
+                <option value="THIS_YEAR">Tahun Ini</option>
+                <option value="ALL">Semua Waktu</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="text-sm font-medium text-gray-700 block mb-2">Status</label>
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value as any)}
+                className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="ALL">Semua Status</option>
+                <option value="UNPAID">Belum Bayar</option>
+                <option value="PAID">Sudah Bayar</option>
+                <option value="PENDING">Pending</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        {/* Table */}
+        <div className="bg-white rounded-lg shadow overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    Supplier
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    Total Penjualan
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    Transfer ke Supplier
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    Transaksi
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    Status
+                  </th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                    Aksi
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {filteredCommissions.map((commission) => (
+                  <tr key={commission.supplier_id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4">
+                      <div className="text-sm font-medium text-gray-900">
+                        {commission.supplier_name}
+                      </div>
+                      <div className="text-sm text-gray-500">
+                        {commission.bank_name} - {commission.bank_account}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="text-sm text-gray-900">
+                        Rp {commission.total_sales.toLocaleString('id-ID')}
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        {commission.products_sold} produk terjual
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="text-sm font-bold text-green-600">
+                        Rp {commission.commission_amount.toLocaleString('id-ID')}
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        Sudah dipotong fee {(commission.commission_rate * 100).toFixed(0)}%
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-900">
+                      {commission.transactions} transaksi
+                    </td>
+                    <td className="px-6 py-4">
+                      {commission.status === 'PAID' && (
+                        <span className="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">
+                          Sudah Bayar
+                        </span>
+                      )}
+                      {commission.status === 'UNPAID' && (
+                        <span className="px-2 py-1 text-xs font-medium rounded-full bg-red-100 text-red-800">
+                          Belum Bayar
+                        </span>
+                      )}
+                      {commission.status === 'PENDING' && (
+                        <span className="px-2 py-1 text-xs font-medium rounded-full bg-orange-100 text-orange-800">
+                          Pending
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 text-right text-sm space-x-2">
+                      <button
+                        onClick={() => handleOpenDetailModal(commission)}
+                        className="text-blue-600 hover:text-blue-900"
+                      >
+                        <Eye className="w-5 h-5" />
+                      </button>
+                      {commission.status === 'UNPAID' && (
+                        <button
+                          onClick={() => handleOpenPaymentModal(commission)}
+                          className="inline-flex items-center px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
+                        >
+                          <Upload className="w-4 h-4 mr-1" />
+                          Bayar
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {filteredCommissions.length === 0 && (
+            <div className="p-12 text-center">
+              <DollarSign className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">Tidak ada data komisi</h3>
+              <p className="text-gray-600">Ubah filter untuk melihat data lain</p>
+            </div>
+          )}
+        </div>
+      </main>
+
+      {/* Payment Modal */}
+      {showPaymentModal && selectedCommission && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b flex items-center justify-between">
+              <h2 className="text-xl font-bold text-gray-900">Upload Bukti Pembayaran</h2>
+              <button
+                onClick={() => setShowPaymentModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              {/* Supplier Info */}
+              <div className="bg-blue-50 p-4 rounded-lg">
+                <h3 className="font-semibold text-gray-900 mb-2">{selectedCommission.supplier_name}</h3>
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div>
+                    <span className="text-gray-600">Bank:</span>
+                    <span className="ml-2 font-medium">{selectedCommission.bank_name}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-600">No. Rekening:</span>
+                    <span className="ml-2 font-medium">{selectedCommission.bank_account}</span>
+                  </div>
+                  <div className="col-span-2">
+                    <span className="text-gray-600">Atas Nama:</span>
+                    <span className="ml-2 font-medium">{selectedCommission.bank_holder}</span>
+                  </div>
+                </div>
+                <div className="mt-3 pt-3 border-t border-blue-200">
+                  <div className="text-lg font-bold text-blue-600">
+                    Jumlah Transfer: Rp {selectedCommission.commission_amount.toLocaleString('id-ID')}
+                  </div>
+                </div>
+              </div>
+
+              {/* Payment Form */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Nomor Referensi Transfer *
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={paymentReference}
+                    onChange={(e) => setPaymentReference(e.target.value)}
+                    placeholder="Contoh: TRF-20241113-001-KBI"
+                    className="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (selectedCommission) {
+                        const newRef = generatePaymentReference(selectedCommission.supplier_name)
+                        setPaymentReference(newRef)
+                      }
+                    }}
+                    className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 text-sm whitespace-nowrap"
+                    title="Generate nomor referensi baru"
+                  >
+                    🔄 Generate
+                  </button>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  Format: TRF-YYYYMMDD-XXX-INITIALS (otomatis dibuatkan)
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Tanggal Transfer *
+                </label>
+                <input
+                  type="date"
+                  value={paymentDate}
+                  onChange={(e) => setPaymentDate(e.target.value)}
+                  className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Upload Bukti Transfer
+                </label>
+                <input
+                  type="file"
+                  accept="image/*,.pdf"
+                  onChange={(e) => setPaymentProof(e.target.files?.[0] || null)}
+                  className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <p className="text-xs text-gray-500 mt-1">Format: JPG, PNG, PDF (Max 5MB)</p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Catatan (Opsional)
+                </label>
+                <textarea
+                  value={paymentNotes}
+                  onChange={(e) => setPaymentNotes(e.target.value)}
+                  rows={3}
+                  placeholder="Catatan tambahan..."
+                  className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+
+            <div className="p-6 border-t flex gap-3 justify-end">
+              <button
+                onClick={() => setShowPaymentModal(false)}
+                className="px-4 py-2 border rounded-lg hover:bg-gray-50"
+              >
+                Batal
+              </button>
+              <button
+                onClick={handleSubmitPayment}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
+              >
+                <Check className="w-4 h-4" />
+                Simpan Pembayaran
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Detail Modal */}
+      {showDetailModal && selectedCommission && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full">
+            <div className="p-6 border-b flex items-center justify-between">
+              <h2 className="text-xl font-bold text-gray-900">Detail Komisi</h2>
+              <button
+                onClick={() => setShowDetailModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm text-gray-600">Supplier</label>
+                  <p className="font-semibold">{selectedCommission.supplier_name}</p>
+                </div>
+                <div>
+                  <label className="text-sm text-gray-600">Status</label>
+                  <p className="font-semibold">{selectedCommission.status}</p>
+                </div>
+                <div>
+                  <label className="text-sm text-gray-600">Total Penjualan</label>
+                  <p className="font-semibold">Rp {selectedCommission.total_sales.toLocaleString('id-ID')}</p>
+                </div>
+                <div>
+                  <label className="text-sm text-gray-600">Komisi</label>
+                  <p className="font-semibold text-blue-600">
+                    Rp {selectedCommission.commission_amount.toLocaleString('id-ID')}
+                  </p>
+                </div>
+                <div>
+                  <label className="text-sm text-gray-600">Produk Terjual</label>
+                  <p className="font-semibold">{selectedCommission.products_sold} unit</p>
+                </div>
+                <div>
+                  <label className="text-sm text-gray-600">Transaksi</label>
+                  <p className="font-semibold">{selectedCommission.transactions} transaksi</p>
+                </div>
+              </div>
+
+              <div className="pt-4 border-t">
+                <h3 className="font-semibold mb-2">Informasi Bank</h3>
+                <div className="space-y-2 text-sm">
+                  <p><span className="text-gray-600">Bank:</span> {selectedCommission.bank_name}</p>
+                  <p><span className="text-gray-600">No. Rekening:</span> {selectedCommission.bank_account}</p>
+                  <p><span className="text-gray-600">Atas Nama:</span> {selectedCommission.bank_holder}</p>
+                </div>
+              </div>
+
+              {selectedCommission.payment_date && (
+                <div className="pt-4 border-t">
+                  <h3 className="font-semibold mb-2">Informasi Pembayaran</h3>
+                  <div className="space-y-2 text-sm">
+                    <p><span className="text-gray-600">Tanggal:</span> {selectedCommission.payment_date}</p>
+                    <p><span className="text-gray-600">Referensi:</span> {selectedCommission.payment_reference}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="p-6 border-t flex justify-end">
+              <button
+                onClick={() => setShowDetailModal(false)}
+                className="px-4 py-2 border rounded-lg hover:bg-gray-50"
+              >
+                Tutup
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}

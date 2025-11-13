@@ -14,7 +14,9 @@ import {
   Menu,
   X,
   Bell,
-  ChevronRight
+  ChevronRight,
+  Wallet,
+  DollarSign
 } from 'lucide-react'
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -86,10 +88,26 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       ]
     },
     {
+      icon: <Wallet className="w-5 h-5" />,
+      label: 'Keuangan & Pembayaran',
+      href: '/admin/payments',
+      active: pathname?.startsWith('/admin/payments'),
+      submenu: [
+        { label: 'Pembayaran Supplier', href: '/admin/payments/commissions' },
+        { label: 'Riwayat Pembayaran', href: '/admin/payments/history' },
+        { label: 'Rekonsiliasi', href: '/admin/payments/reconciliation' }
+      ]
+    },
+    {
       icon: <TrendingUp className="w-5 h-5" />,
       label: 'Laporan & Analitik',
       href: '/admin/reports',
-      active: pathname?.startsWith('/admin/reports')
+      active: pathname?.startsWith('/admin/reports') || pathname?.startsWith('/admin/analytics'),
+      submenu: [
+        { label: 'Analytics Dashboard', href: '/admin/analytics' },
+        { label: 'Laporan Penjualan', href: '/admin/reports/sales' },
+        { label: 'Laporan Keuangan', href: '/admin/reports/financial' }
+      ]
     },
     {
       icon: <Settings className="w-5 h-5" />,
@@ -205,7 +223,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           sidebarOpen ? 'ml-64' : 'ml-0'
         }`}
       >
-        <div className="p-6">{children}</div>
+        {children}
       </main>
     </div>
   )

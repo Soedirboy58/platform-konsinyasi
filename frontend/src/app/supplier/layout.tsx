@@ -16,7 +16,8 @@ import {
   Send,
   Wallet,
   FileText,
-  ChevronDown
+  ChevronDown,
+  History
 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -125,6 +126,11 @@ export default function SupplierLayout({ children }: { children: React.ReactNode
       label: 'Dompet Saya',
       href: '/supplier/wallet',
       icon: Wallet,
+    },
+    {
+      label: 'Riwayat Pembayaran',
+      href: '/supplier/payment-history',
+      icon: History,
     },
     {
       label: 'Management Pengiriman',

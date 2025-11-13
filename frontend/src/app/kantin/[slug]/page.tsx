@@ -47,25 +47,81 @@ export default function KantinPage() {
   useEffect(() => {
     loadProducts()
     loadCartFromStorage()
+    
+    // Re-load cart when page becomes visible (user returns from checkout)
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        console.log('🔄 Page visible again, reloading cart...')
+        loadCartFromStorage()
+      }
+    }
+    
+    // Re-load cart when user navigates back with browser back button
+    const handleFocus = () => {
+      console.log('🔄 Window focused, reloading cart...')
+      loadCartFromStorage()
+    }
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    window.addEventListener('focus', handleFocus)
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      window.removeEventListener('focus', handleFocus)
+    }
   }, [locationSlug])
 
   function loadCartFromStorage() {
     try {
       const savedCart = sessionStorage.getItem(`cart_${locationSlug}`)
       if (savedCart) {
-        setCart(JSON.parse(savedCart))
+        const parsedCart = JSON.parse(savedCart)
+        
+        // Normalize cart structure - handle both formats
+        const normalizedCart = parsedCart.map((item: any) => ({
+          ...item,
+          // Ensure cartQuantity exists (from either cartQuantity or quantity field)
+          cartQuantity: item.cartQuantity || item.quantity || 0
+        }))
+        
+        setCart(normalizedCart)
+        console.log('✅ Cart loaded from storage:', normalizedCart.length, 'items')
       }
     } catch (error) {
-      console.error('Load cart error:', error)
+      console.error('❌ Load cart error:', error)
+      // Clear corrupted cart data
+      sessionStorage.removeItem(`cart_${locationSlug}`)
+      setCart([])
     }
   }
 
   function saveCartToStorage(cartData: CartItem[]) {
     try {
-      sessionStorage.setItem(`cart_${locationSlug}`, JSON.stringify(cartData))
+      // Validate cart data before saving
+      const validCart = cartData.filter(item => {
+        const isValid = item.product_id && 
+                       !isNaN(item.price) && 
+                       !isNaN(item.cartQuantity || 0) &&
+                       (item.cartQuantity || 0) > 0
+        
+        if (!isValid) {
+          console.warn('⚠️ Invalid cart item filtered out:', item)
+        }
+        return isValid
+      })
+      
+      sessionStorage.setItem(`cart_${locationSlug}`, JSON.stringify(validCart))
     } catch (error) {
-      console.error('Save cart error:', error)
+      console.error('❌ Save cart error:', error)
+      toast.error('Gagal menyimpan keranjang')
     }
+  }
+
+  function clearCart() {
+    setCart([])
+    sessionStorage.removeItem(`cart_${locationSlug}`)
+    toast.info('Keranjang dikosongkan')
+    setShowCart(false)
   }
 
   async function loadProducts() {
@@ -101,13 +157,14 @@ export default function KantinPage() {
       let newCart: CartItem[]
       if (existing) {
         // Check stock availability
-        if (existing.cartQuantity >= product.quantity) {
+        const currentQty = existing.cartQuantity || 0
+        if (currentQty >= product.quantity) {
           toast.error('Stok tidak cukup')
           return prev
         }
         newCart = prev.map(item =>
           item.product_id === product.product_id
-            ? { ...item, cartQuantity: item.cartQuantity + 1 }
+            ? { ...item, cartQuantity: (item.cartQuantity || 0) + 1 }
             : item
         )
       } else {
@@ -125,13 +182,16 @@ export default function KantinPage() {
       const item = prev.find(i => i.product_id === productId)
       if (!item) return prev
       
+      const currentQty = item.cartQuantity || 0
+      
       let newCart: CartItem[]
-      if (item.cartQuantity === 1) {
+      if (currentQty <= 1) {
         newCart = prev.filter(i => i.product_id !== productId)
+        toast.info('Dihapus dari keranjang')
       } else {
         newCart = prev.map(i =>
           i.product_id === productId
-            ? { ...i, cartQuantity: i.cartQuantity - 1 }
+            ? { ...i, cartQuantity: currentQty - 1 }
             : i
         )
       }
@@ -141,8 +201,13 @@ export default function KantinPage() {
     })
   }
 
-  const totalPrice = cart.reduce((sum, item) => sum + (item.price * item.cartQuantity), 0)
-  const totalItems = cart.reduce((sum, item) => sum + item.cartQuantity, 0)
+  const totalPrice = cart.reduce((sum, item) => {
+    const qty = item.cartQuantity || 0
+    const price = item.price || 0
+    return sum + (price * qty)
+  }, 0)
+  
+  const totalItems = cart.reduce((sum, item) => sum + (item.cartQuantity || 0), 0)
 
   // Filter products by search only (no category filter)
   const filteredProducts = products.filter(product => {
@@ -157,15 +222,20 @@ export default function KantinPage() {
     }
 
     // Save cart to sessionStorage before navigating
+    // Keep SAME structure with cartQuantity to maintain consistency
     const cartForCheckout = cart.map(item => ({
       product_id: item.product_id,
       name: item.name,
       price: item.price,
-      quantity: item.cartQuantity,
-      supplier_name: item.supplier_name
+      quantity: item.cartQuantity,  // Map cartQuantity to quantity for checkout
+      cartQuantity: item.cartQuantity,  // Also keep cartQuantity for when user returns
+      supplier_name: item.supplier_name,
+      barcode: item.barcode,
+      photo_url: item.photo_url
     }))
     
     sessionStorage.setItem(`cart_${locationSlug}`, JSON.stringify(cartForCheckout))
+    console.log('💾 Cart saved for checkout:', cartForCheckout.length, 'items')
     
     // Navigate to checkout page
     router.push(`/kantin/${locationSlug}/checkout`)
@@ -340,10 +410,12 @@ export default function KantinPage() {
                         >
                           <Minus className="w-4 h-4 text-red-600" />
                         </button>
-                        <span className="font-bold text-red-600 text-lg">{inCart.cartQuantity}</span>
+                        <span className="font-bold text-red-600 text-lg">
+                          {inCart.cartQuantity || 0}
+                        </span>
                         <button
                           onClick={() => addToCart(product)}
-                          disabled={inCart.cartQuantity >= product.quantity}
+                          disabled={(inCart.cartQuantity || 0) >= product.quantity}
                           className="w-8 h-8 rounded-full bg-red-600 shadow flex items-center justify-center hover:bg-red-700 active:scale-95 transition disabled:bg-gray-300"
                         >
                           <Plus className="w-4 h-4 text-white" />
@@ -413,12 +485,26 @@ export default function KantinPage() {
               {/* Cart Header */}
               <div className="flex items-center justify-between px-6 py-4 border-b sticky top-0 bg-white">
                 <h3 className="text-xl font-bold">🛒 Keranjang Belanja</h3>
-                <button
-                  onClick={() => setShowCart(false)}
-                  className="text-gray-500 hover:text-gray-700"
-                >
-                  <X className="w-6 h-6" />
-                </button>
+                <div className="flex items-center gap-2">
+                  {cart.length > 0 && (
+                    <button
+                      onClick={() => {
+                        if (confirm('Kosongkan semua keranjang?')) {
+                          clearCart()
+                        }
+                      }}
+                      className="text-xs text-red-500 hover:text-red-700 px-2 py-1 border border-red-300 rounded"
+                    >
+                      Kosongkan
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setShowCart(false)}
+                    className="text-gray-500 hover:text-gray-700"
+                  >
+                    <X className="w-6 h-6" />
+                  </button>
+                </div>
               </div>
 
               {/* Cart Items - Scrollable */}
@@ -446,7 +532,7 @@ export default function KantinPage() {
                       >
                         <Minus className="w-3.5 h-3.5" />
                       </button>
-                      <span className="w-8 text-center font-bold">{item.cartQuantity}</span>
+                      <span className="w-8 text-center font-bold">{item.cartQuantity || 0}</span>
                       <button
                         onClick={() => addToCart(item)}
                         className="w-7 h-7 rounded-full bg-green-600 shadow flex items-center justify-center hover:bg-green-700"
@@ -455,7 +541,7 @@ export default function KantinPage() {
                       </button>
                     </div>
                     <p className="font-bold text-right min-w-[90px]">
-                      Rp {(item.price * item.cartQuantity).toLocaleString('id-ID')}
+                      Rp {((item.price || 0) * (item.cartQuantity || 0)).toLocaleString('id-ID')}
                     </p>
                   </div>
                 ))}

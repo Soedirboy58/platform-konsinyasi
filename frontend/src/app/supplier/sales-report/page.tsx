@@ -178,45 +178,17 @@ export default function SalesReportPage() {
         })
       }
 
-      // Get unique product IDs to fetch HPP
-      const productIds = Array.from(new Set((data || []).map((item: any) => item.product_id).filter(Boolean)))
-      
-      // Fetch HPP if column exists (fallback to estimate if not)
-      const hppMap = new Map<string, number>()
-      if (productIds.length > 0) {
-        try {
-          const { data: productsData } = await supabase
-            .from('products')
-            .select('id, hpp')
-            .in('id', productIds)
-          
-          productsData?.forEach(product => {
-            if (product.hpp !== null && product.hpp !== undefined) {
-              hppMap.set(product.id, product.hpp)
-            }
-          })
-        } catch (hppError) {
-          // Column might not exist yet, use fallback
-          console.log('HPP column not found, using estimate')
-        }
-      }
-
-      // Transform data with Net Profit calculation
+      // Transform data - USE EXISTING supplier_revenue (already calculated correctly!)
       const transformed = (data || []).map((item: any) => {
-        // Fallback if HPP not set yet (estimate 70% of selling price as cost)
-        const sellingPrice = item.price || 0
-        const hpp = hppMap.get(item.product_id) !== undefined 
-          ? hppMap.get(item.product_id)! 
-          : sellingPrice * 0.7 // Default estimate
-        
         const quantity = item.quantity || 0
-        const commissionAmount = item.commission_amount || 0
+        const sellingPrice = item.price || 0
+        const supplierRevenue = item.supplier_revenue || 0  // Already 90% of subtotal
+        const commissionAmount = item.commission_amount || 0  // Already 10% of subtotal
+        const subtotal = item.subtotal || (sellingPrice * quantity)
         
-        // Gross Profit = (Selling Price - HPP) × Quantity
-        const grossProfit = (sellingPrice - hpp) * quantity
-        
-        // Net Profit = Gross Profit - Commission
-        const netProfit = grossProfit - commissionAmount
+        // These are ALREADY correct from database!
+        // supplierRevenue = what supplier receives (90%)
+        // commissionAmount = what platform takes (10%)
         
         return {
           id: item.id,
@@ -224,10 +196,10 @@ export default function SalesReportPage() {
           product_name: item.products?.name || 'Unknown',
           quantity: quantity,
           selling_price: sellingPrice,
-          hpp: hpp,
+          hpp: 0,  // Not needed - we use supplier_revenue
           commission_amount: commissionAmount,
-          gross_profit: grossProfit,
-          net_profit: netProfit,
+          gross_profit: subtotal,  // Total sales before commission
+          net_profit: supplierRevenue,  // What supplier actually gets
           sale_date: item.sales_transactions?.created_at || item.created_at,
           location_name: locationMap.get(item.sales_transactions?.location_id) || 'Unknown'
         }
@@ -235,7 +207,7 @@ export default function SalesReportPage() {
 
       setSalesData(transformed)
 
-      // Calculate stats
+      // Calculate stats - Net Profit is what supplier actually receives
       const totalSales = transformed.reduce((sum: number, item) => sum + item.quantity, 0)
       const totalGrossProfit = transformed.reduce((sum: number, item) => sum + item.gross_profit, 0)
       const totalCommission = transformed.reduce((sum: number, item) => sum + item.commission_amount, 0)
@@ -244,7 +216,7 @@ export default function SalesReportPage() {
 
       setStats({
         totalSales,
-        totalRevenue: totalNetProfit, // Changed to Net Profit
+        totalRevenue: totalNetProfit, // What supplier receives after commission
         totalCommission,
         productsSold: uniqueProducts.size
       })

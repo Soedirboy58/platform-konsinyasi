@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
-import { Wallet, TrendingUp, TrendingDown, DollarSign, AlertCircle, Send, Download } from 'lucide-react'
+import { Wallet, TrendingUp, TrendingDown, DollarSign, AlertCircle, Send, Download, Package } from 'lucide-react'
 import { toast } from 'sonner'
 
 type WalletData = {
@@ -21,6 +21,19 @@ type Transaction = {
   description: string
   created_at: string
   balance_after: number
+}
+
+type PaymentNotification = {
+  id: string
+  payment_reference: string
+  amount: number
+  payment_date: string
+  bank_name: string | null
+  bank_account_number: string | null
+  bank_account_holder: string | null
+  payment_proof_url: string | null
+  notes: string | null
+  created_at: string
 }
 
 type SalesPayment = {
@@ -52,8 +65,10 @@ export default function WalletPage() {
   const [wallet, setWallet] = useState<WalletData | null>(null)
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [salesPayments, setSalesPayments] = useState<SalesPayment[]>([])
+  const [paymentNotifications, setPaymentNotifications] = useState<PaymentNotification[]>([])
   const [withdrawalRequests, setWithdrawalRequests] = useState<WithdrawalRequest[]>([])
   const [showWithdrawModal, setShowWithdrawModal] = useState(false)
+  const [selectedPaymentProof, setSelectedPaymentProof] = useState<string | null>(null)
   
   // Pagination for sales payments
   const [currentPage, setCurrentPage] = useState(1)
@@ -142,19 +157,19 @@ export default function WalletPage() {
 
       // Get sales payments (penerimaan uang dari penjualan produk)
       if (productIds.length > 0) {
-        const { data: salesData } = await supabase
+        const { data: salesData, error: salesError } = await supabase
           .from('sales_transaction_items')
           .select(`
             id,
             quantity,
-            price_at_sale,
+            price,
             supplier_revenue,
-            platform_fee,
-            products(name),
+            commission_amount,
+            products!inner(name),
             sales_transactions!inner(
               created_at,
               status,
-              locations(name)
+              location_id
             )
           `)
           .in('product_id', productIds)
@@ -162,19 +177,44 @@ export default function WalletPage() {
           .order('sales_transactions(created_at)', { ascending: false })
           .limit(100)
 
+        if (salesError) {
+          console.error('❌ Error fetching sales data:', salesError)
+        }
+
+        // Get location names separately to avoid ambiguous relationship
+        const locationIds = Array.from(new Set(salesData?.map((s: any) => s.sales_transactions?.location_id).filter(Boolean)))
+        const { data: locationsData } = await supabase
+          .from('locations')
+          .select('id, name')
+          .in('id', locationIds)
+        
+        const locationMap = new Map(locationsData?.map(l => [l.id, l.name]) || [])
+
+        console.log('💰 Wallet Sales Data Debug:')
+        console.log('  - Product IDs count:', productIds.length)
+        console.log('  - Sales data count:', salesData?.length || 0)
+        console.log('  - Sales error:', salesError)
+        console.log('  - Sample data:', salesData?.slice(0, 2))
+
         const formattedPayments: SalesPayment[] = salesData?.map((item: any) => ({
           id: item.id,
           product_name: item.products?.name || 'Unknown',
           quantity: item.quantity,
-          outlet_name: item.sales_transactions?.locations?.name || 'Unknown',
-          sale_price: item.price_at_sale,
+          outlet_name: locationMap.get(item.sales_transactions?.location_id) || 'Unknown',
+          sale_price: item.price || 0,
           supplier_revenue: item.supplier_revenue || 0,
-          platform_fee: item.platform_fee || 0,
+          platform_fee: item.commission_amount || 0,
           sold_at: item.sales_transactions?.created_at || new Date().toISOString(),
           payment_received_at: item.sales_transactions?.created_at || new Date().toISOString()
         })) || []
 
+        console.log('💰 Formatted Payments:')
+        console.log('  - Count:', formattedPayments.length)
+        console.log('  - Sample:', formattedPayments.slice(0, 2))
+
         setSalesPayments(formattedPayments)
+      } else {
+        console.warn('⚠️ No product IDs found for supplier')
       }
 
       // Get withdrawal requests
@@ -189,6 +229,17 @@ export default function WalletPage() {
       } else {
         setWithdrawalRequests(withdrawalData || [])
       }
+
+      // Get payment notifications from admin (transfer bank dari admin ke supplier)
+      const { data: paymentsData } = await supabase
+        .from('supplier_payments')
+        .select('*')
+        .eq('supplier_id', supplier.id)
+        .eq('status', 'COMPLETED')
+        .order('payment_date', { ascending: false })
+        .limit(50)
+
+      setPaymentNotifications(paymentsData || [])
 
       setLoading(false)
     } catch (error) {
@@ -391,12 +442,73 @@ export default function WalletPage() {
         </div>
       )}
 
+      {/* Payment Notifications from Admin */}
+      {paymentNotifications.length > 0 && (
+        <div className="bg-white rounded-lg shadow p-6 mb-8">
+          <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+            <TrendingUp className="w-5 h-5 text-green-600" />
+            Notifikasi Pengiriman Uang dari Admin
+          </h2>
+          <p className="text-sm text-gray-600 mb-4">
+            Transfer bank yang dikirim admin ke rekening Anda
+          </p>
+          <div className="space-y-3">
+            {paymentNotifications.map((payment) => (
+              <div key={payment.id} className="border rounded-lg p-4 hover:bg-gray-50">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="font-semibold text-lg text-green-600">
+                        +Rp {payment.amount.toLocaleString('id-ID')}
+                      </span>
+                      <span className="px-2 py-1 bg-green-100 text-green-800 text-xs font-medium rounded">
+                        Diterima
+                      </span>
+                    </div>
+                    <p className="text-sm text-gray-600">
+                      Ref: <span className="font-mono">{payment.payment_reference}</span>
+                    </p>
+                    {payment.bank_name && (
+                      <p className="text-sm text-gray-600">
+                        Bank: {payment.bank_name}
+                        {payment.bank_account_number && ` - ${payment.bank_account_number}`}
+                      </p>
+                    )}
+                    <p className="text-xs text-gray-500 mt-1">
+                      Tanggal Transfer: {new Date(payment.payment_date).toLocaleDateString('id-ID', {
+                        day: '2-digit',
+                        month: 'long',
+                        year: 'numeric'
+                      })}
+                    </p>
+                    {payment.notes && (
+                      <p className="text-sm text-gray-700 mt-2 italic">
+                        Catatan: {payment.notes}
+                      </p>
+                    )}
+                  </div>
+                  {payment.payment_proof_url && (
+                    <button
+                      onClick={() => setSelectedPaymentProof(payment.payment_proof_url)}
+                      className="ml-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2 text-sm"
+                    >
+                      <Download className="w-4 h-4" />
+                      Lihat Bukti
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Sales Payment History */}
       <div className="bg-white rounded-lg shadow p-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-semibold flex items-center gap-2">
             <DollarSign className="w-5 h-5 text-gray-600" />
-            Riwayat Transaksi Penjualan
+            Riwayat Penjualan Produk Anda
           </h2>
           <select
             value={itemsPerPage}
@@ -413,11 +525,15 @@ export default function WalletPage() {
         </div>
         
         <p className="text-sm text-gray-600 mb-4">
-          Notifikasi penerimaan uang dari penjualan produk Anda di outlet
+          Detail setiap produk yang terjual di outlet, termasuk komisi platform dan pendapatan bersih Anda
         </p>
 
         {salesPayments.length === 0 ? (
-          <p className="text-gray-500 text-center py-8">Belum ada transaksi penjualan</p>
+          <div className="text-center py-12 bg-gray-50 rounded-lg">
+            <Package className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+            <p className="text-gray-500 font-medium mb-1">Belum ada penjualan produk</p>
+            <p className="text-sm text-gray-400">Produk yang terjual akan muncul di sini</p>
+          </div>
         ) : (
           <>
             <div className="overflow-x-auto">
@@ -616,6 +732,48 @@ export default function WalletPage() {
                 disabled={submitting}
               >
                 {submitting ? 'Mengirim...' : 'Ajukan Penarikan'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Payment Proof Modal */}
+      {selectedPaymentProof && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4" onClick={() => setSelectedPaymentProof(null)}>
+          <div className="bg-white rounded-lg max-w-4xl w-full p-6" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold">Bukti Transfer</h3>
+              <button
+                onClick={() => setSelectedPaymentProof(null)}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="flex items-center justify-center bg-gray-100 rounded-lg p-4">
+              <img
+                src={selectedPaymentProof}
+                alt="Bukti Transfer"
+                className="max-w-full max-h-[70vh] object-contain"
+              />
+            </div>
+            <div className="mt-4 flex gap-3">
+              <a
+                href={selectedPaymentProof}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-center"
+              >
+                Buka di Tab Baru
+              </a>
+              <button
+                onClick={() => setSelectedPaymentProof(null)}
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+              >
+                Tutup
               </button>
             </div>
           </div>
