@@ -558,7 +558,7 @@ export default function CommissionsPage() {
               <Clock className="w-5 h-5 text-yellow-600" />
               <div className="flex-1">
                 <p className="text-sm font-semibold text-yellow-900">
-                  {pendingThresholdSuppliers.length} supplier belum mencapai threshold (< Rp {minThreshold.toLocaleString('id-ID')})
+                  {pendingThresholdSuppliers.length} supplier belum mencapai threshold (&lt; Rp {minThreshold.toLocaleString('id-ID')})
                 </p>
                 <p className="text-xs text-yellow-700 mt-1">
                   Total: Rp {stats.totalPendingThreshold.toLocaleString('id-ID')} - Menunggu akumulasi komisi
