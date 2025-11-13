@@ -287,11 +287,13 @@ BEGIN
     RAISE NOTICE '🔔 PART 4: Creating notification triggers...';
 END $$;
 
--- Drop existing triggers
+-- Drop existing triggers and functions (CASCADE to handle dependencies)
 DROP TRIGGER IF EXISTS notify_supplier_on_return_request ON shipment_returns;
 DROP TRIGGER IF EXISTS notify_admin_on_return_reviewed ON shipment_returns;
-DROP FUNCTION IF EXISTS notify_supplier_return_request();
-DROP FUNCTION IF EXISTS notify_admin_return_reviewed();
+DROP TRIGGER IF EXISTS trigger_notify_supplier_return ON shipment_returns;
+DROP TRIGGER IF EXISTS trigger_notify_admin_return ON shipment_returns;
+DROP FUNCTION IF EXISTS notify_supplier_return_request() CASCADE;
+DROP FUNCTION IF EXISTS notify_admin_return_reviewed() CASCADE;
 
 -- Function: Notify supplier on new return request
 CREATE OR REPLACE FUNCTION notify_supplier_return_request()
