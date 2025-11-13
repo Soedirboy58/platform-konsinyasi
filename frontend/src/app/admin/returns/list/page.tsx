@@ -57,26 +57,46 @@ export default function ReturnListPage() {
       const { data, error } = await supabase
         .from('shipment_returns')
         .select(`
-          id,
-          product_id,
-          quantity,
-          reason,
-          location_id,
-          status,
-          requested_at,
-          reviewed_at,
-          review_notes,
-          completed_at,
+          *,
           product:products(name, photo_url),
           location:locations(name),
-          supplier:suppliers(business_name),
-          requested_by_profile:profiles!shipment_returns_requested_by_fkey(full_name),
-          reviewed_by_profile:profiles!shipment_returns_reviewed_by_fkey(full_name)
+          supplier:suppliers(business_name)
         `)
         .order('requested_at', { ascending: false })
 
       if (error) throw error
-      setReturnsList((data || []) as any as ReturnRequest[])
+      
+      // Manually fetch profile names to avoid FK constraint issues
+      const enrichedData = await Promise.all((data || []).map(async (item: any) => {
+        let requested_by_name = 'Admin'
+        let reviewed_by_name = null
+        
+        if (item.requested_by) {
+          const { data: requester } = await supabase
+            .from('profiles')
+            .select('full_name')
+            .eq('id', item.requested_by)
+            .single()
+          if (requester) requested_by_name = requester.full_name
+        }
+        
+        if (item.reviewed_by) {
+          const { data: reviewer } = await supabase
+            .from('profiles')
+            .select('full_name')
+            .eq('id', item.reviewed_by)
+            .single()
+          if (reviewer) reviewed_by_name = reviewer.full_name
+        }
+        
+        return {
+          ...item,
+          requested_by_profile: { full_name: requested_by_name },
+          reviewed_by_profile: reviewed_by_name ? { full_name: reviewed_by_name } : null
+        }
+      }))
+      
+      setReturnsList(enrichedData as any as ReturnRequest[])
     } catch (err: any) {
       console.error('Error loading returns:', err)
       
