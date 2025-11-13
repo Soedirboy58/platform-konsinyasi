@@ -652,13 +652,13 @@ function ReturnsTab() {
                 Pengiriman yang ditolak dan harus diambil kembali oleh supplier
               </p>
             </div>
-            {rejectedShipments.length > 0 && (
-              <div className="text-sm">
-                <span className="px-3 py-1 bg-red-100 text-red-800 rounded-full font-medium">
-                  {rejectedShipments.length} pengiriman ditolak
-                </span>
-              </div>
-            )}
+            <Link
+              href="/admin/returns/create"
+              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 flex items-center gap-2"
+            >
+              <AlertTriangle className="w-4 h-4" />
+              Ajukan Retur Manual
+            </Link>
           </div>
         </div>
 
