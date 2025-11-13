@@ -2,14 +2,22 @@
 
 ## ❌ Masalah Saat Ini
 
-User **TIDAK BISA checkout** di PWA Kantin dengan error:
+User **TIDAK BISA checkout DAN bayar** di PWA Kantin dengan error:
+
+**Error 1 - Checkout:**
 ```
 Gagal checkout: Checkout gagal: column p.is_active does not exist
 ```
 
+**Error 2 - Payment:**
+```
+Confirm error: column "reserved_quantity" does not exist
+```
+
 ## 🎯 Root Cause
 
-Function `process_anonymous_checkout` mencoba cek kolom `p.is_active`, tapi **tabel products TIDAK punya kolom ini**. Products hanya punya kolom `status`.
+1. **Error Checkout**: Function `process_anonymous_checkout` mencoba cek kolom `p.is_active`, tapi **tabel products TIDAK punya kolom ini**
+2. **Error Payment**: Function `confirm_payment_with_method` mencoba update kolom `reserved_quantity`, tapi **tabel inventory_levels TIDAK punya kolom ini**
 
 ---
 
@@ -42,19 +50,22 @@ Atau copy dari sini (scroll ke bawah untuk full SQL)
 
 ### Step 4: Verify
 
-Jalankan query ini untuk cek function sudah ter-update:
+Jalankan query ini untuk cek functions sudah ter-update:
 
 ```sql
 SELECT 
     routine_name,
     routine_type,
-    specific_name,
-    created
+    specific_name
 FROM information_schema.routines
-WHERE routine_name = 'process_anonymous_checkout';
+WHERE routine_name IN ('process_anonymous_checkout', 'confirm_payment_with_method', 'confirm_payment')
+ORDER BY routine_name;
 ```
 
-Harus return 1 row dengan `routine_name = process_anonymous_checkout`
+Harus return 3 rows:
+- `process_anonymous_checkout`
+- `confirm_payment_with_method`  
+- `confirm_payment`
 
 ---
 
@@ -70,10 +81,15 @@ Setelah migration di-run:
 2. **Test Checkout**:
    - Add produk ke cart (contoh: Aneka Roti Manis)
    - Klik "Lanjut ke Pembayaran"
-   - ✅ **HARUS BERHASIL** - tidak ada error lagi!
+   - ✅ **HARUS BERHASIL** - checkout success!
    - Halaman pembayaran QRIS muncul
 
-3. **Verify Transaction Created**:
+3. **Test Payment**:
+   - Klik "💵 Bayar Tunai" ATAU "✅ Verifikasi Bayar QRIS"
+   - ✅ **HARUS BERHASIL** - payment confirmed!
+   - Redirect ke success page
+
+4. **Verify Transaction**:
    ```sql
    SELECT * FROM sales_transactions 
    WHERE created_at > NOW() - INTERVAL '5 minutes'
