@@ -324,9 +324,7 @@ BEGIN
             recipient_id,
             title,
             message,
-            type,
-            entity_type,
-            entity_id
+            type
         ) VALUES (
             v_supplier_profile_id,
             'Permintaan Retur Produk',
@@ -336,9 +334,7 @@ BEGIN
                 COALESCE(v_product_name, 'produk'),
                 NEW.reason
             ),
-            'RETURN_REQUEST',
-            'SHIPMENT_RETURN',
-            NEW.id
+            'RETURN_REQUEST'
         );
     END IF;
     
@@ -375,9 +371,7 @@ BEGIN
                 recipient_id,
                 title,
                 message,
-                type,
-                entity_type,
-                entity_id
+                type
             ) VALUES (
                 v_admin_id,
                 CASE 
@@ -394,9 +388,7 @@ BEGIN
                 CASE 
                     WHEN NEW.status = 'APPROVED' THEN 'RETURN_APPROVED'
                     ELSE 'RETURN_REJECTED'
-                END,
-                'SHIPMENT_RETURN',
-                NEW.id
+                END
             );
         END IF;
     END IF;
