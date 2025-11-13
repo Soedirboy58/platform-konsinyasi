@@ -217,7 +217,10 @@ export default function CreateReturnPage() {
               requested_at: new Date().toISOString()
             })
 
-          if (error) throw error
+          if (error) {
+            console.error('Insert error details:', error)
+            throw new Error(`Failed to insert return: ${error.message || error.code || 'Unknown error'}`)
+          }
 
           // Create notification to supplier
           const { data: supplier } = await supabase
@@ -227,7 +230,7 @@ export default function CreateReturnPage() {
             .single()
 
           if (supplier?.profile_id) {
-            await supabase
+            const { error: notifError } = await supabase
               .from('notifications')
               .insert({
                 recipient_id: supplier.profile_id,
@@ -235,6 +238,10 @@ export default function CreateReturnPage() {
                 message: `Admin mengajukan retur ${item.quantity}x ${item.product_name}. Alasan: ${item.reason}`,
                 type: 'RETURN_REQUEST'
               })
+            
+            if (notifError) {
+              console.warn('Notification failed (non-critical):', notifError)
+            }
           }
         }
       }
@@ -243,7 +250,15 @@ export default function CreateReturnPage() {
       router.push('/admin/suppliers/shipments?tab=returns')
     } catch (error: any) {
       console.error('Error submitting return:', error)
-      alert('Gagal mengajukan retur: ' + (error.message || 'Unknown error'))
+      
+      // Check for specific errors
+      if (error.message?.includes('relation') || error.message?.includes('does not exist')) {
+        alert('❌ Tabel shipment_returns belum dibuat di database.\n\nSilakan jalankan file:\n- CREATE-SHIPMENT-RETURNS.sql\n- CREATE-RETURN-RPC-FUNCTIONS.sql\n\ndi Supabase SQL Editor')
+      } else if (error.code === '42501' || error.message?.includes('permission')) {
+        alert('❌ Permission denied. RLS policy mungkin blocking.\n\nError: ' + error.message)
+      } else {
+        alert('❌ Gagal mengajukan retur:\n' + (error.message || 'Unknown error'))
+      }
     } finally {
       setProcessing(false)
     }
