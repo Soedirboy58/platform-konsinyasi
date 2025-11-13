@@ -9,7 +9,6 @@ import { useRouter } from 'next/navigation'
 interface Product {
   id: string
   name: string
-  sku: string
   price: number
   photo_url: string | null
   supplier_id: string
@@ -78,7 +77,6 @@ export default function CreateReturnPage() {
         .select(`
           id,
           name,
-          sku,
           price,
           photo_url,
           supplier_id,
@@ -117,8 +115,7 @@ export default function CreateReturnPage() {
 
     if (searchQuery) {
       filtered = filtered.filter(p => 
-        p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        p.sku.toLowerCase().includes(searchQuery.toLowerCase())
+        p.name.toLowerCase().includes(searchQuery.toLowerCase())
       )
     }
 
@@ -305,7 +302,7 @@ export default function CreateReturnPage() {
                         type="text"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        placeholder="Nama atau SKU produk..."
+                        placeholder="Nama produk..."
                         className="w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       />
                     </div>
@@ -365,7 +362,6 @@ export default function CreateReturnPage() {
                               <h3 className="font-medium text-gray-900 truncate">
                                 {product.name}
                               </h3>
-                              <p className="text-sm text-gray-600">{product.sku}</p>
                               <p className="text-sm text-gray-500">
                                 {product.supplier.business_name}
                               </p>

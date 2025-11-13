@@ -587,13 +587,7 @@ function ReturnsTab() {
             business_name,
             profile:profiles(full_name, phone)
           ),
-          location:locations(name, address),
-          stock_movement_items(
-            id,
-            product_id,
-            quantity,
-            product:products(name, sku, price)
-          )
+          location:locations(name, address)
         `)
         .eq('status', 'REJECTED')
         .order('created_at', { ascending: false })
