@@ -398,19 +398,19 @@ export default function CommissionsPage() {
             alert('Pembayaran tersimpan tapi gagal upload bukti transfer')
           } else {
             // Get public URL
-            const { data: { publicUrl } } = supabase.storage
+            const { data } = supabase.storage
               .from('documents')
               .getPublicUrl(filePath)
 
-            proofUrl = publicUrl
+            proofUrl = data.publicUrl
 
             // Update payment record with proof URL
             await supabase
               .from('supplier_payments')
-              .update({ payment_proof_url: publicUrl })
+              .update({ payment_proof_url: data.publicUrl })
               .eq('id', payment.id)
 
-            console.log('✅ Payment proof uploaded:', publicUrl)
+            console.log('✅ Payment proof uploaded:', data.publicUrl)
           }
         } catch (uploadErr) {
           console.error('Error in upload process:', uploadErr)
