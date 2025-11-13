@@ -186,3 +186,89 @@ BEGIN
 END $$;
 
 SELECT 'Migration 034: Fix checkout remove is_active check - COMPLETED!' AS status;
+
+-- ========================================
+-- PART 2: Fix confirm_payment_with_method
+-- ========================================
+-- Remove reserved_quantity update since column doesn't exist
+
+DROP FUNCTION IF EXISTS confirm_payment_with_method(UUID, TEXT);
+
+CREATE OR REPLACE FUNCTION confirm_payment_with_method(
+    p_transaction_id UUID,
+    p_payment_method TEXT DEFAULT 'CASH'
+)
+RETURNS TABLE (
+    success BOOLEAN,
+    message TEXT
+) AS $$
+DECLARE
+    v_transaction_status TEXT;
+    v_location_id UUID;
+BEGIN
+    -- Check transaction exists and is pending
+    SELECT st.status, st.location_id
+    INTO v_transaction_status, v_location_id
+    FROM sales_transactions st
+    WHERE st.id = p_transaction_id;
+    
+    IF v_transaction_status IS NULL THEN
+        RETURN QUERY SELECT FALSE, 'Transaksi tidak ditemukan';
+        RETURN;
+    END IF;
+    
+    IF v_transaction_status != 'PENDING' THEN
+        RETURN QUERY SELECT FALSE, 'Transaksi sudah diproses';
+        RETURN;
+    END IF;
+    
+    -- Update transaction status and payment method
+    UPDATE sales_transactions
+    SET 
+        status = 'COMPLETED',
+        payment_method = p_payment_method,
+        updated_at = NOW()
+    WHERE id = p_transaction_id;
+    
+    -- No need to update reserved_quantity - column doesn't exist
+    -- Inventory already decreased during checkout
+    
+    RETURN QUERY SELECT 
+        TRUE, 
+        format('Pembayaran %s berhasil dikonfirmasi', p_payment_method);
+    
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Grant execute to anonymous and authenticated users
+GRANT EXECUTE ON FUNCTION confirm_payment_with_method(UUID, TEXT) TO anon;
+GRANT EXECUTE ON FUNCTION confirm_payment_with_method(UUID, TEXT) TO authenticated;
+
+-- ========================================
+-- PART 3: Fix confirm_payment (backward compatibility)
+-- ========================================
+
+DROP FUNCTION IF EXISTS confirm_payment(UUID);
+
+CREATE OR REPLACE FUNCTION confirm_payment(
+    p_transaction_id UUID
+)
+RETURNS TABLE (
+    success BOOLEAN,
+    message TEXT
+) AS $$
+BEGIN
+    -- Call new function with CASH as default
+    RETURN QUERY
+    SELECT * FROM confirm_payment_with_method(p_transaction_id, 'CASH');
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+GRANT EXECUTE ON FUNCTION confirm_payment(UUID) TO anon;
+GRANT EXECUTE ON FUNCTION confirm_payment(UUID) TO authenticated;
+
+-- ========================================
+-- FINAL VERIFICATION
+-- ========================================
+
+SELECT 'Migration 034 COMPLETE: Both checkout and payment functions fixed!' AS final_status;
