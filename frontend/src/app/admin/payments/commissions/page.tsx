@@ -378,10 +378,43 @@ export default function CommissionsPage() {
         return
       }
 
-      // TODO: Upload payment proof if exists
-      if (paymentProof) {
-        // Handle file upload to storage (implement later)
-        console.log('Payment proof to upload:', paymentProof.name)
+      // Upload payment proof if exists
+      let proofUrl: string | null = null
+      if (paymentProof && payment) {
+        try {
+          const fileExt = paymentProof.name.split('.').pop()
+          const fileName = `${payment.id}_${Date.now()}.${fileExt}`
+          const filePath = `payment-proofs/${fileName}`
+
+          const { data: uploadData, error: uploadError } = await supabase.storage
+            .from('documents')
+            .upload(filePath, paymentProof, {
+              cacheControl: '3600',
+              upsert: false
+            })
+
+          if (uploadError) {
+            console.error('Error uploading proof:', uploadError)
+            alert('Pembayaran tersimpan tapi gagal upload bukti transfer')
+          } else {
+            // Get public URL
+            const { data: { publicUrl } } = supabase.storage
+              .from('documents')
+              .getPublicUrl(filePath)
+
+            proofUrl = publicUrl
+
+            // Update payment record with proof URL
+            await supabase
+              .from('supplier_payments')
+              .update({ payment_proof_url: publicUrl })
+              .eq('id', payment.id)
+
+            console.log('✅ Payment proof uploaded:', publicUrl)
+          }
+        } catch (uploadErr) {
+          console.error('Error in upload process:', uploadErr)
+        }
       }
 
       // Update local state
