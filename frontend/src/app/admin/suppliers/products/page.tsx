@@ -14,7 +14,7 @@ interface Product {
   status: string
   supplier_id: string
   category_id: string
-  image_url: string
+  photo_url: string
   created_at: string
 }
 
@@ -499,8 +499,8 @@ export default function ProductsApproval() {
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
                           <div className="flex-shrink-0 h-10 w-10 bg-gray-200 rounded flex items-center justify-center">
-                            {product.image_url ? (
-                              <img src={product.image_url} alt={product.name} className="h-10 w-10 rounded object-cover" />
+                            {product.photo_url ? (
+                              <img src={product.photo_url} alt={product.name} className="h-10 w-10 rounded object-cover" />
                             ) : (
                               <ImageIcon className="w-6 h-6 text-gray-400" />
                             )}
@@ -651,9 +651,9 @@ export default function ProductsApproval() {
 
               {/* Product Image */}
               <div className="aspect-video bg-gray-100 rounded-lg mb-4 relative">
-                {selectedProduct.image_url ? (
+                {selectedProduct.photo_url ? (
                   <img
-                    src={selectedProduct.image_url}
+                    src={selectedProduct.photo_url}
                     alt={selectedProduct.name}
                     className="w-full h-full object-cover rounded-lg"
                   />
