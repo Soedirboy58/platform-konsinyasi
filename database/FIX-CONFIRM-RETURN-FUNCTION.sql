@@ -2,17 +2,22 @@
 -- FIX: Supplier Retur Confirmation Function
 -- ========================================
 -- Error dari screenshot: column "entity_type" does not exist in activity_logs
--- Solution: Create/update function without activity_logs or with minimal columns
+-- Error hint: cannot change return type of existing function
+-- Solution: DROP then CREATE function with correct signature
 -- ========================================
 
--- STEP 1: Check if function exists
+-- STEP 1: DROP existing function (any signature)
+DROP FUNCTION IF EXISTS confirm_return_received_by_supplier(uuid);
+DROP FUNCTION IF EXISTS confirm_return_received_by_supplier(bigint);
+
+-- STEP 2: Check if function still exists
 SELECT 
     routine_name,
     routine_type
 FROM information_schema.routines
 WHERE routine_name = 'confirm_return_received_by_supplier';
 
--- STEP 2: Create/Replace function with SAFE version
+-- STEP 3: Create function with SAFE version
 CREATE OR REPLACE FUNCTION confirm_return_received_by_supplier(
     p_return_id UUID
 )
