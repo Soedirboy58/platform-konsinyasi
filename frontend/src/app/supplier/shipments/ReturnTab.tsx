@@ -73,7 +73,7 @@ export default function ReturnTab() {
         .order('requested_at', { ascending: false })
 
       if (error) throw error
-      setReturnsList(data || [])
+      setReturnsList((data || []) as ReturnRequest[])
     } catch (err) {
       console.error('Error loading returns:', err)
       toast.error('Gagal memuat data retur')
