@@ -30,6 +30,11 @@ export default function CommissionsPage() {
   const [selectedCommission, setSelectedCommission] = useState<Commission | null>(null)
   const [showPaymentModal, setShowPaymentModal] = useState(false)
   const [showDetailModal, setShowDetailModal] = useState(false)
+  
+  // Payment settings (threshold)
+  const [minThreshold, setMinThreshold] = useState(100000)
+  const [readyToPaySuppliers, setReadyToPaySuppliers] = useState<Commission[]>([])
+  const [pendingThresholdSuppliers, setPendingThresholdSuppliers] = useState<Commission[]>([])
 
   // Payment form
   const [paymentReference, setPaymentReference] = useState('')
@@ -39,11 +44,49 @@ export default function CommissionsPage() {
 
   useEffect(() => {
     loadCommissions()
+    loadPaymentSettings()
   }, [periodFilter])
 
   useEffect(() => {
     applyFilters()
-  }, [commissions, statusFilter])
+    calculateReadyToPay()
+  }, [commissions, statusFilter, minThreshold])
+
+  async function loadPaymentSettings() {
+    try {
+      const supabase = createClient()
+      const { data, error } = await supabase
+        .from('payment_settings')
+        .select('minimum_payout_amount')
+        .single()
+      
+      if (error) {
+        console.error('Error loading payment settings:', error)
+        return
+      }
+      
+      if (data) {
+        setMinThreshold(data.minimum_payout_amount || 100000)
+      }
+    } catch (error) {
+      console.error('Error:', error)
+    }
+  }
+
+  function calculateReadyToPay() {
+    const ready = commissions.filter(c => 
+      c.status === 'UNPAID' && 
+      c.commission_amount >= minThreshold
+    )
+    
+    const pending = commissions.filter(c => 
+      c.status === 'UNPAID' && 
+      c.commission_amount < minThreshold
+    )
+    
+    setReadyToPaySuppliers(ready)
+    setPendingThresholdSuppliers(pending)
+  }
 
   async function loadCommissions() {
     try {
@@ -370,7 +413,19 @@ export default function CommissionsPage() {
     totalPending: filteredCommissions
       .filter(c => c.status === 'PENDING')
       .reduce((sum, c) => sum + c.commission_amount, 0),
-    totalSuppliers: filteredCommissions.length
+    totalSuppliers: filteredCommissions.length,
+    totalReadyToPay: readyToPaySuppliers.reduce((sum, c) => sum + c.commission_amount, 0),
+    totalPendingThreshold: pendingThresholdSuppliers.reduce((sum, c) => sum + c.commission_amount, 0)
+  }
+
+  function handleBatchPayment() {
+    if (readyToPaySuppliers.length === 0) {
+      alert('Tidak ada supplier yang ready untuk dibayar')
+      return
+    }
+    
+    // TODO: Implement batch payment modal
+    alert(`Batch payment untuk ${readyToPaySuppliers.length} supplier (Total: Rp ${stats.totalReadyToPay.toLocaleString('id-ID')})`)
   }
 
   if (loading) {
@@ -399,6 +454,87 @@ export default function CommissionsPage() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
+        {/* Ready to Pay Alert - THRESHOLD FEATURE */}
+        {readyToPaySuppliers.length > 0 && (
+          <div className="bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-300 rounded-xl shadow-lg p-6 mb-6">
+            <div className="flex items-start gap-4">
+              <div className="p-3 bg-green-500 rounded-full shadow-md">
+                <Check className="w-7 h-7 text-white" />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-bold text-green-900 text-lg mb-2 flex items-center gap-2">
+                  ✅ {readyToPaySuppliers.length} supplier READY untuk dibayar!
+                  <span className="px-3 py-1 bg-green-200 text-green-800 text-xs rounded-full font-bold">
+                    ≥ Rp {minThreshold.toLocaleString('id-ID')}
+                  </span>
+                </h3>
+                <p className="text-sm text-green-700 mb-4">
+                  Komisi supplier ini sudah mencapai minimum threshold. Segera transfer untuk menjaga kepuasan supplier.
+                </p>
+                
+                {/* Supplier List Preview */}
+                <div className="bg-white rounded-lg p-4 mb-4 space-y-2 max-h-48 overflow-y-auto">
+                  {readyToPaySuppliers.slice(0, 5).map(s => (
+                    <div key={s.supplier_id} className="flex justify-between items-center text-sm border-b pb-2 last:border-0">
+                      <div>
+                        <span className="font-semibold text-gray-900">{s.supplier_name}</span>
+                        <span className="text-xs text-gray-500 ml-2">({s.transactions} transaksi)</span>
+                      </div>
+                      <span className="text-green-600 font-bold">
+                        Rp {s.commission_amount.toLocaleString('id-ID')}
+                      </span>
+                    </div>
+                  ))}
+                  {readyToPaySuppliers.length > 5 && (
+                    <p className="text-xs text-gray-500 text-center pt-2">
+                      +{readyToPaySuppliers.length - 5} supplier lainnya
+                    </p>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <button 
+                    onClick={handleBatchPayment}
+                    className="flex-1 px-6 py-4 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-lg hover:from-green-700 hover:to-green-800 font-bold shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2"
+                  >
+                    <DollarSign className="w-5 h-5" />
+                    <div className="text-left">
+                      <div>💳 Bayar Semua Sekarang</div>
+                      <div className="text-xs opacity-90 font-normal">
+                        Total: Rp {stats.totalReadyToPay.toLocaleString('id-ID')}
+                      </div>
+                    </div>
+                  </button>
+                  <a 
+                    href="/admin/settings"
+                    className="px-4 py-4 border-2 border-green-600 text-green-700 rounded-lg hover:bg-green-50 text-sm font-medium"
+                    title="Ubah threshold di Settings"
+                  >
+                    ⚙️ Settings
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Pending Threshold Info */}
+        {pendingThresholdSuppliers.length > 0 && (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+            <div className="flex items-center gap-2">
+              <Clock className="w-5 h-5 text-yellow-600" />
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-yellow-900">
+                  {pendingThresholdSuppliers.length} supplier belum mencapai threshold (< Rp {minThreshold.toLocaleString('id-ID')})
+                </p>
+                <p className="text-xs text-yellow-700 mt-1">
+                  Total: Rp {stats.totalPendingThreshold.toLocaleString('id-ID')} - Menunggu akumulasi komisi
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
           <div className="bg-white rounded-lg shadow p-6">

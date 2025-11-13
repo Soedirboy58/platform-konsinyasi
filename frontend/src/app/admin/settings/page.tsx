@@ -21,6 +21,8 @@ export default function Settings() {
   const [activeTab, setActiveTab] = useState('commission')
   const [commissionRate, setCommissionRate] = useState(10)
   const [minimumPayout, setMinimumPayout] = useState(100000)
+  const [paymentSchedule, setPaymentSchedule] = useState('MANUAL')
+  const [allowPartialPayment, setAllowPartialPayment] = useState(true)
   
   // Outlets state
   const [outlets, setOutlets] = useState<Location[]>([])
@@ -53,6 +55,7 @@ export default function Settings() {
 
   useEffect(() => {
     loadProfile()
+    loadPaymentSettings()
     if (activeTab === 'outlets') {
       loadOutlets()
     }
@@ -68,6 +71,57 @@ export default function Settings() {
         email: user.email || '',
         phone: user.user_metadata?.phone || ''
       })
+    }
+  }
+
+  const loadPaymentSettings = async () => {
+    try {
+      const supabase = createClient()
+      const { data, error } = await supabase
+        .from('payment_settings')
+        .select('minimum_payout_amount, payment_schedule, allow_partial_payment')
+        .single()
+      
+      if (error) {
+        console.error('Error loading payment settings:', error)
+        return
+      }
+      
+      if (data) {
+        setMinimumPayout(data.minimum_payout_amount || 100000)
+        setPaymentSchedule(data.payment_schedule || 'MANUAL')
+        setAllowPartialPayment(data.allow_partial_payment ?? true)
+      }
+    } catch (error) {
+      console.error('Error:', error)
+    }
+  }
+
+  const savePaymentSettings = async () => {
+    try {
+      setLoading(true)
+      const supabase = createClient()
+      
+      const { error } = await supabase
+        .from('payment_settings')
+        .update({
+          minimum_payout_amount: minimumPayout,
+          payment_schedule: paymentSchedule,
+          allow_partial_payment: allowPartialPayment,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', (await supabase.from('payment_settings').select('id').single()).data?.id)
+      
+      if (error) throw error
+      
+      toast.success('✅ Pengaturan pembayaran berhasil disimpan!')
+      setMessage({ type: 'success', text: 'Pengaturan berhasil disimpan!' })
+    } catch (error: any) {
+      console.error('Error saving payment settings:', error)
+      toast.error('❌ Gagal menyimpan pengaturan: ' + error.message)
+      setMessage({ type: 'error', text: 'Gagal menyimpan: ' + error.message })
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -306,7 +360,13 @@ export default function Settings() {
               <Info className="w-5 h-5 text-blue-600 inline mr-2" />
               <span className="text-sm text-blue-800">Platform memotong {commissionRate}% dari harga jual. Supplier menerima {100-commissionRate}%</span>
             </div>
-            <div className="bg-white rounded-lg shadow p-6">
+            
+            {/* Commission Rate Section */}
+            <div className="bg-white rounded-lg shadow p-6 mb-6">
+              <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                <Calculator className="w-5 h-5 text-blue-600" />
+                Komisi Platform
+              </h3>
               <label className="block text-sm font-medium mb-2">Persentase Komisi (%)</label>
               <input type="number" min="0" max="100" value={commissionRate} onChange={(e) => setCommissionRate(parseFloat(e.target.value))} className="w-32 px-4 py-2 border rounded-lg" />
               <div className="mt-4 p-4 bg-gray-50 rounded-lg">
@@ -318,12 +378,113 @@ export default function Settings() {
                   <div className="text-green-600 font-bold">Supplier: Rp {(100000 * (100 - commissionRate) / 100).toLocaleString()}</div>
                 </div>
               </div>
-              <hr className="my-6" />
-              <label className="block text-sm font-medium mb-2">Minimum Pembayaran</label>
-              <div className="flex items-center gap-2">
-                <span>Rp</span>
-                <input type="number" value={minimumPayout} onChange={(e) => setMinimumPayout(parseInt(e.target.value))} className="flex-1 px-4 py-2 border rounded-lg" />
+            </div>
+
+            {/* Payment Settings Section - THRESHOLD */}
+            <div className="bg-white rounded-lg shadow p-6">
+              <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                <DollarSign className="w-5 h-5 text-green-600" />
+                Pengaturan Pembayaran ke Supplier
+              </h3>
+              
+              {/* Minimum Threshold */}
+              <div className="mb-6">
+                <label className="block text-sm font-medium mb-2">
+                  💰 Minimum Threshold Pencairan
+                </label>
+                <div className="flex items-center gap-2">
+                  <span className="text-gray-700">Rp</span>
+                  <input 
+                    type="number" 
+                    value={minimumPayout} 
+                    onChange={(e) => setMinimumPayout(parseInt(e.target.value))} 
+                    className="flex-1 max-w-xs px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500" 
+                  />
+                </div>
+                <p className="text-xs text-gray-600 mt-2">
+                  Supplier yang komisinya mencapai ≥ Rp {minimumPayout.toLocaleString('id-ID')} akan otomatis masuk list "Ready to Pay"
+                </p>
+                <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+                  <p className="text-sm text-green-800">
+                    <strong>✅ Keuntungan threshold:</strong>
+                  </p>
+                  <ul className="text-xs text-green-700 mt-2 space-y-1 ml-4">
+                    <li>• Hemat biaya transfer bank (bayar nominal besar)</li>
+                    <li>• Supplier volume tinggi dapat uang lebih cepat</li>
+                    <li>• Admin lebih efisien - tidak bayar supplier kecil tiap hari</li>
+                  </ul>
+                </div>
               </div>
+
+              <hr className="my-6" />
+
+              {/* Payment Schedule */}
+              <div className="mb-6">
+                <label className="block text-sm font-medium mb-2">
+                  📅 Jadwal Pembayaran
+                </label>
+                <select 
+                  value={paymentSchedule}
+                  onChange={(e) => setPaymentSchedule(e.target.value)}
+                  className="w-full max-w-xs px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="MANUAL">Manual (Kapan saja)</option>
+                  <option value="WEEKLY_FRIDAY">Setiap Jumat</option>
+                  <option value="BIWEEKLY">Tanggal 1 & 15</option>
+                  <option value="MONTHLY">Akhir Bulan</option>
+                </select>
+                <p className="text-xs text-gray-600 mt-2">
+                  {paymentSchedule === 'MANUAL' && 'Admin bayar supplier kapan saja sesuai kebutuhan'}
+                  {paymentSchedule === 'WEEKLY_FRIDAY' && 'Sistem akan remind admin setiap Jumat untuk bayar supplier yang ready'}
+                  {paymentSchedule === 'BIWEEKLY' && 'Sistem akan remind admin tanggal 1 & 15 setiap bulan'}
+                  {paymentSchedule === 'MONTHLY' && 'Sistem akan remind admin di akhir bulan'}
+                </p>
+              </div>
+
+              <hr className="my-6" />
+
+              {/* Partial Payment */}
+              <div className="mb-6">
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input 
+                    type="checkbox" 
+                    checked={allowPartialPayment}
+                    onChange={(e) => setAllowPartialPayment(e.target.checked)}
+                    className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  />
+                  <div>
+                    <div className="text-sm font-medium">
+                      Izinkan Partial Payment (Pembayaran Sebagian)
+                    </div>
+                    <div className="text-xs text-gray-600">
+                      Supplier bisa request pembayaran meskipun belum mencapai threshold minimum
+                    </div>
+                  </div>
+                </label>
+                {allowPartialPayment && (
+                  <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                    <p className="text-xs text-yellow-800">
+                      ⚠️ <strong>Note:</strong> Fitur ini berguna untuk kasus urgent/darurat. Admin tetap bisa approve/reject manual.
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Save Button */}
+              <button
+                onClick={savePaymentSettings}
+                disabled={loading}
+                className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium flex items-center justify-center gap-2"
+              >
+                <Save className="w-5 h-5" />
+                {loading ? 'Menyimpan...' : 'Simpan Pengaturan Pembayaran'}
+              </button>
+
+              {message && (
+                <div className={`mt-4 p-3 rounded-lg ${message.type === 'success' ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-red-50 text-red-800 border border-red-200'}`}>
+                  {message.text}
+                </div>
+              )}
             </div>
           </div>
         )}
