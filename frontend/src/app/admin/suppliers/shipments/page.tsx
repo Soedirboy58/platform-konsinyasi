@@ -565,14 +565,46 @@ function ShipmentsTab() {
   )
 }
 
+interface ManualReturn {
+  id: string
+  product_id: string
+  quantity: number
+  reason: string
+  location_id: string
+  status: string
+  requested_at: string
+  reviewed_at: string | null
+  review_notes: string | null
+  completed_at: string | null
+  product?: {
+    name: string
+    photo_url?: string | null
+  }
+  location?: {
+    name: string
+  }
+  supplier?: {
+    business_name: string
+  }
+  requested_by_profile?: {
+    full_name: string
+  }
+  reviewed_by_profile?: {
+    full_name: string
+  } | null
+}
+
 function ReturnsTab() {
   const [rejectedShipments, setRejectedShipments] = useState<Shipment[]>([])
+  const [manualReturns, setManualReturns] = useState<ManualReturn[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedShipment, setSelectedShipment] = useState<Shipment | null>(null)
   const [showDetailModal, setShowDetailModal] = useState(false)
+  const [viewType, setViewType] = useState<'rejected' | 'manual'>('rejected')
 
   useEffect(() => {
     loadRejectedShipments()
+    loadManualReturns()
   }, [])
 
   async function loadRejectedShipments() {
@@ -598,6 +630,66 @@ function ReturnsTab() {
       console.error('Error loading rejected shipments:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function loadManualReturns() {
+    try {
+      const supabase = createClient()
+      
+      console.log('🔍 Loading manual returns from shipment_returns...')
+      
+      const { data, error } = await supabase
+        .from('shipment_returns')
+        .select(`
+          *,
+          product:products(name, photo_url),
+          location:locations(name),
+          supplier:suppliers(business_name)
+        `)
+        .order('requested_at', { ascending: false })
+
+      if (error) {
+        console.error('❌ Error loading manual returns:', error)
+        throw error
+      }
+      
+      console.log('✅ Manual returns loaded:', data?.length || 0)
+      console.log('📊 Returns data:', data)
+      
+      // Manually fetch profile names
+      const enrichedData = await Promise.all((data || []).map(async (item: any) => {
+        let requested_by_name = 'Admin'
+        let reviewed_by_name = null
+        
+        if (item.requested_by) {
+          const { data: requester } = await supabase
+            .from('profiles')
+            .select('full_name')
+            .eq('id', item.requested_by)
+            .single()
+          if (requester) requested_by_name = requester.full_name
+        }
+        
+        if (item.reviewed_by) {
+          const { data: reviewer } = await supabase
+            .from('profiles')
+            .select('full_name')
+            .eq('id', item.reviewed_by)
+            .single()
+          if (reviewer) reviewed_by_name = reviewer.full_name
+        }
+        
+        return {
+          ...item,
+          requested_by_profile: { full_name: requested_by_name },
+          reviewed_by_profile: reviewed_by_name ? { full_name: reviewed_by_name } : null
+        }
+      }))
+      
+      setManualReturns(enrichedData as ManualReturn[])
+    } catch (error) {
+      console.error('Error loading manual returns:', error)
     }
   }
 
@@ -627,6 +719,22 @@ function ReturnsTab() {
     }
   }
 
+  function getStatusBadge(status: string) {
+    const badges: Record<string, { bg: string; text: string; label: string }> = {
+      PENDING: { bg: 'bg-yellow-100', text: 'text-yellow-800', label: 'Menunggu Review' },
+      APPROVED: { bg: 'bg-green-100', text: 'text-green-800', label: 'Disetujui' },
+      REJECTED: { bg: 'bg-red-100', text: 'text-red-800', label: 'Ditolak' },
+      COMPLETED: { bg: 'bg-blue-100', text: 'text-blue-800', label: 'Selesai' },
+      CANCELLED: { bg: 'bg-gray-100', text: 'text-gray-800', label: 'Dibatalkan' }
+    }
+    const badge = badges[status] || badges.PENDING
+    return (
+      <span className={`px-2 py-1 text-xs font-medium rounded-full ${badge.bg} ${badge.text}`}>
+        {badge.label}
+      </span>
+    )
+  }
+
   if (loading) {
     return (
       <div className="bg-white rounded-lg shadow p-12 text-center">
@@ -643,7 +751,7 @@ function ReturnsTab() {
             <div>
               <h2 className="text-lg font-semibold text-gray-900">Produk yang Perlu Diretur</h2>
               <p className="text-sm text-gray-600 mt-1">
-                Pengiriman yang ditolak dan harus diambil kembali oleh supplier
+                Pengiriman yang ditolak dan retur produk rusak/cacat dari display
               </p>
             </div>
             <Link
@@ -654,109 +762,233 @@ function ReturnsTab() {
               Ajukan Retur Manual
             </Link>
           </div>
+          
+          {/* Sub-tabs */}
+          <div className="mt-4 flex gap-2">
+            <button
+              onClick={() => setViewType('rejected')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                viewType === 'rejected'
+                  ? 'bg-blue-100 text-blue-700'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              Pengiriman Ditolak ({rejectedShipments.length})
+            </button>
+            <button
+              onClick={() => setViewType('manual')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                viewType === 'manual'
+                  ? 'bg-blue-100 text-blue-700'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              Retur Produk Rusak ({manualReturns.length})
+            </button>
+          </div>
         </div>
 
-        {rejectedShipments.length === 0 ? (
-          <div className="p-12 text-center">
-            <Check className="w-16 h-16 text-green-300 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">Tidak ada produk retur</h3>
-            <p className="text-gray-600">Semua pengiriman sudah disetujui atau sudah diretur</p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Supplier
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Lokasi Tujuan
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Jumlah Produk
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Total Qty
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Alasan Ditolak
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Tanggal Ditolak
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
-                    Aksi
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {rejectedShipments.map((shipment) => {
-                  const totalQty = shipment.stock_movement_items?.reduce(
-                    (sum, item) => sum + item.quantity, 0
-                  ) || 0
-                  const productCount = shipment.stock_movement_items?.length || 0
-
-                  return (
-                    <tr key={shipment.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4">
-                        <div className="text-sm font-medium text-gray-900">
-                          {shipment.supplier?.business_name}
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          {shipment.supplier?.profile?.full_name}
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          📞 {shipment.supplier?.profile?.phone}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="text-sm text-gray-900">{shipment.location?.name}</div>
-                        <div className="text-xs text-gray-500">{shipment.location?.address}</div>
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-900">
-                        {productCount} item
-                      </td>
-                      <td className="px-6 py-4 text-sm font-medium text-gray-900">
-                        {totalQty} unit
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="text-sm text-red-600 max-w-xs truncate" title={shipment.rejection_reason || ''}>
-                          {shipment.rejection_reason || 'Tidak ada keterangan'}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-500">
-                        {shipment.approved_at ? new Date(shipment.approved_at).toLocaleDateString('id-ID', {
-                          day: 'numeric',
-                          month: 'short',
-                          year: 'numeric'
-                        }) : '-'}
-                      </td>
-                      <td className="px-6 py-4 text-right space-x-2">
-                        <button
-                          onClick={() => {
-                            setSelectedShipment(shipment)
-                            setShowDetailModal(true)
-                          }}
-                          className="inline-flex items-center px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
-                        >
-                          <Eye className="w-4 h-4 mr-1" />
-                          Detail
-                        </button>
-                        <button
-                          onClick={() => handleMarkAsReturned(shipment.id)}
-                          className="inline-flex items-center px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 text-sm"
-                        >
-                          <Check className="w-4 h-4 mr-1" />
-                          Sudah Diretur
-                        </button>
-                      </td>
+        {/* Rejected Shipments View */}
+        {viewType === 'rejected' && (
+          <>
+            {rejectedShipments.length === 0 ? (
+              <div className="p-12 text-center">
+                <Check className="w-16 h-16 text-green-300 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">Tidak ada pengiriman ditolak</h3>
+                <p className="text-gray-600">Semua pengiriman sudah disetujui atau sudah diretur</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                        Supplier
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                        Lokasi Tujuan
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                        Jumlah Produk
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                        Total Qty
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                        Alasan Ditolak
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                        Tanggal Ditolak
+                      </th>
+                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                        Aksi
+                      </th>
                     </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {rejectedShipments.map((shipment) => {
+                      const totalQty = shipment.stock_movement_items?.reduce(
+                        (sum, item) => sum + item.quantity, 0
+                      ) || 0
+                      const productCount = shipment.stock_movement_items?.length || 0
+
+                      return (
+                        <tr key={shipment.id} className="hover:bg-gray-50">
+                          <td className="px-6 py-4">
+                            <div className="text-sm font-medium text-gray-900">
+                              {shipment.supplier?.business_name}
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              {shipment.supplier?.profile?.full_name}
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              📞 {shipment.supplier?.profile?.phone}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="text-sm text-gray-900">{shipment.location?.name}</div>
+                            <div className="text-xs text-gray-500">{shipment.location?.address}</div>
+                          </td>
+                          <td className="px-6 py-4 text-sm text-gray-900">
+                            {productCount} item
+                          </td>
+                          <td className="px-6 py-4 text-sm font-medium text-gray-900">
+                            {totalQty} unit
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="text-sm text-red-600 max-w-xs truncate" title={shipment.rejection_reason || ''}>
+                              {shipment.rejection_reason || 'Tidak ada keterangan'}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 text-sm text-gray-500">
+                            {shipment.approved_at ? new Date(shipment.approved_at).toLocaleDateString('id-ID', {
+                              day: 'numeric',
+                              month: 'short',
+                              year: 'numeric'
+                            }) : '-'}
+                          </td>
+                          <td className="px-6 py-4 text-right space-x-2">
+                            <button
+                              onClick={() => {
+                                setSelectedShipment(shipment)
+                                setShowDetailModal(true)
+                              }}
+                              className="inline-flex items-center px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
+                            >
+                              <Eye className="w-4 h-4 mr-1" />
+                              Detail
+                            </button>
+                            <button
+                              onClick={() => handleMarkAsReturned(shipment.id)}
+                              className="inline-flex items-center px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 text-sm"
+                            >
+                              <Check className="w-4 h-4 mr-1" />
+                              Sudah Diretur
+                            </button>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* Manual Returns View */}
+        {viewType === 'manual' && (
+          <>
+            {manualReturns.length === 0 ? (
+              <div className="p-12 text-center">
+                <Check className="w-16 h-16 text-green-300 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">Tidak ada retur manual</h3>
+                <p className="text-gray-600">Belum ada pengajuan retur produk rusak/cacat dari display</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                        Produk
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                        Supplier
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                        Lokasi
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                        Qty
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                        Alasan
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                        Status
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                        Diajukan Oleh
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                        Tanggal
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {manualReturns.map((returnItem) => (
+                      <tr key={returnItem.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-3">
+                            {returnItem.product?.photo_url && (
+                              <img 
+                                src={returnItem.product.photo_url} 
+                                alt={returnItem.product?.name}
+                                className="w-10 h-10 rounded object-cover"
+                              />
+                            )}
+                            <div className="text-sm font-medium text-gray-900">
+                              {returnItem.product?.name || 'Produk tidak diketahui'}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-900">
+                          {returnItem.supplier?.business_name || '-'}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-900">
+                          {returnItem.location?.name || '-'}
+                        </td>
+                        <td className="px-6 py-4 text-sm font-medium text-gray-900">
+                          {returnItem.quantity} unit
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="text-sm text-gray-700 max-w-xs truncate" title={returnItem.reason}>
+                            {returnItem.reason}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          {getStatusBadge(returnItem.status)}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-600">
+                          {returnItem.requested_by_profile?.full_name || 'Admin'}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-500">
+                          {new Date(returnItem.requested_at).toLocaleDateString('id-ID', {
+                            day: 'numeric',
+                            month: 'short',
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </>
         )}
       </div>
 
