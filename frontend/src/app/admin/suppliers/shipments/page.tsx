@@ -639,26 +639,70 @@ function ReturnsTab() {
       
       console.log('🔍 Loading manual returns from shipment_returns...')
       
-      const { data, error } = await supabase
+      // First, try to get data with basic query
+      const { data: basicData, error: basicError } = await supabase
         .from('shipment_returns')
-        .select(`
-          *,
-          product:products(name, photo_url),
-          location:locations(name),
-          supplier:suppliers(business_name)
-        `)
+        .select('*')
         .order('requested_at', { ascending: false })
 
-      if (error) {
-        console.error('❌ Error loading manual returns:', error)
-        throw error
+      if (basicError) {
+        console.error('❌ Error loading shipment_returns (basic):', basicError)
+        throw basicError
       }
+
+      console.log('📊 Basic data loaded:', basicData?.length || 0, 'records')
       
-      console.log('✅ Manual returns loaded:', data?.length || 0)
-      console.log('📊 Returns data:', data)
+      // Then enrich with JOINs manually to handle missing FK
+      const enrichedWithJoins = await Promise.all((basicData || []).map(async (item: any) => {
+        let product = null
+        let location = null
+        let supplier = null
+
+        // Get product info
+        if (item.product_id) {
+          const { data: productData } = await supabase
+            .from('products')
+            .select('name, photo_url, supplier_id')
+            .eq('id', item.product_id)
+            .single()
+          product = productData
+          
+          // Get supplier from product
+          if (productData?.supplier_id) {
+            const { data: supplierData } = await supabase
+              .from('suppliers')
+              .select('business_name')
+              .eq('id', productData.supplier_id)
+              .single()
+            supplier = supplierData
+          }
+        }
+
+        // Get location info
+        if (item.location_id) {
+          const { data: locationData } = await supabase
+            .from('locations')
+            .select('name')
+            .eq('id', item.location_id)
+            .single()
+          location = locationData
+        }
+
+        return {
+          ...item,
+          product,
+          location,
+          supplier
+        }
+      }))
+      
+      console.log('✅ Manual returns enriched:', enrichedWithJoins?.length || 0)
+      console.log('📊 Enriched data:', enrichedWithJoins)
+      console.log('✅ Manual returns enriched:', enrichedWithJoins?.length || 0)
+      console.log('📊 Enriched data:', enrichedWithJoins)
       
       // Manually fetch profile names
-      const enrichedData = await Promise.all((data || []).map(async (item: any) => {
+      const enrichedData = await Promise.all(enrichedWithJoins.map(async (item: any) => {
         let requested_by_name = 'Admin'
         let reviewed_by_name = null
         
@@ -687,9 +731,11 @@ function ReturnsTab() {
         }
       }))
       
+      console.log('🎉 Final data ready:', enrichedData?.length || 0)
       setManualReturns(enrichedData as ManualReturn[])
     } catch (error) {
-      console.error('Error loading manual returns:', error)
+      console.error('❌ Error loading manual returns:', error)
+      alert('Gagal memuat data retur: ' + (error as any)?.message)
     }
   }
 
