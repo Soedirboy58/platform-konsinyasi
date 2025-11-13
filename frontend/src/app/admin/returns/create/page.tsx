@@ -247,7 +247,7 @@ export default function CreateReturnPage() {
       }
 
       alert('✅ Permintaan retur berhasil diajukan!')
-      router.push('/admin/suppliers/shipments?tab=returns')
+      router.push('/admin/returns/list')
     } catch (error: any) {
       console.error('Error submitting return:', error)
       
@@ -283,7 +283,7 @@ export default function CreateReturnPage() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <Link 
-                href="/admin/suppliers/shipments?tab=returns"
+                href="/admin/returns/list"
                 className="p-2 hover:bg-gray-100 rounded-lg"
               >
                 <ArrowLeft className="w-5 h-5" />
@@ -293,6 +293,12 @@ export default function CreateReturnPage() {
                 <p className="text-gray-600 mt-1">Untuk produk rusak/cacat/expired di etalase</p>
               </div>
             </div>
+            <Link
+              href="/admin/returns/list"
+              className="px-4 py-2 text-blue-600 hover:bg-blue-50 rounded-lg font-medium"
+            >
+              📋 Lihat Riwayat Retur
+            </Link>
           </div>
         </div>
       </header>

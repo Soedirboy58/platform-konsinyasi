@@ -414,6 +414,32 @@ export default function AdminDashboard() {
                 </div>
               </Link>
 
+              <Link 
+                href="/admin/returns/create"
+                className="block p-4 bg-red-50 hover:bg-red-100 rounded-lg transition-colors"
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium text-gray-900">Ajukan Retur Produk</p>
+                    <p className="text-sm text-gray-600">Retur produk rusak/cacat dari etalase</p>
+                  </div>
+                  <RotateCcw className="h-6 w-6 text-red-600" />
+                </div>
+              </Link>
+
+              <Link 
+                href="/admin/returns/list"
+                className="block p-4 bg-purple-50 hover:bg-purple-100 rounded-lg transition-colors"
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium text-gray-900">Riwayat Retur Produk</p>
+                    <p className="text-sm text-gray-600">Monitor status permintaan retur</p>
+                  </div>
+                  <Clock className="h-6 w-6 text-purple-600" />
+                </div>
+              </Link>
+
               {stats.expiredProducts > 0 && (
                 <Link 
                   href="/admin/suppliers/shipments?tab=returns"
