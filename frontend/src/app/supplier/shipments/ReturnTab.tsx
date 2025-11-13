@@ -17,7 +17,6 @@ interface ReturnRequest {
   review_notes: string | null
   product: {
     name: string
-    sku: string
     photo_url: string | null
   }
   location: {
@@ -66,7 +65,7 @@ export default function ReturnTab() {
           requested_at,
           reviewed_at,
           review_notes,
-          product:products(name, sku, photo_url),
+          product:products(name, photo_url),
           location:locations(name)
         `)
         .eq('supplier_id', supplier.id)
@@ -204,7 +203,6 @@ export default function ReturnTab() {
                     <div className="flex items-start justify-between mb-2">
                       <div>
                         <h4 className="font-semibold text-gray-900">{returnItem.product.name}</h4>
-                        <p className="text-sm text-gray-600">{returnItem.product.sku}</p>
                       </div>
                       {getStatusBadge(returnItem.status)}
                     </div>
