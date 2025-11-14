@@ -295,11 +295,12 @@ export default function ReportProductModal({ isOpen, onClose, product, locationI
               {formData.photos.length < 3 && (
                 <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-red-500 hover:bg-red-50 transition-colors">
                   <Camera className="w-8 h-8 text-gray-400 mb-2" />
-                  <span className="text-sm text-gray-600">Klik untuk upload foto</span>
+                  <span className="text-sm text-gray-600">📸 Ambil Foto / Upload</span>
                   <span className="text-xs text-gray-500 mt-1">PNG, JPG max 5MB</span>
                   <input
                     type="file"
                     accept="image/*"
+                    capture="environment"
                     onChange={handlePhotoChange}
                     className="hidden"
                     multiple

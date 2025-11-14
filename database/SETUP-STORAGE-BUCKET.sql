@@ -17,32 +17,32 @@
 -- Step 2: Run these policies
 
 -- Policy 1: Public Read (anyone can view photos)
-CREATE POLICY IF NOT EXISTS "Public can view product report photos"
+CREATE POLICY "Public can view product report photos"
 ON storage.objects FOR SELECT
 TO public
 USING (bucket_id = 'product-reports');
 
 -- Policy 2: Authenticated Upload
-CREATE POLICY IF NOT EXISTS "Authenticated users can upload product reports"
+CREATE POLICY "Authenticated users can upload product reports"
 ON storage.objects FOR INSERT
 TO authenticated
 WITH CHECK (bucket_id = 'product-reports');
 
 -- Policy 3: Anonymous Upload (for customer without login)
-CREATE POLICY IF NOT EXISTS "Anyone can upload product reports"
+CREATE POLICY "Anyone can upload product reports"
 ON storage.objects FOR INSERT
 TO anon
 WITH CHECK (bucket_id = 'product-reports');
 
 -- Policy 4: Users can update their own uploads
-CREATE POLICY IF NOT EXISTS "Users can update their own uploads"
+CREATE POLICY "Users can update their own uploads"
 ON storage.objects FOR UPDATE
 TO authenticated
 USING (bucket_id = 'product-reports')
 WITH CHECK (bucket_id = 'product-reports');
 
 -- Policy 5: Users can delete their own uploads
-CREATE POLICY IF NOT EXISTS "Users can delete their own uploads"
+CREATE POLICY "Users can delete their own uploads"
 ON storage.objects FOR DELETE
 TO authenticated
 USING (bucket_id = 'product-reports');
