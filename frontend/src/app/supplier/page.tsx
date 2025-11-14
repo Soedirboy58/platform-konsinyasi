@@ -126,10 +126,12 @@ export default function SupplierDashboard() {
 
       const totalShipped = shipmentData?.reduce((sum, sm) => sum + sm.quantity, 0) || 0
 
+      // Get returns count (from new shipment_returns table)
       const { data: returnData } = await supabase
-        .from('shipment_return_items')
-        .select('quantity, shipment_returns!inner(supplier_id)')
-        .eq('shipment_returns.supplier_id', supplier.id)
+        .from('shipment_returns')
+        .select('quantity')
+        .eq('supplier_id', supplier.id)
+        .in('status', ['APPROVED', 'COMPLETED'])
 
       const totalReturns = returnData?.reduce((sum, ret) => sum + ret.quantity, 0) || 0
 

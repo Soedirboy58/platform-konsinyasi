@@ -15,6 +15,11 @@ interface ReturnRequest {
   requested_at: string
   reviewed_at: string | null
   review_notes: string | null
+  source?: string
+  customer_name?: string
+  customer_contact?: string
+  severity?: string
+  proof_photos?: string[] | null
   product: {
     name: string
     photo_url: string | null
@@ -443,6 +448,46 @@ export default function ReturnTab() {
                   </div>
                 </div>
               </div>
+
+              {/* Customer Info (if source is CUSTOMER) */}
+              {selectedReturn.source === 'CUSTOMER' && (
+                <div className="p-4 bg-purple-50 border border-purple-200 rounded-lg">
+                  <h5 className="font-medium text-purple-900 mb-2">👤 Laporan Customer</h5>
+                  <div className="space-y-1 text-sm">
+                    <p><span className="text-purple-700">Nama:</span> <span className="font-medium">{selectedReturn.customer_name || 'Anonim'}</span></p>
+                    {selectedReturn.customer_contact && (
+                      <p><span className="text-purple-700">Kontak:</span> <span className="font-medium">{selectedReturn.customer_contact}</span></p>
+                    )}
+                    {selectedReturn.severity && (
+                      <p><span className="text-purple-700">Tingkat:</span> <span className="font-medium">{selectedReturn.severity}</span></p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Proof Photos */}
+              {selectedReturn.proof_photos && selectedReturn.proof_photos.length > 0 && (
+                <div>
+                  <h5 className="font-medium text-gray-900 mb-3">📸 Foto Bukti</h5>
+                  <div className="grid grid-cols-3 gap-3">
+                    {selectedReturn.proof_photos.map((photo, index) => (
+                      <a 
+                        key={index}
+                        href={photo}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="block group"
+                      >
+                        <img 
+                          src={photo}
+                          alt={`Bukti ${index + 1}`}
+                          className="w-full h-32 object-cover rounded-lg hover:opacity-80 transition cursor-pointer ring-1 ring-gray-200 group-hover:ring-2 group-hover:ring-orange-400"
+                        />
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Review Notes */}
               {selectedReturn.review_notes && (
