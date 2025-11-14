@@ -302,155 +302,238 @@ export default function ProductsApproval() {
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <header className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
-          <h1 className="text-2xl font-bold text-gray-900">Kurasi Produk Supplier</h1>
-          <p className="text-gray-600 mt-1">Review dan approve produk yang disubmit supplier</p>
+        <div className="px-4 py-4">
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Produk Supplier</h1>
+          <p className="text-sm text-gray-600 mt-1">Review dan approve produk</p>
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
+      <main className="px-4 py-4 sm:py-6">
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="bg-blue-600 text-white p-3 rounded-lg">
-                <Package className="w-6 h-6" />
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+          <div className="bg-white rounded-lg shadow p-4">
+            <div className="flex flex-col gap-2">
+              <div className="bg-blue-600 text-white p-2 rounded-lg w-fit">
+                <Package className="w-4 h-4" />
+              </div>
+              <div>
+                <p className="text-xs text-gray-600">Total</p>
+                <p className="text-lg font-bold text-gray-900">{stats.total}</p>
               </div>
             </div>
-            <p className="text-sm text-gray-600 mb-1">Total Produk</p>
-            <p className="text-2xl font-bold text-gray-900 mb-1">{stats.total}</p>
-            <p className="text-xs text-gray-500">Semua produk terdaftar</p>
           </div>
 
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="bg-orange-600 text-white p-3 rounded-lg">
-                <Package className="w-6 h-6" />
+          <div className="bg-white rounded-lg shadow p-4">
+            <div className="flex flex-col gap-2">
+              <div className="bg-orange-600 text-white p-2 rounded-lg w-fit">
+                <Package className="w-4 h-4" />
+              </div>
+              <div>
+                <p className="text-xs text-gray-600">Pending</p>
+                <p className="text-lg font-bold text-orange-600">{stats.pending}</p>
               </div>
             </div>
-            <p className="text-sm text-gray-600 mb-1">Pending Review</p>
-            <p className="text-2xl font-bold text-orange-600 mb-1">{stats.pending}</p>
-            <p className="text-xs text-gray-500">Menunggu approval</p>
           </div>
 
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="bg-green-600 text-white p-3 rounded-lg">
-                <Check className="w-6 h-6" />
+          <div className="bg-white rounded-lg shadow p-4">
+            <div className="flex flex-col gap-2">
+              <div className="bg-green-600 text-white p-2 rounded-lg w-fit">
+                <Check className="w-4 h-4" />
+              </div>
+              <div>
+                <p className="text-xs text-gray-600">Approved</p>
+                <p className="text-lg font-bold text-green-600">{stats.approved}</p>
               </div>
             </div>
-            <p className="text-sm text-gray-600 mb-1">Approved</p>
-            <p className="text-2xl font-bold text-green-600 mb-1">{stats.approved}</p>
-            <p className="text-xs text-gray-500">Produk disetujui</p>
           </div>
 
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="bg-red-600 text-white p-3 rounded-lg">
-                <X className="w-6 h-6" />
+          <div className="bg-white rounded-lg shadow p-4">
+            <div className="flex flex-col gap-2">
+              <div className="bg-red-600 text-white p-2 rounded-lg w-fit">
+                <X className="w-4 h-4" />
+              </div>
+              <div>
+                <p className="text-xs text-gray-600">Rejected</p>
+                <p className="text-lg font-bold text-red-600">{stats.rejected}</p>
               </div>
             </div>
-            <p className="text-sm text-gray-600 mb-1">Rejected</p>
-            <p className="text-2xl font-bold text-red-600 mb-1">{stats.rejected}</p>
-            <p className="text-xs text-gray-500">Produk ditolak</p>
           </div>
         </div>
 
         {/* Filters */}
-        <div className="bg-white rounded-lg shadow p-4 mb-4">
-          <div className="flex flex-col md:flex-row gap-4">
+        <div className="bg-white rounded-lg shadow p-3 mb-4">
+          <div className="flex flex-col gap-3">
             {/* Search */}
             <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
               <input
                 type="text"
                 placeholder="Cari produk atau SKU..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full pl-10 pr-3 py-2 border text-sm rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
 
-            {/* Status Filter */}
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="ALL">Semua Status</option>
-              <option value="PENDING">Pending Review</option>
+            <div className="flex gap-3">
+              {/* Status Filter */}
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="flex-1 px-3 py-2 border text-sm rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="ALL">Semua Status</option>
+                <option value="PENDING">Pending</option>
               <option value="APPROVED">Approved</option>
               <option value="REJECTED">Rejected</option>
             </select>
 
-            {/* Supplier Filter */}
-            <select
-              value={selectedSupplier}
-              onChange={(e) => setSelectedSupplier(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="ALL">Semua Supplier</option>
-              {suppliers.map(supplier => (
-                <option key={supplier.id} value={supplier.id}>
-                  {supplier.business_name} ({getSupplierProductCount(supplier.id)} produk)
-                </option>
-              ))}
-            </select>
+              {/* Supplier Filter */}
+              <select
+                value={selectedSupplier}
+                onChange={(e) => setSelectedSupplier(e.target.value)}
+                className="flex-1 px-3 py-2 border text-sm rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="ALL">Semua Supplier</option>
+                {suppliers.map(supplier => (
+                  <option key={supplier.id} value={supplier.id}>
+                    {supplier.business_name}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
         </div>
 
         {/* Bulk Actions Bar */}
         {selectedProducts.length > 0 && (
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Package className="w-5 h-5 text-blue-600" />
-              <span className="text-sm font-medium text-blue-900">
-                {selectedProducts.length} produk dipilih
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setSelectedProducts([])}
-                className="px-4 py-2 text-sm text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
-              >
-                Batal Pilih
-              </button>
-              <button
-                onClick={handleBulkApprove}
-                className="px-4 py-2 text-sm text-white bg-green-600 rounded-lg hover:bg-green-700 flex items-center gap-2"
-              >
-                <Check className="w-4 h-4" />
-                Approve Semua
-              </button>
-              <button
-                onClick={handleBulkReject}
-                className="px-4 py-2 text-sm text-white bg-orange-600 rounded-lg hover:bg-orange-700 flex items-center gap-2"
-              >
-                <X className="w-4 h-4" />
-                Reject Semua
-              </button>
-              <button
-                onClick={handleBulkDelete}
-                disabled={isDeleting}
-                className="px-4 py-2 text-sm text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-              >
-                <Trash2 className="w-4 h-4" />
-                {isDeleting ? 'Menghapus...' : `Hapus ${selectedProducts.length} Produk`}
-              </button>
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <Package className="w-4 h-4 text-blue-600" />
+                <span className="text-sm font-medium text-blue-900">
+                  {selectedProducts.length} produk dipilih
+                </span>
+              </div>
+              <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+                <button
+                  onClick={() => setSelectedProducts([])}
+                  className="flex-1 sm:flex-initial px-3 py-1.5 text-sm text-gray-700 bg-white border rounded-lg hover:bg-gray-50"
+                >
+                  Batal
+                </button>
+                <button
+                  onClick={handleBulkApprove}
+                  className="flex-1 sm:flex-initial px-3 py-1.5 text-sm text-white bg-green-600 rounded-lg hover:bg-green-700 flex items-center justify-center gap-1"
+                >
+                  <Check className="w-3 h-3" />
+                  Approve
+                </button>
+                <button
+                  onClick={handleBulkReject}
+                  className="flex-1 sm:flex-initial px-3 py-1.5 text-sm text-white bg-orange-600 rounded-lg hover:bg-orange-700 flex items-center justify-center gap-1"
+                >
+                  <X className="w-3 h-3" />
+                  Reject
+                </button>
+                <button
+                  onClick={handleBulkDelete}
+                  disabled={isDeleting}
+                  className="flex-1 sm:flex-initial px-3 py-1.5 text-sm text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1"
+                >
+                  <Trash2 className="w-3 h-3" />
+                  {isDeleting ? '...' : 'Hapus'}
+                </button>
+              </div>
             </div>
           </div>
         )}
 
         {/* Table */}
         {paginatedProducts.length === 0 ? (
-          <div className="bg-white rounded-lg shadow p-12 text-center">
-            <Package className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">Tidak ada produk ditemukan</h3>
-            <p className="text-gray-600">Coba ubah filter atau pencarian Anda</p>
+          <div className="bg-white rounded-lg shadow p-8 text-center">
+            <Package className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+            <h3 className="text-base font-medium text-gray-900">Tidak ada produk</h3>
           </div>
         ) : (
-          <div className="bg-white rounded-lg shadow overflow-hidden">
-            <div className="overflow-x-auto">
+          <>
+            {/* Mobile Card View */}
+            <div className="lg:hidden space-y-4">
+              {paginatedProducts.map((product) => (
+                <div 
+                  key={product.id} 
+                  className={`bg-white rounded-lg shadow p-4 ${selectedProducts.includes(product.id) ? 'ring-2 ring-blue-500' : ''}`}
+                >
+                  <div className="flex items-start gap-3">
+                    <input
+                      type="checkbox"
+                      checked={selectedProducts.includes(product.id)}
+                      onChange={() => toggleProductSelection(product.id)}
+                      className="mt-1 w-4 h-4 text-blue-600 border-gray-300 rounded"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start gap-3 mb-2">
+                        <div className="flex-shrink-0 w-16 h-16 bg-gray-200 rounded flex items-center justify-center">
+                          {product.photo_url ? (
+                            <img src={product.photo_url} alt={product.name} className="w-16 h-16 rounded object-cover" />
+                          ) : (
+                            <ImageIcon className="w-8 h-8 text-gray-400" />
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="text-sm font-semibold text-gray-900">{product.name}</h3>
+                          <p className="text-xs text-gray-500">{getSupplierName(product.supplier_id)}</p>
+                          <div className="mt-1">{getStatusBadge(product.status)}</div>
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-1 text-xs text-gray-600 mb-3">
+                        <div className="flex justify-between">
+                          <span>Harga:</span>
+                          <span className="font-semibold text-gray-900">Rp {product.price.toLocaleString('id-ID')}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>SKU:</span>
+                          <span>{product.sku || '-'}</span>
+                        </div>
+                      </div>
+                      
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => setSelectedProduct(product)}
+                          className="flex-1 px-3 py-1.5 text-xs bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 flex items-center justify-center gap-1"
+                        >
+                          <Eye className="w-3 h-3" />
+                          Detail
+                        </button>
+                        {product.status === 'PENDING' && (
+                          <>
+                            <button
+                              onClick={() => handleApproveProduct(product.id)}
+                              className="flex-1 px-3 py-1.5 text-xs bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center justify-center gap-1"
+                            >
+                              <Check className="w-3 h-3" />
+                              Approve
+                            </button>
+                            <button
+                              onClick={() => handleRejectProduct(product.id)}
+                              className="flex-1 px-3 py-1.5 text-xs bg-orange-600 text-white rounded-lg hover:bg-orange-700 flex items-center justify-center gap-1"
+                            >
+                              <X className="w-3 h-3" />
+                              Reject
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop Table View */}
+            <div className="hidden lg:block bg-white rounded-lg shadow overflow-hidden">
+              <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
@@ -564,73 +647,76 @@ export default function ProductsApproval() {
                 </tbody>
               </table>
             </div>
+            </div>
 
             {/* Pagination */}
-            <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200">
-              <div className="flex items-center gap-4">
-                <p className="text-sm text-gray-600">
-                  Menampilkan {startIndex + 1} - {Math.min(endIndex, filteredProducts.length)} dari {filteredProducts.length} produk
-                </p>
-                <select
-                  value={itemsPerPage}
-                  onChange={(e) => {
-                    setItemsPerPage(Number(e.target.value))
-                    setCurrentPage(1)
-                  }}
-                  className="border border-gray-300 rounded-md px-3 py-1 text-sm"
-                >
-                  <option value={10}>10 baris</option>
-                  <option value={25}>25 baris</option>
-                  <option value={50}>50 baris</option>
-                </select>
-              </div>
-              
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                  disabled={currentPage === 1}
-                  className="px-3 py-1 border border-gray-300 rounded-md text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
-                >
-                  Previous
-                </button>
+            <div className="bg-white rounded-lg shadow p-4 mt-4">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 text-sm">
+                  <p className="text-gray-600 whitespace-nowrap">
+                    {startIndex + 1} - {Math.min(endIndex, filteredProducts.length)} dari {filteredProducts.length}
+                  </p>
+                  <select
+                    value={itemsPerPage}
+                    onChange={(e) => {
+                      setItemsPerPage(Number(e.target.value))
+                      setCurrentPage(1)
+                    }}
+                    className="border rounded-md px-3 py-1.5 text-sm w-full sm:w-auto"
+                  >
+                    <option value={10}>10 baris</option>
+                    <option value={25}>25 baris</option>
+                    <option value={50}>50 baris</option>
+                  </select>
+                </div>
                 
-                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                  let pageNum
-                  if (totalPages <= 5) {
-                    pageNum = i + 1
-                  } else if (currentPage <= 3) {
-                    pageNum = i + 1
-                  } else if (currentPage >= totalPages - 2) {
-                    pageNum = totalPages - 4 + i
-                  } else {
-                    pageNum = currentPage - 2 + i
-                  }
+                <div className="flex gap-2 w-full sm:w-auto justify-center">
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                    disabled={currentPage === 1}
+                    className="px-3 py-1.5 border rounded-md text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 flex-1 sm:flex-initial"
+                  >
+                    Previous
+                  </button>
                   
-                  return (
-                    <button
-                      key={pageNum}
-                      onClick={() => setCurrentPage(pageNum)}
-                      className={`px-3 py-1 border rounded-md text-sm ${
-                        currentPage === pageNum
-                          ? 'bg-blue-600 text-white border-blue-600'
-                          : 'border-gray-300 hover:bg-gray-50'
-                      }`}
-                    >
-                      {pageNum}
-                    </button>
-                  )
-                })}
-                
-                <button
-                  onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                  disabled={currentPage === totalPages}
-                  className="px-3 py-1 border border-gray-300 rounded-md text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
-                >
-                  Next
-                </button>
+                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                    let pageNum
+                    if (totalPages <= 5) {
+                      pageNum = i + 1
+                    } else if (currentPage <= 3) {
+                      pageNum = i + 1
+                    } else if (currentPage >= totalPages - 2) {
+                      pageNum = totalPages - 4 + i
+                    } else {
+                      pageNum = currentPage - 2 + i
+                    }
+                    
+                    return (
+                      <button
+                        key={pageNum}
+                        onClick={() => setCurrentPage(pageNum)}
+                        className={`px-3 py-1.5 border rounded-md text-sm hidden sm:inline ${
+                          currentPage === pageNum
+                            ? 'bg-blue-600 text-white border-blue-600'
+                            : 'border-gray-300 hover:bg-gray-50'
+                        }`}
+                      >
+                        {pageNum}
+                      </button>
+                    )
+                  })}
+                  
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                    disabled={currentPage === totalPages}
+                    className="px-3 py-1.5 border rounded-md text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 flex-1 sm:flex-initial"
+                  >
+                    Next
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
+            </>
         )}
       </main>
 
@@ -638,19 +724,19 @@ export default function ProductsApproval() {
       {selectedProduct && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
+            <div className="p-4 sm:p-6">
               <div className="flex items-start justify-between mb-4">
-                <h2 className="text-2xl font-bold text-gray-900">Detail Produk</h2>
+                <h2 className="text-lg sm:text-2xl font-bold text-gray-900">Detail Produk</h2>
                 <button
                   onClick={() => setSelectedProduct(null)}
                   className="text-gray-400 hover:text-gray-600"
                 >
-                  <X className="w-6 h-6" />
+                  <X className="w-5 h-5 sm:w-6 sm:h-6" />
                 </button>
               </div>
 
               {/* Product Image */}
-              <div className="aspect-video bg-gray-100 rounded-lg mb-4 relative">
+              <div className="aspect-video bg-gray-100 rounded-lg mb-3 sm:mb-4 relative">
                 {selectedProduct.photo_url ? (
                   <img
                     src={selectedProduct.photo_url}
@@ -659,41 +745,41 @@ export default function ProductsApproval() {
                   />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center">
-                    <ImageIcon className="w-24 h-24 text-gray-300" />
+                    <ImageIcon className="w-16 h-16 sm:w-24 sm:h-24 text-gray-300" />
                   </div>
                 )}
               </div>
 
               {/* Product Details */}
-              <div className="space-y-4">
+              <div className="space-y-3 sm:space-y-4">
                 <div>
-                  <label className="text-sm font-medium text-gray-700">Nama Produk</label>
-                  <p className="text-gray-900 mt-1">{selectedProduct.name}</p>
+                  <label className="text-xs sm:text-sm font-medium text-gray-700">Nama Produk</label>
+                  <p className="text-sm sm:text-base text-gray-900 mt-1">{selectedProduct.name}</p>
                 </div>
 
                 <div>
-                  <label className="text-sm font-medium text-gray-700">Deskripsi</label>
-                  <p className="text-gray-900 mt-1">{selectedProduct.description || 'Tidak ada deskripsi'}</p>
+                  <label className="text-xs sm:text-sm font-medium text-gray-700">Deskripsi</label>
+                  <p className="text-sm sm:text-base text-gray-900 mt-1">{selectedProduct.description || 'Tidak ada deskripsi'}</p>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-3 sm:gap-4">
                   <div>
-                    <label className="text-sm font-medium text-gray-700">SKU</label>
-                    <p className="text-gray-900 mt-1">{selectedProduct.sku}</p>
+                    <label className="text-xs sm:text-sm font-medium text-gray-700">SKU</label>
+                    <p className="text-sm sm:text-base text-gray-900 mt-1">{selectedProduct.sku}</p>
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-gray-700">Harga</label>
-                    <p className="text-gray-900 mt-1">Rp {selectedProduct.price.toLocaleString('id-ID')}</p>
+                    <label className="text-xs sm:text-sm font-medium text-gray-700">Harga</label>
+                    <p className="text-sm sm:text-base text-gray-900 mt-1">Rp {selectedProduct.price.toLocaleString('id-ID')}</p>
                   </div>
                 </div>
 
                 <div>
-                  <label className="text-sm font-medium text-gray-700">Supplier</label>
-                  <p className="text-gray-900 mt-1">{getSupplierName(selectedProduct.supplier_id)}</p>
+                  <label className="text-xs sm:text-sm font-medium text-gray-700">Supplier</label>
+                  <p className="text-sm sm:text-base text-gray-900 mt-1">{getSupplierName(selectedProduct.supplier_id)}</p>
                 </div>
 
                 <div>
-                  <label className="text-sm font-medium text-gray-700">Status</label>
+                  <label className="text-xs sm:text-sm font-medium text-gray-700">Status</label>
                   <div className="mt-1">
                     {getStatusBadge(selectedProduct.status)}
                   </div>
@@ -702,37 +788,37 @@ export default function ProductsApproval() {
 
               {/* Actions */}
               {selectedProduct.status === 'PENDING' && (
-                <div className="flex gap-3 mt-6 pt-6 border-t border-gray-200">
+                <div className="flex flex-col sm:flex-row gap-3 mt-4 sm:mt-6 pt-4 sm:pt-6 border-t border-gray-200">
                   <button
                     onClick={() => handleApproveProduct(selectedProduct.id)}
                     className="flex-1 px-4 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-lg transition-colors flex items-center justify-center gap-2"
                   >
-                    <Check className="w-5 h-5" />
-                    Approve Produk
+                    <Check className="w-4 h-4 sm:w-5 sm:h-5" />
+                    Approve
                   </button>
                   <button
                     onClick={() => handleRejectProduct(selectedProduct.id)}
                     className="flex-1 px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors flex items-center justify-center gap-2"
                   >
-                    <X className="w-5 h-5" />
-                    Reject Produk
+                    <X className="w-4 h-4 sm:w-5 sm:h-5" />
+                    Reject
                   </button>
                 </div>
               )}
 
               {selectedProduct.status === 'REJECTED' && (
-                <div className="mt-6 pt-6 border-t border-gray-200">
-                  <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
-                    <p className="text-sm text-red-700">
-                      Produk ini sudah ditolak. Anda dapat menghapus produk ini secara permanen dari database.
+                <div className="mt-4 sm:mt-6 pt-4 sm:pt-6 border-t border-gray-200">
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-3 sm:p-4 mb-3 sm:mb-4">
+                    <p className="text-xs sm:text-sm text-red-700">
+                      Produk ini sudah ditolak. Anda dapat menghapus produk ini secara permanen.
                     </p>
                   </div>
                   <button
                     onClick={() => handleDeleteProduct(selectedProduct.id)}
                     className="w-full px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors flex items-center justify-center gap-2"
                   >
-                    <Trash2 className="w-5 h-5" />
-                    Hapus Produk Permanen
+                    <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
+                    Hapus Permanen
                   </button>
                 </div>
               )}
