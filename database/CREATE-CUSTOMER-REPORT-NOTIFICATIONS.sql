@@ -27,7 +27,7 @@ BEGIN
     FOREACH v_admin_id IN ARRAY v_admin_ids
     LOOP
         INSERT INTO notifications (
-            user_id,
+            profile_id,  -- Changed from user_id
             type,
             title,
             message,
@@ -72,7 +72,7 @@ BEGIN
 
     -- Send notification to supplier
     INSERT INTO notifications (
-        user_id,
+        profile_id,  -- Changed from user_id
         type,
         title,
         message,
