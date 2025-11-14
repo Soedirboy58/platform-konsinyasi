@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
-import { Wallet, TrendingUp, TrendingDown, DollarSign, AlertCircle, Send, Download, Package } from 'lucide-react'
+import { Wallet, TrendingUp, TrendingDown, DollarSign, AlertCircle, Send, Download, Package, Eye } from 'lucide-react'
 import { toast } from 'sonner'
 
 type WalletData = {
@@ -490,9 +490,9 @@ export default function WalletPage() {
                   {payment.payment_proof_url && (
                     <button
                       onClick={() => setSelectedPaymentProof(payment.payment_proof_url)}
-                      className="w-full sm:w-auto sm:ml-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center justify-center gap-2 text-sm"
+                      className="w-full sm:w-auto sm:ml-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center justify-center gap-2 text-sm transition-colors"
                     >
-                      <Download className="w-4 h-4" />
+                      <Eye className="w-4 h-4" />
                       Lihat Bukti
                     </button>
                   )}
