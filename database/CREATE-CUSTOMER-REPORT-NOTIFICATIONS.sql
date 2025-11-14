@@ -27,18 +27,18 @@ BEGIN
     FOREACH v_admin_id IN ARRAY v_admin_ids
     LOOP
         INSERT INTO notifications (
-            profile_id,  -- Changed from user_id
+            recipient_id,
             type,
             title,
             message,
-            link,
+            reference_id,
             created_at
         ) VALUES (
             v_admin_id,
             'CUSTOMER_REPORT',
             'Laporan Produk Bermasalah dari Customer',
             format('Customer melaporkan masalah (%s) pada produk: %s', p_severity, p_product_name),
-            '/admin/suppliers/shipments?tab=returns',
+            p_return_id,
             NOW()
         );
     END LOOP;
@@ -72,18 +72,18 @@ BEGIN
 
     -- Send notification to supplier
     INSERT INTO notifications (
-        profile_id,  -- Changed from user_id
+        recipient_id,
         type,
         title,
         message,
-        link,
+        reference_id,
         created_at
     ) VALUES (
         v_supplier_profile_id,
         'CUSTOMER_REPORT',
         'Customer Melaporkan Masalah Produk',
         format('Customer melaporkan masalah pada produk Anda: %s. Admin akan menindaklanjuti.', p_product_name),
-        '/supplier/shipments?tab=returns',
+        p_return_id,
         NOW()
     );
 
