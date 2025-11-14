@@ -572,10 +572,15 @@ interface ManualReturn {
   reason: string
   location_id: string
   status: string
+  source?: string // 'ADMIN' or 'CUSTOMER'
+  customer_name?: string | null
+  customer_contact?: string | null
+  severity?: string | null
   requested_at: string
   reviewed_at: string | null
   review_notes: string | null
   completed_at: string | null
+  proof_photos?: string[] | null
   product?: {
     name: string
     photo_url?: string | null
@@ -599,8 +604,10 @@ function ReturnsTab() {
   const [manualReturns, setManualReturns] = useState<ManualReturn[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedShipment, setSelectedShipment] = useState<Shipment | null>(null)
+  const [selectedReturn, setSelectedReturn] = useState<ManualReturn | null>(null)
   const [showDetailModal, setShowDetailModal] = useState(false)
-  const [viewType, setViewType] = useState<'rejected' | 'manual'>('rejected')
+  const [showReturnDetailModal, setShowReturnDetailModal] = useState(false)
+  const [viewType, setViewType] = useState<'rejected' | 'admin' | 'customer'>('rejected')
 
   useEffect(() => {
     loadRejectedShipments()
@@ -787,14 +794,24 @@ function ReturnsTab() {
               Pengiriman Ditolak ({rejectedShipments.length})
             </button>
             <button
-              onClick={() => setViewType('manual')}
+              onClick={() => setViewType('admin')}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                viewType === 'manual'
+                viewType === 'admin'
                   ? 'bg-blue-100 text-blue-700'
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
               }`}
             >
-              Retur Produk Rusak ({manualReturns.length})
+              📋 Retur Admin ({manualReturns.filter(r => r.source === 'ADMIN' || !r.source).length})
+            </button>
+            <button
+              onClick={() => setViewType('customer')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                viewType === 'customer'
+                  ? 'bg-blue-100 text-blue-700'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              👥 Retur Customer ({manualReturns.filter(r => r.source === 'CUSTOMER').length})
             </button>
           </div>
         </div>
@@ -907,14 +924,14 @@ function ReturnsTab() {
           </>
         )}
 
-        {/* Manual Returns View */}
-        {viewType === 'manual' && (
+        {/* Manual Returns View - Admin */}
+        {viewType === 'admin' && (
           <>
-            {manualReturns.length === 0 ? (
+            {manualReturns.filter(r => r.source === 'ADMIN' || !r.source).length === 0 ? (
               <div className="p-12 text-center">
                 <Check className="w-16 h-16 text-green-300 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">Tidak ada retur manual</h3>
-                <p className="text-gray-600">Belum ada pengajuan retur produk rusak/cacat dari display</p>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">Tidak ada retur manual dari admin</h3>
+                <p className="text-gray-600">Belum ada pengajuan retur produk rusak/cacat oleh admin</p>
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -945,10 +962,13 @@ function ReturnsTab() {
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                         Tanggal
                       </th>
+                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                        Aksi
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {manualReturns.map((returnItem) => (
+                    {manualReturns.filter(r => r.source === 'ADMIN' || !r.source).map((returnItem) => (
                       <tr key={returnItem.id} className="hover:bg-gray-50">
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-3">
@@ -982,7 +1002,10 @@ function ReturnsTab() {
                           {getStatusBadge(returnItem.status)}
                         </td>
                         <td className="px-6 py-4 text-sm text-gray-600">
-                          {returnItem.requested_by_profile?.full_name || 'Admin'}
+                          <div className="flex items-center gap-1">
+                            <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded">ADMIN</span>
+                            <span>{returnItem.requested_by_profile?.full_name || 'Admin'}</span>
+                          </div>
                         </td>
                         <td className="px-6 py-4 text-sm text-gray-500">
                           {new Date(returnItem.requested_at).toLocaleDateString('id-ID', {
@@ -993,8 +1016,152 @@ function ReturnsTab() {
                             minute: '2-digit'
                           })}
                         </td>
+                        <td className="px-6 py-4 text-right">
+                          <button
+                            onClick={() => {
+                              setSelectedReturn(returnItem)
+                              setShowReturnDetailModal(true)
+                            }}
+                            className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                          >
+                            Preview
+                          </button>
+                        </td>
                       </tr>
                     ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* Manual Returns View - Customer */}
+        {viewType === 'customer' && (
+          <>
+            {manualReturns.filter(r => r.source === 'CUSTOMER').length === 0 ? (
+              <div className="p-12 text-center">
+                <Package className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">Tidak ada laporan dari customer</h3>
+                <p className="text-gray-600">Belum ada customer yang melaporkan produk bermasalah</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                        Produk
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                        Supplier
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                        Lokasi
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                        Qty
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                        Tingkat
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                        Alasan
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                        Status
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                        Dilaporkan Oleh
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                        Tanggal
+                      </th>
+                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                        Aksi
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {manualReturns.filter(r => r.source === 'CUSTOMER').map((returnItem) => {
+                      const severityColors = {
+                        LOW: 'bg-gray-100 text-gray-700',
+                        MEDIUM: 'bg-yellow-100 text-yellow-700',
+                        HIGH: 'bg-orange-100 text-orange-700',
+                        CRITICAL: 'bg-red-100 text-red-700'
+                      }
+                      return (
+                        <tr key={returnItem.id} className="hover:bg-gray-50">
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-3">
+                              {returnItem.product?.photo_url && (
+                                <img 
+                                  src={returnItem.product.photo_url} 
+                                  alt={returnItem.product?.name}
+                                  className="w-10 h-10 rounded object-cover"
+                                />
+                              )}
+                              <div className="text-sm font-medium text-gray-900">
+                                {returnItem.product?.name || 'Produk tidak diketahui'}
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 text-sm text-gray-900">
+                            {returnItem.supplier?.business_name || '-'}
+                          </td>
+                          <td className="px-6 py-4 text-sm text-gray-900">
+                            {returnItem.location?.name || '-'}
+                          </td>
+                          <td className="px-6 py-4 text-sm font-medium text-gray-900">
+                            {returnItem.quantity} unit
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className={`px-2 py-1 text-xs font-medium rounded ${severityColors[returnItem.severity as keyof typeof severityColors] || severityColors.MEDIUM}`}>
+                              {returnItem.severity || 'MEDIUM'}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="text-sm text-gray-700 max-w-xs truncate" title={returnItem.reason}>
+                              {returnItem.reason}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4">
+                            {getStatusBadge(returnItem.status)}
+                          </td>
+                          <td className="px-6 py-4 text-sm text-gray-600">
+                            <div className="flex flex-col">
+                              <div className="flex items-center gap-1">
+                                <span className="px-2 py-0.5 bg-purple-100 text-purple-700 text-xs rounded">CUSTOMER</span>
+                              </div>
+                              <span className="text-xs mt-1">{returnItem.customer_name || 'Anonim'}</span>
+                              {returnItem.customer_contact && (
+                                <span className="text-xs text-gray-500">{returnItem.customer_contact}</span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 text-sm text-gray-500">
+                            {new Date(returnItem.requested_at).toLocaleDateString('id-ID', {
+                              day: 'numeric',
+                              month: 'short',
+                              year: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                          </td>
+                          <td className="px-6 py-4 text-right">
+                            <button
+                              onClick={() => {
+                                setSelectedReturn(returnItem)
+                                setShowReturnDetailModal(true)
+                              }}
+                              className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                            >
+                              Preview
+                            </button>
+                          </td>
+                        </tr>
+                      )
+                    })}
                   </tbody>
                 </table>
               </div>
