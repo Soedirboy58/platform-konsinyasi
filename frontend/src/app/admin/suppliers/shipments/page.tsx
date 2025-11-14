@@ -1022,9 +1022,10 @@ function ReturnsTab() {
                               setSelectedReturn(returnItem)
                               setShowReturnDetailModal(true)
                             }}
-                            className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                            className="text-blue-600 hover:text-blue-800 p-2 rounded hover:bg-blue-50 transition"
+                            title="Lihat Detail"
                           >
-                            Preview
+                            <Eye className="w-5 h-5" />
                           </button>
                         </td>
                       </tr>
@@ -1154,9 +1155,10 @@ function ReturnsTab() {
                                 setSelectedReturn(returnItem)
                                 setShowReturnDetailModal(true)
                               }}
-                              className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                              className="text-blue-600 hover:text-blue-800 p-2 rounded hover:bg-blue-50 transition"
+                              title="Lihat Detail"
                             >
-                              Preview
+                              <Eye className="w-5 h-5" />
                             </button>
                           </td>
                         </tr>

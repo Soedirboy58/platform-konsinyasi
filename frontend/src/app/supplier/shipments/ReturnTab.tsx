@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
-import { CheckCircle, XCircle, Clock, Package, AlertTriangle } from 'lucide-react'
+import { CheckCircle, XCircle, Clock, Package, AlertTriangle, Eye } from 'lucide-react'
 
 interface ReturnRequest {
   id: string
@@ -244,7 +244,19 @@ export default function ReturnTab() {
                         <div>
                           <h4 className="font-semibold text-gray-900">{productName}</h4>
                         </div>
-                        {getStatusBadge(returnItem.status)}
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => {
+                              // TODO: Add detail modal
+                              toast.info('Detail modal coming soon')
+                            }}
+                            className="text-blue-600 hover:text-blue-800 p-2 rounded hover:bg-blue-50 transition"
+                            title="Lihat Detail"
+                          >
+                            <Eye className="w-5 h-5" />
+                          </button>
+                          {getStatusBadge(returnItem.status)}
+                        </div>
                       </div>
 
                       <div className="grid grid-cols-2 gap-4 mt-3 text-sm">
