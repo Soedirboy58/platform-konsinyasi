@@ -42,16 +42,31 @@ export default function ReturnTab() {
     setLoading(true)
     try {
       const { data: { session } } = await supabase.auth.getSession()
-      if (!session) return
+      if (!session) {
+        console.log('❌ No session found')
+        return
+      }
+
+      console.log('👤 Supplier loading returns...')
 
       // Get supplier id
-      const { data: supplier } = await supabase
+      const { data: supplier, error: supplierError } = await supabase
         .from('suppliers')
         .select('id')
         .eq('profile_id', session.user.id)
         .single()
 
-      if (!supplier) return
+      if (supplierError) {
+        console.error('❌ Error getting supplier:', supplierError)
+        throw supplierError
+      }
+
+      if (!supplier) {
+        console.log('⚠️ No supplier found for this user')
+        return
+      }
+
+      console.log('✅ Supplier ID:', supplier.id)
 
       const { data, error } = await supabase
         .from('shipment_returns')
@@ -71,11 +86,25 @@ export default function ReturnTab() {
         .eq('supplier_id', supplier.id)
         .order('requested_at', { ascending: false })
 
-      if (error) throw error
-      setReturnsList((data || []) as any as ReturnRequest[])
-    } catch (err) {
-      console.error('Error loading returns:', err)
-      toast.error('Gagal memuat data retur')
+      if (error) {
+        console.error('❌ Error loading returns:', error)
+        throw error
+      }
+
+      console.log('📦 Returns loaded:', data?.length || 0)
+      console.log('📊 Returns data:', data)
+
+      // Defensive: Ensure product and location exist, provide defaults
+      const safeData = (data || []).map(item => ({
+        ...item,
+        product: item.product || { name: 'Produk tidak ditemukan', photo_url: null },
+        location: item.location || { name: 'Lokasi tidak ditemukan' }
+      }))
+
+      setReturnsList(safeData as any as ReturnRequest[])
+    } catch (err: any) {
+      console.error('❌ Error loading returns:', err)
+      toast.error('Gagal memuat data retur: ' + (err?.message || 'Unknown error'))
     } finally {
       setLoading(false)
     }
@@ -182,101 +211,113 @@ export default function ReturnTab() {
           </div>
         ) : (
           <div className="divide-y">
-            {returnsList.map(returnItem => (
-              <div key={returnItem.id} className="p-6 hover:bg-gray-50">
-                <div className="flex gap-4">
-                  {/* Product Image */}
-                  <div className="w-20 h-20 bg-gray-100 rounded-lg flex-shrink-0 overflow-hidden">
-                    {returnItem.product.photo_url ? (
-                      <img 
-                        src={returnItem.product.photo_url} 
-                        alt={returnItem.product.name}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <Package className="w-full h-full p-4 text-gray-400" />
-                    )}
-                  </div>
+            {returnsList.map(returnItem => {
+              // Defensive null checks
+              const productName = returnItem.product?.name || 'Produk tidak ditemukan'
+              const photoUrl = returnItem.product?.photo_url
+              const locationName = returnItem.location?.name || 'Lokasi tidak ditemukan'
 
-                  {/* Details */}
-                  <div className="flex-1">
-                    <div className="flex items-start justify-between mb-2">
-                      <div>
-                        <h4 className="font-semibold text-gray-900">{returnItem.product.name}</h4>
-                      </div>
-                      {getStatusBadge(returnItem.status)}
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4 mt-3 text-sm">
-                      <div>
-                        <span className="text-gray-600">Jumlah:</span>
-                        <span className="ml-2 font-medium">{returnItem.quantity} pcs</span>
-                      </div>
-                      <div>
-                        <span className="text-gray-600">Lokasi:</span>
-                        <span className="ml-2 font-medium">{returnItem.location.name}</span>
-                      </div>
-                    </div>
-
-                    <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
-                      <div className="flex items-start gap-2">
-                        <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-                        <div>
-                          <p className="font-medium text-red-900 text-sm">Alasan Retur:</p>
-                          <p className="text-sm text-red-800">{returnItem.reason}</p>
-                        </div>
-                      </div>
-                    </div>
-
-                    {returnItem.review_notes && (
-                      <div className="mt-3 p-3 bg-gray-50 border rounded-lg">
-                        <p className="font-medium text-gray-900 text-sm">Catatan Review:</p>
-                        <p className="text-sm text-gray-700 mt-1">{returnItem.review_notes}</p>
-                      </div>
-                    )}
-
-                    <div className="flex items-center gap-2 mt-3 text-xs text-gray-600">
-                      <span>Diajukan: {new Date(returnItem.requested_at).toLocaleString('id-ID')}</span>
-                      {returnItem.reviewed_at && (
-                        <span>• Direview: {new Date(returnItem.reviewed_at).toLocaleString('id-ID')}</span>
+              return (
+                <div key={returnItem.id} className="p-6 hover:bg-gray-50">
+                  <div className="flex gap-4">
+                    {/* Product Image */}
+                    <div className="w-20 h-20 bg-gray-100 rounded-lg flex-shrink-0 overflow-hidden">
+                      {photoUrl ? (
+                        <img 
+                          src={photoUrl} 
+                          alt={productName}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            // Fallback jika gambar gagal load
+                            e.currentTarget.style.display = 'none'
+                            e.currentTarget.parentElement!.innerHTML = '<div class="w-full h-full flex items-center justify-center"><svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg></div>'
+                          }}
+                        />
+                      ) : (
+                        <Package className="w-full h-full p-4 text-gray-400" />
                       )}
                     </div>
 
-                    {/* Actions */}
-                    {returnItem.status === 'PENDING' && (
-                      <div className="flex gap-2 mt-4">
-                        <button
-                          onClick={() => handleReviewClick(returnItem, 'approve')}
-                          disabled={processingId === returnItem.id}
-                          className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-300 text-sm font-medium"
-                        >
-                          Setujui Retur
-                        </button>
-                        <button
-                          onClick={() => handleReviewClick(returnItem, 'reject')}
-                          disabled={processingId === returnItem.id}
-                          className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:bg-gray-300 text-sm font-medium"
-                        >
-                          Tolak Retur
-                        </button>
+                    {/* Details */}
+                    <div className="flex-1">
+                      <div className="flex items-start justify-between mb-2">
+                        <div>
+                          <h4 className="font-semibold text-gray-900">{productName}</h4>
+                        </div>
+                        {getStatusBadge(returnItem.status)}
                       </div>
-                    )}
 
-                    {returnItem.status === 'APPROVED' && (
-                      <div className="mt-4">
-                        <button
-                          onClick={() => confirmPickup(returnItem.id)}
-                          disabled={processingId === returnItem.id}
-                          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 text-sm font-medium"
-                        >
-                          {processingId === returnItem.id ? 'Memproses...' : 'Konfirmasi Produk Diambil'}
-                        </button>
+                      <div className="grid grid-cols-2 gap-4 mt-3 text-sm">
+                        <div>
+                          <span className="text-gray-600">Jumlah:</span>
+                          <span className="ml-2 font-medium">{returnItem.quantity} pcs</span>
+                        </div>
+                        <div>
+                          <span className="text-gray-600">Lokasi:</span>
+                          <span className="ml-2 font-medium">{locationName}</span>
+                        </div>
                       </div>
-                    )}
+
+                      <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+                        <div className="flex items-start gap-2">
+                          <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                          <div>
+                            <p className="font-medium text-red-900 text-sm">Alasan Retur:</p>
+                            <p className="text-sm text-red-800">{returnItem.reason}</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {returnItem.review_notes && (
+                        <div className="mt-3 p-3 bg-gray-50 border rounded-lg">
+                          <p className="font-medium text-gray-900 text-sm">Catatan Review:</p>
+                          <p className="text-sm text-gray-700 mt-1">{returnItem.review_notes}</p>
+                        </div>
+                      )}
+
+                      <div className="flex items-center gap-2 mt-3 text-xs text-gray-600">
+                        <span>Diajukan: {new Date(returnItem.requested_at).toLocaleString('id-ID')}</span>
+                        {returnItem.reviewed_at && (
+                          <span>• Direview: {new Date(returnItem.reviewed_at).toLocaleString('id-ID')}</span>
+                        )}
+                      </div>
+
+                      {/* Actions */}
+                      {returnItem.status === 'PENDING' && (
+                        <div className="flex gap-2 mt-4">
+                          <button
+                            onClick={() => handleReviewClick(returnItem, 'approve')}
+                            disabled={processingId === returnItem.id}
+                            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-300 text-sm font-medium"
+                          >
+                            Setujui Retur
+                          </button>
+                          <button
+                            onClick={() => handleReviewClick(returnItem, 'reject')}
+                            disabled={processingId === returnItem.id}
+                            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:bg-gray-300 text-sm font-medium"
+                          >
+                            Tolak Retur
+                          </button>
+                        </div>
+                      )}
+
+                      {returnItem.status === 'APPROVED' && (
+                        <div className="mt-4">
+                          <button
+                            onClick={() => confirmPickup(returnItem.id)}
+                            disabled={processingId === returnItem.id}
+                            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 text-sm font-medium"
+                          >
+                            {processingId === returnItem.id ? 'Memproses...' : 'Konfirmasi Produk Diambil'}
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         )}
       </div>
