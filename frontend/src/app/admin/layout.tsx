@@ -22,7 +22,7 @@ import {
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const pathname = usePathname()
-  const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [sidebarOpen, setSidebarOpen] = useState(false) // Default closed
   const [profile, setProfile] = useState<any>(null)
   const [loading, setLoading] = useState(true)
 
@@ -160,34 +160,35 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       {/* Sidebar */}
       <aside
         className={`fixed top-16 left-0 bottom-0 bg-white border-r border-gray-200 z-20 transition-all duration-300 ${
-          sidebarOpen ? 'w-64' : 'w-0'
-        } overflow-hidden`}
+          sidebarOpen ? 'w-16 lg:w-64' : 'w-0'
+        } overflow-hidden lg:static lg:w-64`}
       >
         <nav className="p-4 space-y-2">
           {menuItems.map((item, index) => (
             <div key={index}>
               <Link
                 href={item.href}
-                className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                className={`flex items-center px-2 lg:px-4 py-3 rounded-lg transition-colors justify-center lg:justify-start lg:gap-3 ${
                   item.active
                     ? 'bg-blue-50 text-blue-600 font-medium'
                     : 'text-gray-700 hover:bg-gray-50'
                 }`}
+                title={item.label}
               >
                 {item.icon}
-                <span>{item.label}</span>
+                <span className="hidden lg:block">{item.label}</span>
                 {item.submenu && (
                   <ChevronRight
-                    className={`w-4 h-4 ml-auto transition-transform ${
+                    className={`w-4 h-4 ml-auto transition-transform hidden lg:block ${
                       item.active ? 'rotate-90' : ''
                     }`}
                   />
                 )}
               </Link>
 
-              {/* Submenu */}
+              {/* Submenu - Hidden on mobile */}
               {item.submenu && item.active && (
-                <div className="ml-12 mt-2 space-y-1">
+                <div className="ml-12 mt-2 space-y-1 hidden lg:block">
                   {item.submenu.map((subitem, subindex) => (
                     <Link
                       key={subindex}
@@ -209,22 +210,29 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           {/* Logout Button */}
           <button
             onClick={handleLogout}
-            className="flex items-center gap-3 px-4 py-3 rounded-lg text-red-600 hover:bg-red-50 w-full transition-colors mt-8"
+            className="flex items-center px-2 lg:px-4 py-3 rounded-lg text-red-600 hover:bg-red-50 w-full transition-colors mt-8 justify-center lg:justify-start lg:gap-3"
+            title="Logout"
           >
             <LogOut className="w-5 h-5" />
-            <span>Logout</span>
+            <span className="hidden lg:block">Logout</span>
           </button>
         </nav>
       </aside>
 
       {/* Main Content */}
       <main
-        className={`pt-16 transition-all duration-300 ${
-          sidebarOpen ? 'ml-64' : 'ml-0'
-        }`}
+        className={`pt-16 transition-all duration-300 lg:ml-64`}
       >
         {children}
       </main>
+
+      {/* Mobile Overlay - Close sidebar when clicking outside */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 z-10 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
     </div>
   )
 }
