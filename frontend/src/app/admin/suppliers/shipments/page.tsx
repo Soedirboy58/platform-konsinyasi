@@ -1305,79 +1305,6 @@ function ReturnsTab() {
           </div>
         </div>
       )}
-    </>
-  )
-}
-
-export default function ShipmentsPage() {
-  const searchParams = useSearchParams()
-  const initialTab = searchParams?.get('tab') || 'shipments'
-  
-  const [activeTab, setActiveTab] = useState(initialTab)
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    setLoading(false)
-  }, [activeTab])
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-      </div>
-    )
-  }
-
-  return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
-          <h1 className="text-2xl font-bold text-gray-900">Pengiriman & Retur</h1>
-          <p className="text-gray-600 mt-1">Review pengiriman produk dari supplier dan kelola retur</p>
-        </div>
-      </header>
-
-      <main className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
-        {/* Tab Navigation */}
-        <div className="bg-white rounded-lg shadow mb-6">
-          <div className="border-b border-gray-200">
-            <nav className="flex -mb-px">
-              <button
-                onClick={() => setActiveTab('shipments')}
-                className={`flex items-center gap-2 px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
-                  activeTab === 'shipments'
-                    ? 'border-blue-600 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                <Package className="w-5 h-5" />
-                Review Pengiriman
-              </button>
-
-              <button
-                onClick={() => setActiveTab('returns')}
-                className={`flex items-center gap-2 px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
-                  activeTab === 'returns'
-                    ? 'border-blue-600 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                <RotateCcw className="w-5 h-5" />
-                Produk Retur
-              </button>
-            </nav>
-          </div>
-        </div>
-
-        {/* Tab Content */}
-        {activeTab === 'shipments' && (
-          <ShipmentsTab />
-        )}
-
-        {activeTab === 'returns' && (
-          <ReturnsTab />
-        )}
-      </main>
 
       {/* Return Detail Modal */}
       {showReturnDetailModal && selectedReturn && (
@@ -1583,6 +1510,79 @@ export default function ShipmentsPage() {
           </div>
         </div>
       )}
+    </>
+  )
+}
+
+export default function ShipmentsPage() {
+  const searchParams = useSearchParams()
+  const initialTab = searchParams?.get('tab') || 'shipments'
+  
+  const [activeTab, setActiveTab] = useState(initialTab)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    setLoading(false)
+  }, [activeTab])
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <header className="bg-white shadow">
+        <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
+          <h1 className="text-2xl font-bold text-gray-900">Pengiriman & Retur</h1>
+          <p className="text-gray-600 mt-1">Review pengiriman produk dari supplier dan kelola retur</p>
+        </div>
+      </header>
+
+      <main className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
+        {/* Tab Navigation */}
+        <div className="bg-white rounded-lg shadow mb-6">
+          <div className="border-b border-gray-200">
+            <nav className="flex -mb-px">
+              <button
+                onClick={() => setActiveTab('shipments')}
+                className={`flex items-center gap-2 px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
+                  activeTab === 'shipments'
+                    ? 'border-blue-600 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                <Package className="w-5 h-5" />
+                Review Pengiriman
+              </button>
+
+              <button
+                onClick={() => setActiveTab('returns')}
+                className={`flex items-center gap-2 px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
+                  activeTab === 'returns'
+                    ? 'border-blue-600 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                <RotateCcw className="w-5 h-5" />
+                Produk Retur
+              </button>
+            </nav>
+          </div>
+        </div>
+
+        {/* Tab Content */}
+        {activeTab === 'shipments' && (
+          <ShipmentsTab />
+        )}
+
+        {activeTab === 'returns' && (
+          <ReturnsTab />
+        )}
+      </main>
     </div>
   )
 }
