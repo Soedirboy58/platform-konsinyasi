@@ -214,65 +214,68 @@ export default function SupplierList() {
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
-          <h1 className="text-2xl font-bold text-gray-900">Daftar Supplier</h1>
-          <p className="text-gray-600 mt-1">Kelola dan review supplier yang mendaftar</p>
+        <div className="px-4 py-4">
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Daftar Supplier</h1>
+          <p className="text-sm text-gray-600 mt-1">Kelola dan review supplier</p>
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="bg-blue-600 text-white p-3 rounded-lg">
-                <Users className="w-6 h-6" />
+      <main className="px-4 py-4 sm:py-6">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+          <div className="bg-white rounded-lg shadow p-4">
+            <div className="flex items-center gap-3">
+              <div className="bg-blue-600 text-white p-2 rounded-lg">
+                <Users className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="text-xs text-gray-600">Total Supplier</p>
+                <p className="text-xl font-bold text-gray-900">{stats.total}</p>
               </div>
             </div>
-            <p className="text-sm text-gray-600 mb-1">Total Supplier</p>
-            <p className="text-2xl font-bold text-gray-900 mb-1">{stats.total}</p>
-            <p className="text-xs text-gray-500">Semua supplier terdaftar</p>
           </div>
 
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="bg-green-600 text-white p-3 rounded-lg">
-                <Check className="w-6 h-6" />
+          <div className="bg-white rounded-lg shadow p-4">
+            <div className="flex items-center gap-3">
+              <div className="bg-green-600 text-white p-2 rounded-lg">
+                <Check className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="text-xs text-gray-600">Approved</p>
+                <p className="text-xl font-bold text-green-600">{stats.approved}</p>
               </div>
             </div>
-            <p className="text-sm text-gray-600 mb-1">Approved</p>
-            <p className="text-2xl font-bold text-green-600 mb-1">{stats.approved}</p>
-            <p className="text-xs text-gray-500">Supplier disetujui</p>
           </div>
 
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="bg-orange-600 text-white p-3 rounded-lg">
-                <X className="w-6 h-6" />
+          <div className="bg-white rounded-lg shadow p-4">
+            <div className="flex items-center gap-3">
+              <div className="bg-orange-600 text-white p-2 rounded-lg">
+                <X className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="text-xs text-gray-600">Pending</p>
+                <p className="text-xl font-bold text-orange-600">{stats.pending}</p>
               </div>
             </div>
-            <p className="text-sm text-gray-600 mb-1">Pending</p>
-            <p className="text-2xl font-bold text-orange-600 mb-1">{stats.pending}</p>
-            <p className="text-xs text-gray-500">Menunggu approval</p>
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow p-4 mb-4">
-          <div className="flex flex-col md:flex-row gap-4">
+        <div className="bg-white rounded-lg shadow p-3 mb-4">
+          <div className="flex flex-col sm:flex-row gap-3">
             <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
               <input
                 type="text"
                 placeholder="Cari supplier atau email..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full pl-10 pr-3 py-2 border text-sm rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
 
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="px-3 py-2 border text-sm rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent w-full sm:w-auto"
             >
               <option value="ALL">Semua Status</option>
               <option value="APPROVED">Approved</option>
@@ -282,46 +285,121 @@ export default function SupplierList() {
         </div>
 
         {selectedSuppliers.length > 0 && (
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Users className="w-5 h-5 text-blue-600" />
-              <span className="text-sm font-medium text-blue-900">
-                {selectedSuppliers.length} supplier dipilih
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setSelectedSuppliers([])}
-                className="px-4 py-2 text-sm text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
-              >
-                Batal
-              </button>
-              <button
-                onClick={handleBulkApprove}
-                className="px-4 py-2 text-sm text-white bg-green-600 rounded-lg hover:bg-green-700 flex items-center gap-2"
-              >
-                <Check className="w-4 h-4" />
-                Approve
-              </button>
-              <button
-                onClick={handleBulkReject}
-                className="px-4 py-2 text-sm text-white bg-orange-600 rounded-lg hover:bg-orange-700 flex items-center gap-2"
-              >
-                <X className="w-4 h-4" />
-                Reject
-              </button>
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <Users className="w-4 h-4 text-blue-600" />
+                <span className="text-sm font-medium text-blue-900">
+                  {selectedSuppliers.length} supplier dipilih
+                </span>
+              </div>
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+                <button
+                  onClick={() => setSelectedSuppliers([])}
+                  className="flex-1 sm:flex-initial px-3 py-1.5 text-sm text-gray-700 bg-white border rounded-lg hover:bg-gray-50"
+                >
+                  Batal
+                </button>
+                <button
+                  onClick={handleBulkApprove}
+                  className="flex-1 sm:flex-initial px-3 py-1.5 text-sm text-white bg-green-600 rounded-lg hover:bg-green-700 flex items-center justify-center gap-1"
+                >
+                  <Check className="w-4 h-4" />
+                  Approve
+                </button>
+                <button
+                  onClick={handleBulkReject}
+                  className="flex-1 sm:flex-initial px-3 py-1.5 text-sm text-white bg-orange-600 rounded-lg hover:bg-orange-700 flex items-center justify-center gap-1"
+                >
+                  <X className="w-4 h-4" />
+                  Reject
+                </button>
+              </div>
             </div>
           </div>
         )}
 
         {paginatedSuppliers.length === 0 ? (
-          <div className="bg-white rounded-lg shadow p-12 text-center">
-            <Users className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">Tidak ada supplier ditemukan</h3>
+          <div className="bg-white rounded-lg shadow p-8 text-center">
+            <Users className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+            <h3 className="text-base font-medium text-gray-900">Tidak ada supplier</h3>
           </div>
         ) : (
-          <div className="bg-white rounded-lg shadow overflow-hidden">
-            <div className="overflow-x-auto">
+          <>
+            {/* Mobile Card View */}
+            <div className="lg:hidden space-y-4">
+              {paginatedSuppliers.map((supplier) => (
+                <div 
+                  key={supplier.id} 
+                  className={`bg-white rounded-lg shadow p-4 ${selectedSuppliers.includes(supplier.id) ? 'ring-2 ring-blue-500' : ''}`}
+                >
+                  <div className="flex items-start gap-3">
+                    <input
+                      type="checkbox"
+                      checked={selectedSuppliers.includes(supplier.id)}
+                      onChange={() => toggleSupplierSelection(supplier.id)}
+                      className="mt-1 w-4 h-4 text-blue-600 border-gray-300 rounded"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between mb-2">
+                        <div className="flex-1">
+                          <h3 className="text-sm font-semibold text-gray-900 truncate">{supplier.business_name}</h3>
+                          <p className="text-xs text-gray-500 truncate">{supplier.email}</p>
+                        </div>
+                        {getStatusBadge(supplier.status)}
+                      </div>
+                      
+                      <div className="space-y-1 text-xs text-gray-600 mb-3">
+                        <div className="flex items-center gap-2">
+                          <Phone className="w-3 h-3" />
+                          <span>{supplier.phone_number || '-'}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Building className="w-3 h-3" />
+                          <Link 
+                            href={`/admin/suppliers/products?supplier=${supplier.id}`}
+                            className="text-blue-600 hover:underline"
+                          >
+                            {supplier.products_count} produk
+                          </Link>
+                        </div>
+                      </div>
+                      
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => setSelectedSupplier(supplier)}
+                          className="flex-1 px-3 py-1.5 text-xs bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 flex items-center justify-center gap-1"
+                        >
+                          <Eye className="w-3 h-3" />
+                          Detail
+                        </button>
+                        {supplier.status !== 'APPROVED' ? (
+                          <button
+                            onClick={() => handleApprove(supplier.id)}
+                            className="flex-1 px-3 py-1.5 text-xs bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center justify-center gap-1"
+                          >
+                            <Check className="w-3 h-3" />
+                            Approve
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => handleReject(supplier.id)}
+                            className="flex-1 px-3 py-1.5 text-xs bg-orange-600 text-white rounded-lg hover:bg-orange-700 flex items-center justify-center gap-1"
+                          >
+                            <X className="w-3 h-3" />
+                            Reject
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop Table View */}
+            <div className="hidden lg:block bg-white rounded-lg shadow overflow-hidden">
+              <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
@@ -424,31 +502,34 @@ export default function SupplierList() {
                 </tbody>
               </table>
             </div>
+            </div>
 
-            <div className="flex items-center justify-between px-6 py-4 border-t">
-              <div className="flex items-center gap-4">
-                <p className="text-sm text-gray-600">
-                  Menampilkan {startIndex + 1} - {Math.min(endIndex, filteredSuppliers.length)} dari {filteredSuppliers.length}
-                </p>
-                <select
-                  value={itemsPerPage}
-                  onChange={(e) => {
-                    setItemsPerPage(Number(e.target.value))
-                    setCurrentPage(1)
-                  }}
-                  className="border rounded-md px-3 py-1 text-sm"
-                >
+            {/* Pagination */}
+            <div className="bg-white rounded-lg shadow p-4 mt-4">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 text-sm">
+                  <p className="text-gray-600 whitespace-nowrap">
+                    Menampilkan {startIndex + 1} - {Math.min(endIndex, filteredSuppliers.length)} dari {filteredSuppliers.length}
+                  </p>
+                  <select
+                    value={itemsPerPage}
+                    onChange={(e) => {
+                      setItemsPerPage(Number(e.target.value))
+                      setCurrentPage(1)
+                    }}
+                    className="border rounded-md px-3 py-1.5 text-sm w-full sm:w-auto"
+                  >
                   <option value={10}>10 baris</option>
                   <option value={25}>25 baris</option>
                   <option value={50}>50 baris</option>
                 </select>
               </div>
               
-              <div className="flex gap-2">
+              <div className="flex gap-2 w-full sm:w-auto justify-center">
                 <button
                   onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                   disabled={currentPage === 1}
-                  className="px-3 py-1 border rounded-md text-sm disabled:opacity-50 hover:bg-gray-50"
+                  className="px-3 py-1.5 border rounded-md text-sm disabled:opacity-50 hover:bg-gray-50 flex-1 sm:flex-initial"
                 >
                   Previous
                 </button>
@@ -463,7 +544,7 @@ export default function SupplierList() {
                     <button
                       key={pageNum}
                       onClick={() => setCurrentPage(pageNum)}
-                      className={`px-3 py-1 border rounded-md text-sm ${
+                      className={`px-3 py-1.5 border rounded-md text-sm hidden sm:inline ${
                         currentPage === pageNum ? 'bg-blue-600 text-white' : 'hover:bg-gray-50'
                       }`}
                     >
@@ -475,98 +556,99 @@ export default function SupplierList() {
                 <button
                   onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                   disabled={currentPage === totalPages}
-                  className="px-3 py-1 border rounded-md text-sm disabled:opacity-50 hover:bg-gray-50"
+                  className="px-3 py-1.5 border rounded-md text-sm disabled:opacity-50 hover:bg-gray-50 flex-1 sm:flex-initial"
                 >
                   Next
                 </button>
               </div>
             </div>
-          </div>
+            </div>
+            </>
         )}
       </main>
 
       {selectedSupplier && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
+            <div className="p-4 sm:p-6">
               <div className="flex items-start justify-between mb-4">
-                <h2 className="text-2xl font-bold">Detail Supplier</h2>
+                <h2 className="text-lg sm:text-2xl font-bold">Detail Supplier</h2>
                 <button
                   onClick={() => setSelectedSupplier(null)}
                   className="text-gray-400 hover:text-gray-600"
                 >
-                  <X className="w-6 h-6" />
+                  <X className="w-5 h-5 sm:w-6 sm:h-6" />
                 </button>
               </div>
 
-              <div className="space-y-4">
+              <div className="space-y-3 sm:space-y-4">
                 <div>
-                  <label className="text-sm font-medium text-gray-700">Nama Bisnis</label>
-                  <p className="text-gray-900 mt-1">{selectedSupplier.business_name}</p>
+                  <label className="text-xs sm:text-sm font-medium text-gray-700">Nama Bisnis</label>
+                  <p className="text-sm sm:text-base text-gray-900 mt-1">{selectedSupplier.business_name}</p>
                 </div>
 
                 <div>
-                  <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                    <Mail className="w-4 h-4" />
+                  <label className="text-xs sm:text-sm font-medium text-gray-700 flex items-center gap-2">
+                    <Mail className="w-3 h-3 sm:w-4 sm:h-4" />
                     Email
                   </label>
-                  <p className="text-gray-900 mt-1">{selectedSupplier.email}</p>
+                  <p className="text-sm sm:text-base text-gray-900 mt-1 break-all">{selectedSupplier.email}</p>
                 </div>
 
                 <div>
-                  <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                    <Phone className="w-4 h-4" />
+                  <label className="text-xs sm:text-sm font-medium text-gray-700 flex items-center gap-2">
+                    <Phone className="w-3 h-3 sm:w-4 sm:h-4" />
                     Telepon
                   </label>
-                  <p className="text-gray-900 mt-1">{selectedSupplier.phone_number || '-'}</p>
+                  <p className="text-sm sm:text-base text-gray-900 mt-1">{selectedSupplier.phone_number || '-'}</p>
                 </div>
 
                 <div>
-                  <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                    <MapPin className="w-4 h-4" />
+                  <label className="text-xs sm:text-sm font-medium text-gray-700 flex items-center gap-2">
+                    <MapPin className="w-3 h-3 sm:w-4 sm:h-4" />
                     Alamat
                   </label>
-                  <p className="text-gray-900 mt-1">{selectedSupplier.address || '-'}</p>
+                  <p className="text-sm sm:text-base text-gray-900 mt-1">{selectedSupplier.address || '-'}</p>
                 </div>
 
-                <div className="border-t pt-4">
-                  <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
-                    <CreditCard className="w-5 h-5" />
+                <div className="border-t pt-3 sm:pt-4">
+                  <h3 className="text-base sm:text-lg font-semibold mb-2 sm:mb-3 flex items-center gap-2">
+                    <CreditCard className="w-4 h-4 sm:w-5 sm:h-5" />
                     Info Bank
                   </h3>
                   
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                     <div>
-                      <label className="text-sm font-medium text-gray-700">Bank</label>
-                      <p className="text-gray-900 mt-1">{selectedSupplier.bank_name || '-'}</p>
+                      <label className="text-xs sm:text-sm font-medium text-gray-700">Bank</label>
+                      <p className="text-sm sm:text-base text-gray-900 mt-1">{selectedSupplier.bank_name || '-'}</p>
                     </div>
                     <div>
-                      <label className="text-sm font-medium text-gray-700">Nomor Rekening</label>
-                      <p className="text-gray-900 mt-1">{selectedSupplier.bank_account_number || '-'}</p>
+                      <label className="text-xs sm:text-sm font-medium text-gray-700">Nomor Rekening</label>
+                      <p className="text-sm sm:text-base text-gray-900 mt-1">{selectedSupplier.bank_account_number || '-'}</p>
                     </div>
                   </div>
                   
-                  <div className="mt-4">
-                    <label className="text-sm font-medium text-gray-700">Nama Rekening</label>
-                    <p className="text-gray-900 mt-1">{selectedSupplier.bank_account_holder || '-'}</p>
+                  <div className="mt-3 sm:mt-4">
+                    <label className="text-xs sm:text-sm font-medium text-gray-700">Nama Rekening</label>
+                    <p className="text-sm sm:text-base text-gray-900 mt-1">{selectedSupplier.bank_account_holder || '-'}</p>
                   </div>
                 </div>
 
                 <div>
-                  <label className="text-sm font-medium text-gray-700">Status</label>
+                  <label className="text-xs sm:text-sm font-medium text-gray-700">Status</label>
                   <div className="mt-1">
                     {getStatusBadge(selectedSupplier.status)}
                   </div>
                 </div>
               </div>
 
-              <div className="flex gap-3 mt-6 pt-6 border-t">
+              <div className="flex flex-col sm:flex-row gap-3 mt-4 sm:mt-6 pt-4 sm:pt-6 border-t">
                 {selectedSupplier.status !== 'APPROVED' ? (
                   <button
                     onClick={() => handleApprove(selectedSupplier.id)}
                     className="flex-1 px-4 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-lg flex items-center justify-center gap-2"
                   >
-                    <Check className="w-5 h-5" />
+                    <Check className="w-4 h-4 sm:w-5 sm:h-5" />
                     Approve
                   </button>
                 ) : (
@@ -574,7 +656,7 @@ export default function SupplierList() {
                     onClick={() => handleReject(selectedSupplier.id)}
                     className="flex-1 px-4 py-2 text-sm font-medium text-white bg-orange-600 hover:bg-orange-700 rounded-lg flex items-center justify-center gap-2"
                   >
-                    <X className="w-5 h-5" />
+                    <X className="w-4 h-4 sm:w-5 sm:h-5" />
                     Reject
                   </button>
                 )}
