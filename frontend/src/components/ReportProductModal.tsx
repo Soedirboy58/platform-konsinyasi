@@ -112,20 +112,24 @@ export default function ReportProductModal({ isOpen, onClose, product, locationI
 
       if (returnError) throw returnError
 
-      // Send notification to admin
-      await supabase.rpc('notify_admin_customer_report', {
+      // Send notification to admin (non-blocking)
+      supabase.rpc('notify_admin_customer_report', {
         p_return_id: returnData.id,
         p_product_name: product.name,
         p_severity: formData.severity
-      }).catch(err => console.warn('Notification failed:', err))
+      }).then(({ error: notifError }) => {
+        if (notifError) console.warn('Admin notification failed:', notifError)
+      })
 
-      // Send notification to supplier
+      // Send notification to supplier (non-blocking)
       if (product.supplier_id) {
-        await supabase.rpc('notify_supplier_customer_report', {
+        supabase.rpc('notify_supplier_customer_report', {
           p_return_id: returnData.id,
           p_supplier_id: product.supplier_id,
           p_product_name: product.name
-        }).catch(err => console.warn('Supplier notification failed:', err))
+        }).then(({ error: notifError }) => {
+          if (notifError) console.warn('Supplier notification failed:', notifError)
+        })
       }
 
       toast.success('Laporan berhasil dikirim! Admin akan segera menindaklanjuti.')

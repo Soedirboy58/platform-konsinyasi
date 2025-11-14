@@ -3,8 +3,9 @@
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { ShoppingCart, Scan, Plus, Minus, Search, Filter, X } from 'lucide-react'
+import { ShoppingCart, Scan, Plus, Minus, Search, Filter, X, AlertTriangle } from 'lucide-react'
 import { toast } from 'sonner'
+import ReportProductModal from '@/components/ReportProductModal'
 
 type Product = {
   product_id: string
@@ -14,6 +15,8 @@ type Product = {
   barcode: string | null
   photo_url: string | null
   supplier_name: string
+  supplier_id?: string
+  location_id?: string
   total_sales?: number
   sort_priority?: number
 }
@@ -40,9 +43,12 @@ export default function KantinPage() {
   const [cart, setCart] = useState<CartItem[]>([])
   const [loading, setLoading] = useState(true)
   const [locationName, setLocationName] = useState('')
+  const [locationId, setLocationId] = useState<string>('')
   const [selectedCategory, setSelectedCategory] = useState('all')
   const [searchQuery, setSearchQuery] = useState('')
   const [showCart, setShowCart] = useState(false)
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false)
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
 
   useEffect(() => {
     loadProducts()
@@ -128,6 +134,18 @@ export default function KantinPage() {
     try {
       const supabase = createClient()
       
+      // Get location info first
+      const { data: locationData } = await supabase
+        .from('locations')
+        .select('id, name')
+        .eq('qr_code', locationSlug)
+        .single()
+      
+      if (locationData) {
+        setLocationId(locationData.id)
+        setLocationName(locationData.name)
+      }
+      
       // Get products by location QR code
       const { data, error } = await supabase
         .rpc('get_products_by_location', { 
@@ -139,9 +157,32 @@ export default function KantinPage() {
         throw error
       }
       
+      // Get supplier_id for each product
+      if (data && data.length > 0) {
+        const productsWithSupplier = await Promise.all(
+          data.map(async (product: any) => {
+            const { data: productDetail } = await supabase
+              .from('products')
+              .select('supplier_id')
+              .eq('id', product.product_id)
+              .single()
+            
+            return {
+              ...product,
+              supplier_id: productDetail?.supplier_id,
+              location_id: locationData?.id
+            }
+          })
+        )
+        setProducts(productsWithSupplier)
+      } else {
+        setProducts(data || [])
+      }
+      
       console.log('Products loaded:', data?.length || 0, 'items')
-      setProducts(data || [])
-      setLocationName(locationSlug.replace(/_/g, ' ').toUpperCase())
+      if (!locationData) {
+        setLocationName(locationSlug.replace(/_/g, ' ').toUpperCase())
+      }
     } catch (error: any) {
       console.error('Error loading products:', error)
       toast.error(error.message || 'Gagal memuat produk. Pastikan function RPC sudah dijalankan di Supabase.')
@@ -430,6 +471,18 @@ export default function KantinPage() {
                         {product.quantity === 0 ? '😔 Habis' : '🛒 Tambah'}
                       </button>
                     )}
+                    
+                    {/* Report button */}
+                    <button
+                      onClick={() => {
+                        setSelectedProduct(product)
+                        setIsReportModalOpen(true)
+                      }}
+                      className="mt-2 w-full bg-white border border-red-300 text-red-600 py-2 rounded-lg text-sm font-medium hover:bg-red-50 active:scale-95 transition-all flex items-center justify-center gap-1"
+                    >
+                      <AlertTriangle className="w-4 h-4" />
+                      Laporkan Masalah
+                    </button>
                   </div>
                 </div>
               )
@@ -568,6 +621,24 @@ export default function KantinPage() {
             </div>
           )}
         </>
+      )}
+
+      {/* Report Product Modal */}
+      {selectedProduct && (
+        <ReportProductModal
+          isOpen={isReportModalOpen}
+          onClose={() => {
+            setIsReportModalOpen(false)
+            setSelectedProduct(null)
+          }}
+          product={{
+            id: selectedProduct.product_id,
+            name: selectedProduct.name,
+            photo_url: selectedProduct.photo_url,
+            supplier_id: selectedProduct.supplier_id || ''
+          }}
+          locationId={locationId}
+        />
       )}
     </div>
   )
