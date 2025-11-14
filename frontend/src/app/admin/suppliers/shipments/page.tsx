@@ -1173,6 +1173,11 @@ function ReturnsTab() {
                           <td className="px-2 py-3 text-center">
                             <button
                               onClick={() => {
+                                console.log('🔍 CUSTOMER Return Data:', returnItem)
+                                console.log('📸 proof_photos:', returnItem.proof_photos)
+                                console.log('📸 Type:', typeof returnItem.proof_photos)
+                                console.log('📸 Is Array:', Array.isArray(returnItem.proof_photos))
+                                console.log('📸 Length:', returnItem.proof_photos?.length)
                                 setSelectedReturn(returnItem)
                                 setShowReturnDetailModal(true)
                               }}

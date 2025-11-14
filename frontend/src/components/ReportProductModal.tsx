@@ -115,6 +115,10 @@ export default function ReportProductModal({ isOpen, onClose, product, locationI
 
       if (returnError) throw returnError
 
+      console.log('✅ Return created successfully:', returnData)
+      console.log('📸 Uploaded photo URLs:', photoUrls)
+      console.log('📸 Stored proof_photos:', returnData.proof_photos)
+
       // Send notification to admin (non-blocking)
       supabase.rpc('notify_admin_customer_report', {
         p_return_id: returnData.id,
