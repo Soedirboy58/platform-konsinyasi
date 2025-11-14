@@ -478,10 +478,10 @@ export default function KantinPage() {
                         setSelectedProduct(product)
                         setIsReportModalOpen(true)
                       }}
-                      className="mt-2 w-full bg-white border border-red-300 text-red-600 py-2 rounded-lg text-sm font-medium hover:bg-red-50 active:scale-95 transition-all flex items-center justify-center gap-1"
+                      className="mt-2 w-full bg-white border-2 border-orange-300 text-orange-700 py-2 rounded-lg text-sm font-medium hover:bg-orange-50 active:scale-95 transition-all flex items-center justify-center gap-1"
                     >
-                      <AlertTriangle className="w-4 h-4" />
-                      Laporkan Masalah
+                      <span className="text-base">😟</span>
+                      Ada Masalah?
                     </button>
                   </div>
                 </div>

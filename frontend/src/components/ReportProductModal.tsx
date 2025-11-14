@@ -30,10 +30,10 @@ export default function ReportProductModal({ isOpen, onClose, product, locationI
   })
 
   const problemTypes = [
-    { value: 'PRODUCT_DEFECT', label: 'Produk Rusak/Cacat', icon: '🔨' },
-    { value: 'EXPIRED', label: 'Kadaluarsa', icon: '📅' },
-    { value: 'MISMATCH', label: 'Tidak Sesuai Deskripsi', icon: '❌' },
-    { value: 'OTHER', label: 'Lainnya', icon: '📝' }
+    { value: 'PRODUCT_DEFECT', label: 'Produk Rusak/Kemasan Bocor', icon: '😢' },
+    { value: 'EXPIRED', label: 'Kadaluarsa/Basi', icon: '⚠️' },
+    { value: 'MISMATCH', label: 'Tidak Sesuai Pesanan', icon: '🤔' },
+    { value: 'OTHER', label: 'Lainnya', icon: '💬' }
   ]
 
   const severityLevels = [
@@ -61,34 +61,37 @@ export default function ReportProductModal({ isOpen, onClose, product, locationI
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-
-    if (!formData.description.trim()) {
-      toast.error('Mohon jelaskan masalahnya')
-      return
-    }
-
     setLoading(true)
     try {
-      // Upload photos if any
+      // Upload photos if any (skip if bucket not exists)
       let photoUrls: string[] = []
       if (formData.photos.length > 0) {
-        const uploadPromises = formData.photos.map(async (file, index) => {
-          const fileExt = file.name.split('.').pop()
-          const fileName = `${product.id}_${Date.now()}_${index}.${fileExt}`
-          const { data, error } = await supabase.storage
-            .from('product-reports')
-            .upload(fileName, file)
+        try {
+          const uploadPromises = formData.photos.map(async (file, index) => {
+            const fileExt = file.name.split('.').pop()
+            const fileName = `${product.id}_${Date.now()}_${index}.${fileExt}`
+            const { data, error } = await supabase.storage
+              .from('product-reports')
+              .upload(fileName, file)
 
-          if (error) throw error
+            if (error) {
+              console.warn('Photo upload failed:', error.message)
+              return null
+            }
 
-          const { data: { publicUrl } } = supabase.storage
-            .from('product-reports')
-            .getPublicUrl(fileName)
+            const { data: { publicUrl } } = supabase.storage
+              .from('product-reports')
+              .getPublicUrl(fileName)
 
-          return publicUrl
-        })
+            return publicUrl
+          })
 
-        photoUrls = await Promise.all(uploadPromises)
+          const results = await Promise.all(uploadPromises)
+          photoUrls = results.filter(url => url !== null) as string[]
+        } catch (photoError) {
+          console.warn('Photo upload error (bucket may not exist):', photoError)
+          // Continue without photos
+        }
       }
 
       // Create return request directly (source = CUSTOMER)
@@ -132,7 +135,7 @@ export default function ReportProductModal({ isOpen, onClose, product, locationI
         })
       }
 
-      toast.success('Laporan berhasil dikirim! Admin akan segera menindaklanjuti.')
+      toast.success('✅ Terima kasih! Laporan Anda sudah kami terima. Kami akan segera menindaklanjuti.')
       onClose()
       
       // Reset form
@@ -146,7 +149,7 @@ export default function ReportProductModal({ isOpen, onClose, product, locationI
       })
     } catch (error: any) {
       console.error('Error submitting report:', error)
-      toast.error('Gagal mengirim laporan: ' + (error.message || 'Unknown error'))
+      toast.error('😔 Gagal mengirim laporan. Coba lagi ya!')
     } finally {
       setLoading(false)
     }
@@ -161,8 +164,8 @@ export default function ReportProductModal({ isOpen, onClose, product, locationI
         <div className="p-6 border-b sticky top-0 bg-white z-10">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <AlertTriangle className="w-6 h-6 text-red-600" />
-              <h2 className="text-xl font-semibold text-gray-900">Laporkan Masalah Produk</h2>
+              <span className="text-2xl">😕</span>
+              <h2 className="text-xl font-semibold text-gray-900">Ada Masalah dengan Produk?</h2>
             </div>
             <button
               onClick={onClose}
@@ -221,7 +224,7 @@ export default function ReportProductModal({ isOpen, onClose, product, locationI
           {/* Severity */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-3">
-              Tingkat Keparahan <span className="text-red-600">*</span>
+              Seberapa Serius? <span className="text-gray-400 text-xs">(Opsional)</span>
             </label>
             <div className="grid grid-cols-4 gap-2">
               {severityLevels.map(level => (
@@ -244,7 +247,7 @@ export default function ReportProductModal({ isOpen, onClose, product, locationI
           {/* Description */}
           <div>
             <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-2">
-              Keterangan Detail <span className="text-red-600">*</span>
+              Ceritakan Masalahnya <span className="text-gray-400 text-xs">(Opsional)</span>
             </label>
             <textarea
               id="description"
@@ -252,15 +255,14 @@ export default function ReportProductModal({ isOpen, onClose, product, locationI
               onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
               rows={4}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
-              placeholder="Jelaskan masalah yang Anda temukan secara detail..."
-              required
+              placeholder="Contoh: Kemasan penyok, rasa aneh, sudah berjamur, dsb..."
             />
           </div>
 
           {/* Photos */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Foto Produk (Opsional, Maks 3)
+              📸 Foto Bukti <span className="text-gray-400 text-xs">(Opsional, max 3)</span>
             </label>
             <div className="space-y-3">
               {/* Photo preview */}
@@ -306,7 +308,7 @@ export default function ReportProductModal({ isOpen, onClose, product, locationI
           {/* Customer Info (Optional) */}
           <div className="border-t pt-6">
             <p className="text-sm font-medium text-gray-700 mb-4">
-              Informasi Kontak (Opsional, untuk tindak lanjut)
+              💬 Kontak Anda <span className="text-gray-400 text-xs">(Opsional, jika perlu konfirmasi)</span>
             </p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
@@ -350,10 +352,10 @@ export default function ReportProductModal({ isOpen, onClose, product, locationI
             </button>
             <button
               type="submit"
-              disabled={loading || !formData.description.trim()}
-              className="flex-1 px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+              disabled={loading}
+              className="flex-1 px-6 py-3 bg-gradient-to-r from-red-600 to-orange-600 text-white rounded-lg hover:from-red-700 hover:to-orange-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium shadow-md"
             >
-              {loading ? 'Mengirim...' : 'Kirim Laporan'}
+              {loading ? '📤 Mengirim...' : '✅ Kirim Laporan'}
             </button>
           </div>
         </form>
