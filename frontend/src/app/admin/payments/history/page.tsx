@@ -153,117 +153,182 @@ export default function PaymentHistoryPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-4 py-4 sm:py-6 sm:px-6 lg:px-8">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Riwayat Pembayaran</h1>
-              <p className="text-gray-600 mt-1">Histori semua pembayaran komisi ke supplier</p>
+              <h1 className="text-lg sm:text-2xl font-bold text-gray-900">Riwayat Pembayaran</h1>
+              <p className="text-sm sm:text-base text-gray-600 mt-1">Histori semua pembayaran komisi ke supplier</p>
             </div>
-            <button className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2">
+            <button className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center justify-center gap-2 whitespace-nowrap">
               <Download className="w-4 h-4" />
-              Export PDF
+              <span className="hidden sm:inline">Export PDF</span>
+              <span className="sm:hidden">Export</span>
             </button>
           </div>
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
+      <main className="max-w-7xl mx-auto px-4 py-4 sm:py-8 sm:px-6 lg:px-8">
         {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-          <div className="bg-white rounded-lg shadow p-6">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-6 mb-4 sm:mb-6">
+          <div className="bg-white rounded-lg shadow p-4 sm:p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Total Pembayaran</p>
-                <h3 className="text-2xl font-bold text-gray-900 mt-1">
+                <p className="text-xs sm:text-sm text-gray-600">Total Pembayaran</p>
+                <h3 className="text-lg sm:text-2xl font-bold text-gray-900 mt-1">
                   {filteredPayments.length}
                 </h3>
               </div>
-              <div className="p-3 bg-blue-100 rounded-full">
-                <History className="w-6 h-6 text-blue-600" />
+              <div className="p-2 sm:p-3 bg-blue-100 rounded-full">
+                <History className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" />
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow p-6">
+          <div className="bg-white rounded-lg shadow p-4 sm:p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Total Nominal</p>
-                <h3 className="text-2xl font-bold text-green-600 mt-1">
+                <p className="text-xs sm:text-sm text-gray-600">Total Nominal</p>
+                <h3 className="text-base sm:text-2xl font-bold text-green-600 mt-1">
                   Rp {totalPaid.toLocaleString('id-ID')}
                 </h3>
               </div>
-              <div className="p-3 bg-green-100 rounded-full">
-                <Download className="w-6 h-6 text-green-600" />
+              <div className="p-2 sm:p-3 bg-green-100 rounded-full">
+                <Download className="w-5 h-5 sm:w-6 sm:h-6 text-green-600" />
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow p-6">
+          <div className="bg-white rounded-lg shadow p-4 sm:p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Periode</p>
-                <h3 className="text-xl font-bold text-gray-900 mt-1">
+                <p className="text-xs sm:text-sm text-gray-600">Periode</p>
+                <h3 className="text-base sm:text-xl font-bold text-gray-900 mt-1">
                   {periodFilter === 'THIS_MONTH' && 'Bulan Ini'}
                   {periodFilter === 'LAST_MONTH' && 'Bulan Lalu'}
                   {periodFilter === 'THIS_YEAR' && 'Tahun Ini'}
                   {periodFilter === 'ALL' && 'Semua Waktu'}
                 </h3>
               </div>
-              <div className="p-3 bg-purple-100 rounded-full">
-                <Calendar className="w-6 h-6 text-purple-600" />
+              <div className="p-2 sm:p-3 bg-purple-100 rounded-full">
+                <Calendar className="w-5 h-5 sm:w-6 sm:h-6 text-purple-600" />
               </div>
             </div>
           </div>
         </div>
 
         {/* Filters */}
-        <div className="bg-white rounded-lg shadow p-4 mb-6">
-          <div className="flex flex-wrap gap-4">
-            <div className="flex-1 min-w-[250px]">
+        <div className="bg-white rounded-lg shadow p-3 sm:p-4 mb-4 sm:mb-6">
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="flex-1">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 sm:w-5 sm:h-5" />
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Cari supplier atau nomor referensi..."
-                  className="w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Cari supplier atau referensi..."
+                  className="w-full pl-9 sm:pl-10 pr-4 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
             </div>
 
-            <div>
+            <div className="flex gap-3">
               <select
                 value={periodFilter}
                 onChange={(e) => setPeriodFilter(e.target.value as any)}
-                className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="flex-1 sm:flex-none px-3 sm:px-4 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="THIS_MONTH">Bulan Ini</option>
                 <option value="LAST_MONTH">Bulan Lalu</option>
                 <option value="THIS_YEAR">Tahun Ini</option>
                 <option value="ALL">Semua Waktu</option>
               </select>
-            </div>
 
-            <div>
               <select
                 value={itemsPerPage}
                 onChange={(e) => {
                   setItemsPerPage(Number(e.target.value))
                   setCurrentPage(1)
                 }}
-                className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="flex-1 sm:flex-none px-3 sm:px-4 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
-                <option value={10}>10 per halaman</option>
-                <option value={25}>25 per halaman</option>
-                <option value={50}>50 per halaman</option>
+                <option value={10}>10</option>
+                <option value={25}>25</option>
+                <option value={50}>50</option>
               </select>
             </div>
           </div>
         </div>
 
-        {/* Table */}
-        <div className="bg-white rounded-lg shadow overflow-hidden">
+        {/* Mobile Card View */}
+        <div className="lg:hidden space-y-3 mb-4">
+          {paginatedPayments.map((payment) => (
+            <div key={payment.id} className="bg-white rounded-lg shadow p-4">
+              {/* Header */}
+              <div className="flex items-start justify-between mb-3">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Building className="w-4 h-4 text-gray-400" />
+                    <h3 className="text-sm font-semibold text-gray-900">
+                      {payment.supplier_name}
+                    </h3>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-gray-500">
+                    <Calendar className="w-3 h-3" />
+                    {new Date(payment.payment_date).toLocaleDateString('id-ID', {
+                      day: 'numeric',
+                      month: 'short',
+                      year: 'numeric'
+                    })}
+                  </div>
+                </div>
+                <span className="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800">
+                  {payment.payment_method}
+                </span>
+              </div>
+
+              {/* Amount */}
+              <div className="mb-3 pb-3 border-b">
+                <p className="text-xs text-gray-600 mb-1">Nominal</p>
+                <p className="text-lg font-bold text-green-600">
+                  Rp {payment.amount.toLocaleString('id-ID')}
+                </p>
+              </div>
+
+              {/* Reference */}
+              <div className="mb-3">
+                <p className="text-xs text-gray-600 mb-1">Referensi</p>
+                <p className="text-xs font-mono text-gray-900">
+                  {payment.payment_reference}
+                </p>
+              </div>
+
+              {/* Notes if exists */}
+              {payment.notes && (
+                <div className="mb-3">
+                  <p className="text-xs text-gray-600 mb-1">Catatan</p>
+                  <p className="text-xs text-gray-700">{payment.notes}</p>
+                </div>
+              )}
+
+              {/* Action */}
+              <button
+                onClick={() => {
+                  setSelectedPayment(payment)
+                  setShowDetailModal(true)
+                }}
+                className="w-full px-4 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors flex items-center justify-center gap-2 text-sm font-medium"
+              >
+                <Eye className="w-4 h-4" />
+                Lihat Detail & Bukti
+              </button>
+            </div>
+          ))}
+        </div>
+
+        {/* Desktop Table */}
+        <div className="hidden lg:block bg-white rounded-lg shadow overflow-hidden">
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
@@ -362,15 +427,15 @@ export default function PaymentHistoryPage() {
 
           {/* Pagination */}
           {filteredPayments.length > 0 && (
-            <div className="px-6 py-4 border-t flex items-center justify-between">
-              <div className="text-sm text-gray-700">
+            <div className="px-4 sm:px-6 py-4 border-t flex flex-col sm:flex-row items-center justify-between gap-3">
+              <div className="text-xs sm:text-sm text-gray-700">
                 Menampilkan {((currentPage - 1) * itemsPerPage) + 1} - {Math.min(currentPage * itemsPerPage, filteredPayments.length)} dari {filteredPayments.length} pembayaran
               </div>
               <div className="flex gap-2">
                 <button
                   onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                   disabled={currentPage === 1}
-                  className="px-3 py-1 border rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-2 sm:px-3 py-1 text-xs sm:text-sm border rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Previous
                 </button>
@@ -378,7 +443,7 @@ export default function PaymentHistoryPage() {
                   <button
                     key={page}
                     onClick={() => setCurrentPage(page)}
-                    className={`px-3 py-1 border rounded ${
+                    className={`px-2 sm:px-3 py-1 text-xs sm:text-sm border rounded ${
                       currentPage === page
                         ? 'bg-blue-600 text-white'
                         : 'hover:bg-gray-50'
@@ -390,7 +455,7 @@ export default function PaymentHistoryPage() {
                 <button
                   onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                   disabled={currentPage === totalPages}
-                  className="px-3 py-1 border rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-2 sm:px-3 py-1 text-xs sm:text-sm border rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Next
                 </button>
@@ -405,8 +470,8 @@ export default function PaymentHistoryPage() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             {/* Modal Header */}
-            <div className="sticky top-0 bg-white border-b px-6 py-4 flex items-center justify-between">
-              <h2 className="text-xl font-bold text-gray-900">Detail Pembayaran</h2>
+            <div className="sticky top-0 bg-white border-b px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between">
+              <h2 className="text-base sm:text-xl font-bold text-gray-900">Detail Pembayaran</h2>
               <button
                 onClick={() => {
                   setShowDetailModal(false)
@@ -414,39 +479,39 @@ export default function PaymentHistoryPage() {
                 }}
                 className="text-gray-400 hover:text-gray-600 transition-colors"
               >
-                <X className="w-6 h-6" />
+                <X className="w-5 h-5 sm:w-6 sm:h-6" />
               </button>
             </div>
 
             {/* Modal Body */}
-            <div className="p-6 space-y-6">
+            <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
               {/* Payment Info */}
-              <div className="space-y-4">
-                <div className="flex items-start gap-3">
-                  <FileText className="w-5 h-5 text-gray-400 mt-0.5" />
+              <div className="space-y-3 sm:space-y-4">
+                <div className="flex items-start gap-2 sm:gap-3">
+                  <FileText className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400 mt-0.5" />
                   <div className="flex-1">
-                    <p className="text-sm text-gray-600">Nomor Referensi</p>
-                    <p className="text-base font-mono font-semibold text-gray-900">
+                    <p className="text-xs sm:text-sm text-gray-600">Nomor Referensi</p>
+                    <p className="text-sm sm:text-base font-mono font-semibold text-gray-900">
                       {selectedPayment.payment_reference}
                     </p>
                   </div>
                 </div>
 
-                <div className="flex items-start gap-3">
-                  <Building className="w-5 h-5 text-gray-400 mt-0.5" />
+                <div className="flex items-start gap-2 sm:gap-3">
+                  <Building className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400 mt-0.5" />
                   <div className="flex-1">
-                    <p className="text-sm text-gray-600">Supplier</p>
-                    <p className="text-base font-semibold text-gray-900">
+                    <p className="text-xs sm:text-sm text-gray-600">Supplier</p>
+                    <p className="text-sm sm:text-base font-semibold text-gray-900">
                       {selectedPayment.supplier_name}
                     </p>
                   </div>
                 </div>
 
-                <div className="flex items-start gap-3">
-                  <Calendar className="w-5 h-5 text-gray-400 mt-0.5" />
+                <div className="flex items-start gap-2 sm:gap-3">
+                  <Calendar className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400 mt-0.5" />
                   <div className="flex-1">
-                    <p className="text-sm text-gray-600">Tanggal Pembayaran</p>
-                    <p className="text-base font-semibold text-gray-900">
+                    <p className="text-xs sm:text-sm text-gray-600">Tanggal Pembayaran</p>
+                    <p className="text-sm sm:text-base font-semibold text-gray-900">
                       {new Date(selectedPayment.payment_date).toLocaleDateString('id-ID', {
                         weekday: 'long',
                         day: 'numeric',
@@ -457,21 +522,21 @@ export default function PaymentHistoryPage() {
                   </div>
                 </div>
 
-                <div className="flex items-start gap-3">
-                  <CreditCard className="w-5 h-5 text-gray-400 mt-0.5" />
+                <div className="flex items-start gap-2 sm:gap-3">
+                  <CreditCard className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400 mt-0.5" />
                   <div className="flex-1">
-                    <p className="text-sm text-gray-600">Nominal Pembayaran</p>
-                    <p className="text-2xl font-bold text-green-600">
+                    <p className="text-xs sm:text-sm text-gray-600">Nominal Pembayaran</p>
+                    <p className="text-xl sm:text-2xl font-bold text-green-600">
                       Rp {selectedPayment.amount.toLocaleString('id-ID')}
                     </p>
                   </div>
                 </div>
 
-                <div className="flex items-start gap-3">
-                  <CreditCard className="w-5 h-5 text-gray-400 mt-0.5" />
+                <div className="flex items-start gap-2 sm:gap-3">
+                  <CreditCard className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400 mt-0.5" />
                   <div className="flex-1">
-                    <p className="text-sm text-gray-600">Metode Pembayaran</p>
-                    <span className="inline-block mt-1 px-3 py-1 text-sm font-medium rounded-full bg-blue-100 text-blue-800">
+                    <p className="text-xs sm:text-sm text-gray-600">Metode Pembayaran</p>
+                    <span className="inline-block mt-1 px-3 py-1 text-xs sm:text-sm font-medium rounded-full bg-blue-100 text-blue-800">
                       {selectedPayment.payment_method}
                     </span>
                   </div>
@@ -479,19 +544,19 @@ export default function PaymentHistoryPage() {
 
                 {/* Bank Details */}
                 {(selectedPayment.bank_name || selectedPayment.bank_account_number) && (
-                  <div className="border-t pt-4">
-                    <h3 className="text-sm font-semibold text-gray-900 mb-3">Informasi Rekening</h3>
-                    <div className="bg-gray-50 rounded-lg p-4 space-y-2">
+                  <div className="border-t pt-3 sm:pt-4">
+                    <h3 className="text-xs sm:text-sm font-semibold text-gray-900 mb-2 sm:mb-3">Informasi Rekening</h3>
+                    <div className="bg-gray-50 rounded-lg p-3 sm:p-4 space-y-2">
                       {selectedPayment.bank_name && (
                         <div>
                           <p className="text-xs text-gray-600">Bank</p>
-                          <p className="text-sm font-medium text-gray-900">{selectedPayment.bank_name}</p>
+                          <p className="text-xs sm:text-sm font-medium text-gray-900">{selectedPayment.bank_name}</p>
                         </div>
                       )}
                       {selectedPayment.bank_account_number && (
                         <div>
                           <p className="text-xs text-gray-600">Nomor Rekening</p>
-                          <p className="text-sm font-mono font-medium text-gray-900">
+                          <p className="text-xs sm:text-sm font-mono font-medium text-gray-900">
                             {selectedPayment.bank_account_number}
                           </p>
                         </div>
@@ -499,7 +564,7 @@ export default function PaymentHistoryPage() {
                       {selectedPayment.bank_account_holder && (
                         <div>
                           <p className="text-xs text-gray-600">Nama Penerima</p>
-                          <p className="text-sm font-medium text-gray-900">
+                          <p className="text-xs sm:text-sm font-medium text-gray-900">
                             {selectedPayment.bank_account_holder}
                           </p>
                         </div>
@@ -510,9 +575,9 @@ export default function PaymentHistoryPage() {
 
                 {/* Notes */}
                 {selectedPayment.notes && (
-                  <div className="border-t pt-4">
-                    <h3 className="text-sm font-semibold text-gray-900 mb-2">Catatan</h3>
-                    <p className="text-sm text-gray-700 bg-gray-50 rounded-lg p-3">
+                  <div className="border-t pt-3 sm:pt-4">
+                    <h3 className="text-xs sm:text-sm font-semibold text-gray-900 mb-2">Catatan</h3>
+                    <p className="text-xs sm:text-sm text-gray-700 bg-gray-50 rounded-lg p-3">
                       {selectedPayment.notes}
                     </p>
                   </div>
@@ -520,8 +585,8 @@ export default function PaymentHistoryPage() {
 
                 {/* Payment Proof */}
                 {selectedPayment.payment_proof && (
-                  <div className="border-t pt-4">
-                    <h3 className="text-sm font-semibold text-gray-900 mb-3">Bukti Transfer</h3>
+                  <div className="border-t pt-3 sm:pt-4">
+                    <h3 className="text-xs sm:text-sm font-semibold text-gray-900 mb-2 sm:mb-3">Bukti Transfer</h3>
                     <div className="bg-gray-100 rounded-lg overflow-hidden">
                       <img
                         src={selectedPayment.payment_proof.startsWith('http') 
@@ -548,9 +613,9 @@ export default function PaymentHistoryPage() {
                       }
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="mt-3 inline-flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800"
+                      className="mt-3 inline-flex items-center gap-2 text-xs sm:text-sm text-blue-600 hover:text-blue-800"
                     >
-                      <Download className="w-4 h-4" />
+                      <Download className="w-3 h-3 sm:w-4 sm:h-4" />
                       Unduh Bukti Transfer
                     </a>
                   </div>
@@ -559,13 +624,13 @@ export default function PaymentHistoryPage() {
             </div>
 
             {/* Modal Footer */}
-            <div className="border-t px-6 py-4 bg-gray-50 flex justify-end gap-3">
+            <div className="border-t px-4 sm:px-6 py-3 sm:py-4 bg-gray-50 flex justify-end gap-3">
               <button
                 onClick={() => {
                   setShowDetailModal(false)
                   setSelectedPayment(null)
                 }}
-                className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors"
+                className="px-4 py-2 text-sm border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors"
               >
                 Tutup
               </button>

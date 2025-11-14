@@ -196,10 +196,10 @@ export default function ReturnListPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
+    <div className="min-h-screen bg-gray-50 p-4 sm:p-6">
+      <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div>
             <div className="flex items-center gap-3">
               <Link
@@ -209,43 +209,43 @@ export default function ReturnListPage() {
                 <ArrowLeft className="w-5 h-5" />
               </Link>
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">Riwayat Retur Produk</h1>
-                <p className="text-sm text-gray-600 mt-1">
-                  Monitor status permintaan retur yang diajukan
+                <h1 className="text-lg sm:text-2xl font-bold text-gray-900">Riwayat Retur</h1>
+                <p className="text-xs sm:text-sm text-gray-600 mt-1">
+                  Monitor status retur
                 </p>
               </div>
             </div>
           </div>
           <Link
             href="/admin/returns/create"
-            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium"
+            className="w-full sm:w-auto px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium text-sm text-center"
           >
-            + Ajukan Retur Baru
+            + Ajukan Retur
           </Link>
         </div>
 
         {/* Filters & Search */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="grid md:grid-cols-2 gap-4">
+        <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+          <div className="grid grid-cols-1 gap-3 sm:gap-4">
             {/* Search */}
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Cari produk, supplier, lokasi, atau alasan..."
-                className="w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Cari produk atau supplier..."
+                className="w-full pl-10 pr-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
 
             {/* Status Filter */}
             <div className="relative">
-              <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none bg-white"
+                className="w-full pl-10 pr-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none bg-white"
               >
                 <option value="ALL">Semua Status ({statusCounts.ALL})</option>
                 <option value="PENDING">⏳ Menunggu Supplier ({statusCounts.PENDING})</option>
@@ -259,26 +259,26 @@ export default function ReturnListPage() {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid md:grid-cols-5 gap-4">
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-            <div className="text-yellow-600 text-sm font-medium">Menunggu</div>
-            <div className="text-2xl font-bold text-yellow-900 mt-1">{statusCounts.PENDING}</div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 sm:p-4">
+            <div className="text-yellow-600 text-xs sm:text-sm font-medium">Menunggu</div>
+            <div className="text-xl sm:text-2xl font-bold text-yellow-900 mt-1">{statusCounts.PENDING}</div>
           </div>
-          <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-            <div className="text-green-600 text-sm font-medium">Disetujui</div>
-            <div className="text-2xl font-bold text-green-900 mt-1">{statusCounts.APPROVED}</div>
+          <div className="bg-green-50 border border-green-200 rounded-lg p-3 sm:p-4">
+            <div className="text-green-600 text-xs sm:text-sm font-medium">Disetujui</div>
+            <div className="text-xl sm:text-2xl font-bold text-green-900 mt-1">{statusCounts.APPROVED}</div>
           </div>
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-            <div className="text-red-600 text-sm font-medium">Ditolak</div>
-            <div className="text-2xl font-bold text-red-900 mt-1">{statusCounts.REJECTED}</div>
+          <div className="bg-red-50 border border-red-200 rounded-lg p-3 sm:p-4">
+            <div className="text-red-600 text-xs sm:text-sm font-medium">Ditolak</div>
+            <div className="text-xl sm:text-2xl font-bold text-red-900 mt-1">{statusCounts.REJECTED}</div>
           </div>
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <div className="text-blue-600 text-sm font-medium">Selesai</div>
-            <div className="text-2xl font-bold text-blue-900 mt-1">{statusCounts.COMPLETED}</div>
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 sm:p-4">
+            <div className="text-blue-600 text-xs sm:text-sm font-medium">Selesai</div>
+            <div className="text-xl sm:text-2xl font-bold text-blue-900 mt-1">{statusCounts.COMPLETED}</div>
           </div>
-          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-            <div className="text-gray-600 text-sm font-medium">Dibatalkan</div>
-            <div className="text-2xl font-bold text-gray-900 mt-1">{statusCounts.CANCELLED}</div>
+          <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 sm:p-4 col-span-2 sm:col-span-1">
+            <div className="text-gray-600 text-xs sm:text-sm font-medium">Dibatalkan</div>
+            <div className="text-xl sm:text-2xl font-bold text-gray-900 mt-1">{statusCounts.CANCELLED}</div>
           </div>
         </div>
 
@@ -296,10 +296,10 @@ export default function ReturnListPage() {
           ) : (
             <div className="divide-y">
               {filteredReturns.map(returnItem => (
-                <div key={returnItem.id} className="p-6 hover:bg-gray-50">
-                  <div className="flex gap-4">
+                <div key={returnItem.id} className="p-4 sm:p-6 hover:bg-gray-50">
+                  <div className="flex flex-col sm:flex-row gap-4">
                     {/* Product Image */}
-                    <div className="w-20 h-20 bg-gray-100 rounded-lg flex-shrink-0 overflow-hidden">
+                    <div className="w-full sm:w-20 h-32 sm:h-20 bg-gray-100 rounded-lg flex-shrink-0 overflow-hidden">
                       {returnItem.product.photo_url ? (
                         <img 
                           src={returnItem.product.photo_url} 
@@ -313,15 +313,15 @@ export default function ReturnListPage() {
 
                     {/* Details */}
                     <div className="flex-1">
-                      <div className="flex items-start justify-between mb-2">
-                        <div>
-                          <h3 className="font-semibold text-gray-900">{returnItem.product.name}</h3>
-                          <p className="text-sm text-gray-600">Supplier: {returnItem.supplier.business_name}</p>
+                      <div className="flex flex-col sm:flex-row items-start justify-between mb-2 gap-2">
+                        <div className="flex-1">
+                          <h3 className="text-sm sm:text-base font-semibold text-gray-900">{returnItem.product.name}</h3>
+                          <p className="text-xs sm:text-sm text-gray-600">Supplier: {returnItem.supplier.business_name}</p>
                         </div>
                         {getStatusBadge(returnItem.status)}
                       </div>
 
-                      <div className="grid grid-cols-3 gap-4 mt-3 text-sm">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4 mt-3 text-xs sm:text-sm">
                         <div>
                           <span className="text-gray-600">Jumlah:</span>
                           <span className="ml-2 font-medium">{returnItem.quantity} pcs</span>
@@ -331,7 +331,7 @@ export default function ReturnListPage() {
                           <span className="ml-2 font-medium">{returnItem.location.name}</span>
                         </div>
                         <div>
-                          <span className="text-gray-600">Diajukan oleh:</span>
+                          <span className="text-gray-600">Diajukan:</span>
                           <span className="ml-2 font-medium">{returnItem.requested_by_profile.full_name}</span>
                         </div>
                       </div>
@@ -339,10 +339,10 @@ export default function ReturnListPage() {
                       {/* Reason */}
                       <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
                         <div className="flex items-start gap-2">
-                          <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                          <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5 text-red-600 flex-shrink-0 mt-0.5" />
                           <div>
-                            <p className="font-medium text-red-900 text-sm">Alasan Retur:</p>
-                            <p className="text-sm text-red-800">{returnItem.reason}</p>
+                            <p className="font-medium text-red-900 text-xs sm:text-sm">Alasan Retur:</p>
+                            <p className="text-xs sm:text-sm text-red-800">{returnItem.reason}</p>
                           </div>
                         </div>
                       </div>
@@ -354,12 +354,12 @@ export default function ReturnListPage() {
                             ? 'bg-red-50 border-red-200' 
                             : 'bg-green-50 border-green-200'
                         }`}>
-                          <p className={`font-medium text-sm ${
+                          <p className={`font-medium text-xs sm:text-sm ${
                             returnItem.status === 'REJECTED' ? 'text-red-900' : 'text-green-900'
                           }`}>
                             {returnItem.status === 'REJECTED' ? '❌ Alasan Penolakan:' : '✅ Catatan Supplier:'}
                           </p>
-                          <p className={`text-sm mt-1 ${
+                          <p className={`text-xs sm:text-sm mt-1 ${
                             returnItem.status === 'REJECTED' ? 'text-red-800' : 'text-green-800'
                           }`}>
                             {returnItem.review_notes}

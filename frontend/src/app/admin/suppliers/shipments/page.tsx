@@ -241,19 +241,19 @@ function ShipmentsTab() {
   return (
     <>
       <div className="bg-white rounded-lg shadow">
-        <div className="p-6 border-b">
-          <div className="flex items-center justify-between">
+        <div className="p-4 sm:p-6 border-b">
+          <div className="flex flex-col gap-3">
             <div>
-              <h2 className="text-lg font-semibold text-gray-900">Pengiriman Produk dari Supplier</h2>
-              <p className="text-sm text-gray-600 mt-1">
-                Review dan approve pengiriman produk ke lokasi
+              <h2 className="text-base sm:text-lg font-semibold text-gray-900">Pengiriman Supplier</h2>
+              <p className="text-xs sm:text-sm text-gray-600 mt-1">
+                Review dan approve pengiriman
               </p>
             </div>
-            <div className="flex gap-3">
+            <div className="flex flex-col sm:flex-row gap-3">
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="px-3 py-2 border rounded-lg text-sm"
+                className="flex-1 px-3 py-2 border rounded-lg text-sm"
               >
                 <option value="ALL">Semua Status</option>
                 <option value="PENDING">Pending</option>
@@ -264,7 +264,7 @@ function ShipmentsTab() {
               <select
                 value={supplierFilter}
                 onChange={(e) => setSupplierFilter(e.target.value)}
-                className="px-3 py-2 border rounded-lg text-sm"
+                className="flex-1 px-3 py-2 border rounded-lg text-sm"
               >
                 <option value="ALL">Semua Supplier</option>
                 {uniqueSuppliers.map(supplier => (
@@ -278,13 +278,70 @@ function ShipmentsTab() {
         </div>
 
         {filteredShipments.length === 0 ? (
-          <div className="p-12 text-center">
-            <Truck className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">Tidak ada pengiriman</h3>
-            <p className="text-gray-600">Belum ada data pengiriman dari supplier</p>
+          <div className="p-8 text-center">
+            <Truck className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+            <h3 className="text-base font-medium text-gray-900">Tidak ada pengiriman</h3>
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <>
+            {/* Mobile Card View */}
+            <div className="lg:hidden p-4 space-y-4">
+              {filteredShipments.map((shipment) => {
+                const totalQty = shipment.stock_movement_items?.reduce(
+                  (sum, item) => sum + item.quantity, 0
+                ) || 0
+                const productCount = shipment.stock_movement_items?.length || 0
+
+                return (
+                  <div key={shipment.id} className="bg-white border rounded-lg p-4 shadow-sm">
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex-1">
+                        <h3 className="text-sm font-semibold text-gray-900">
+                          {shipment.supplier?.business_name}
+                        </h3>
+                        <p className="text-xs text-gray-500">
+                          {shipment.supplier?.profile?.full_name}
+                        </p>
+                      </div>
+                      {getStatusBadge(shipment.status)}
+                    </div>
+                    
+                    <div className="space-y-2 text-xs mb-3">
+                      <div className="flex items-center gap-2 text-gray-600">
+                        <Building className="w-3 h-3" />
+                        <span>{shipment.location?.name}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Produk:</span>
+                        <span className="font-medium">{productCount} item</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Total Qty:</span>
+                        <span className="font-medium">{totalQty} unit</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Tanggal:</span>
+                        <span>{new Date(shipment.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}</span>
+                      </div>
+                    </div>
+                    
+                    <button
+                      onClick={() => {
+                        setSelectedShipment(shipment)
+                        setShowDetailModal(true)
+                      }}
+                      className="w-full px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm flex items-center justify-center gap-2"
+                    >
+                      <Eye className="w-4 h-4" />
+                      Detail
+                    </button>
+                  </div>
+                )
+              })}
+            </div>
+
+            {/* Desktop Table View */}
+            <div className="hidden lg:block overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
@@ -366,6 +423,7 @@ function ShipmentsTab() {
               </tbody>
             </table>
           </div>
+          </>
         )}
       </div>
 
@@ -373,40 +431,40 @@ function ShipmentsTab() {
       {showDetailModal && selectedShipment && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b sticky top-0 bg-white">
+            <div className="p-4 sm:p-6 border-b sticky top-0 bg-white">
               <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold">Detail Pengiriman</h3>
+                <h3 className="text-base sm:text-lg font-semibold">Detail Pengiriman</h3>
                 <button
                   onClick={() => setShowDetailModal(false)}
                   className="text-gray-400 hover:text-gray-600"
                 >
-                  <X className="w-6 h-6" />
+                  <X className="w-5 h-5 sm:w-6 sm:h-6" />
                 </button>
               </div>
             </div>
 
-            <div className="p-6 space-y-6">
+            <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
               {/* Info Section */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div>
-                  <label className="text-sm font-medium text-gray-500">Supplier</label>
-                  <p className="text-base font-medium mt-1">
+                  <label className="text-xs sm:text-sm font-medium text-gray-500">Supplier</label>
+                  <p className="text-sm sm:text-base font-medium mt-1">
                     {selectedShipment.supplier?.business_name}
                   </p>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-gray-500">Lokasi Tujuan</label>
-                  <p className="text-base font-medium mt-1">
+                  <label className="text-xs sm:text-sm font-medium text-gray-500">Lokasi Tujuan</label>
+                  <p className="text-sm sm:text-base font-medium mt-1">
                     {selectedShipment.location?.name}
                   </p>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-gray-500">Status</label>
+                  <label className="text-xs sm:text-sm font-medium text-gray-500">Status</label>
                   <div className="mt-1">{getStatusBadge(selectedShipment.status)}</div>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-gray-500">Tanggal Kirim</label>
-                  <p className="text-base mt-1">
+                  <label className="text-xs sm:text-sm font-medium text-gray-500">Tanggal Kirim</label>
+                  <p className="text-sm sm:text-base mt-1">
                     {new Date(selectedShipment.created_at).toLocaleDateString('id-ID', {
                       day: 'numeric',
                       month: 'long',
@@ -421,16 +479,16 @@ function ShipmentsTab() {
               {/* Notes */}
               {selectedShipment.notes && (
                 <div>
-                  <label className="text-sm font-medium text-gray-500">Catatan</label>
-                  <p className="text-base mt-1 p-3 bg-gray-50 rounded">{selectedShipment.notes}</p>
+                  <label className="text-xs sm:text-sm font-medium text-gray-500">Catatan</label>
+                  <p className="text-sm sm:text-base mt-1 p-3 bg-gray-50 rounded">{selectedShipment.notes}</p>
                 </div>
               )}
 
               {/* Rejection Reason */}
               {selectedShipment.rejection_reason && (
                 <div>
-                  <label className="text-sm font-medium text-red-600">Alasan Ditolak</label>
-                  <p className="text-base mt-1 p-3 bg-red-50 text-red-800 rounded">
+                  <label className="text-xs sm:text-sm font-medium text-red-600">Alasan Ditolak</label>
+                  <p className="text-sm sm:text-base mt-1 p-3 bg-red-50 text-red-800 rounded">
                     {selectedShipment.rejection_reason}
                   </p>
                 </div>
@@ -440,6 +498,7 @@ function ShipmentsTab() {
               <div>
                 <h4 className="text-sm font-medium text-gray-900 mb-3">Daftar Produk</h4>
                 <div className="border rounded-lg overflow-hidden">
+                  <div className="overflow-x-auto">
                   <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                       <tr>
@@ -491,27 +550,28 @@ function ShipmentsTab() {
                       </tr>
                     </tbody>
                   </table>
+                  </div>
                 </div>
               </div>
 
               {/* Action Buttons */}
               {selectedShipment.status === 'PENDING' && (
-                <div className="flex gap-3 pt-4">
+                <div className="flex flex-col sm:flex-row gap-3 pt-4">
                   <button
                     onClick={() => handleApprove(selectedShipment.id)}
                     disabled={processing}
-                    className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 flex items-center justify-center gap-2"
+                    className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 flex items-center justify-center gap-2 text-sm"
                   >
-                    <Check className="w-5 h-5" />
-                    {processing ? 'Processing...' : 'Approve Pengiriman'}
+                    <Check className="w-4 h-4 sm:w-5 sm:h-5" />
+                    {processing ? 'Processing...' : 'Approve'}
                   </button>
                   <button
                     onClick={() => setShowRejectModal(true)}
                     disabled={processing}
-                    className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 flex items-center justify-center gap-2"
+                    className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 flex items-center justify-center gap-2 text-sm"
                   >
-                    <X className="w-5 h-5" />
-                    Tolak Pengiriman
+                    <X className="w-4 h-4 sm:w-5 sm:h-5" />
+                    Tolak
                   </button>
                 </div>
               )}
