@@ -409,9 +409,9 @@ export default function SupplierDashboard() {
         )}
       </div>
 
-      <div className="bg-white rounded-lg shadow p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+      <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+          <h2 className="text-lg sm:text-xl font-bold text-gray-900 flex items-center gap-2">
             <Bell className="w-5 h-5 text-gray-600" />
             Notifikasi Penjualan Real-time
           </h2>
@@ -421,7 +421,7 @@ export default function SupplierDashboard() {
               setItemsPerPage(Number(e.target.value))
               setCurrentPage(1)
             }}
-            className="border border-gray-300 rounded-md px-3 py-1 text-sm"
+            className="border border-gray-300 rounded-md px-3 py-1.5 text-sm w-full sm:w-auto"
           >
             <option value={10}>10 baris</option>
             <option value={25}>25 baris</option>
@@ -433,7 +433,8 @@ export default function SupplierDashboard() {
           <p className="text-gray-500 text-center py-8">Belum ada penjualan</p>
         ) : (
           <>
-            <div className="overflow-x-auto">
+            {/* Desktop Table View */}
+            <div className="hidden md:block overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
@@ -460,8 +461,29 @@ export default function SupplierDashboard() {
               </table>
             </div>
 
-            <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-200">
-              <p className="text-sm text-gray-600">
+            {/* Mobile Card View */}
+            <div className="md:hidden space-y-3">
+              {paginatedSales.map((sale) => (
+                <div key={sale.id} className="border border-gray-200 rounded-lg p-3 hover:border-gray-300 transition-colors">
+                  <div className="flex items-start justify-between mb-2">
+                    <div className="flex-1">
+                      <p className="font-medium text-gray-900 text-sm mb-1">{sale.product_name}</p>
+                      <p className="text-xs text-gray-500">{sale.outlet_name}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-semibold text-gray-900 text-sm">{formatRupiah(sale.quantity * sale.price)}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between text-xs text-gray-600 pt-2 border-t border-gray-100">
+                    <span>{formatDate(sale.sold_at)}</span>
+                    <span className="font-medium">{sale.quantity} pcs × {formatRupiah(sale.price)}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mt-4 pt-4 border-t border-gray-200">
+              <p className="text-xs sm:text-sm text-gray-600">
                 Menampilkan {startIndex + 1} - {Math.min(endIndex, salesNotifications.length)} dari {salesNotifications.length} penjualan
               </p>
               
@@ -469,7 +491,7 @@ export default function SupplierDashboard() {
                 <button
                   onClick={() => handlePageChange(currentPage - 1)}
                   disabled={currentPage === 1}
-                  className="px-3 py-1 border border-gray-300 rounded-md text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                  className="px-3 py-1.5 border border-gray-300 rounded-md text-xs sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
                 >
                   Previous
                 </button>
@@ -490,7 +512,7 @@ export default function SupplierDashboard() {
                     <button
                       key={pageNum}
                       onClick={() => handlePageChange(pageNum)}
-                      className={`px-3 py-1 border rounded-md text-sm ${
+                      className={`px-2.5 sm:px-3 py-1.5 border rounded-md text-xs sm:text-sm ${
                         currentPage === pageNum
                           ? 'bg-primary-600 text-white border-primary-600'
                           : 'border-gray-300 hover:bg-gray-50'
@@ -504,7 +526,7 @@ export default function SupplierDashboard() {
                 <button
                   onClick={() => handlePageChange(currentPage + 1)}
                   disabled={currentPage === totalPages}
-                  className="px-3 py-1 border border-gray-300 rounded-md text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                  className="px-3 py-1.5 border border-gray-300 rounded-md text-xs sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
                 >
                   Next
                 </button>
