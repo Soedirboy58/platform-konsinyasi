@@ -487,15 +487,23 @@ export default function WalletPage() {
                       </p>
                     )}
                   </div>
-                  {payment.payment_proof_url && (
-                    <button
-                      onClick={() => setSelectedPaymentProof(payment.payment_proof_url)}
-                      className="w-full sm:w-auto sm:ml-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center justify-center gap-2 text-sm transition-colors"
-                    >
-                      <Eye className="w-4 h-4" />
-                      Lihat Bukti
-                    </button>
-                  )}
+                  <div className="flex sm:flex-col gap-2">
+                    {payment.payment_proof_url ? (
+                      <button
+                        onClick={() => setSelectedPaymentProof(payment.payment_proof_url)}
+                        className="flex-1 sm:flex-none px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center justify-center gap-2 text-sm transition-colors whitespace-nowrap"
+                        title="Lihat bukti transfer"
+                      >
+                        <Eye className="w-4 h-4" />
+                        <span>Lihat Bukti</span>
+                      </button>
+                    ) : (
+                      <div className="flex-1 sm:flex-none px-4 py-2 bg-gray-100 text-gray-400 rounded-lg flex items-center justify-center gap-2 text-sm cursor-not-allowed" title="Bukti transfer tidak tersedia">
+                        <Eye className="w-4 h-4" />
+                        <span>Tidak Ada Bukti</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             ))}
