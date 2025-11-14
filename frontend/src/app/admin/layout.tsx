@@ -160,7 +160,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       {/* Sidebar */}
       <aside
         className={`fixed top-16 left-0 bottom-0 bg-white border-r border-gray-200 z-20 transition-all duration-300 ${
-          sidebarOpen ? 'w-16 lg:w-64' : 'w-0'
+          sidebarOpen ? 'w-64' : 'w-0'
         } overflow-hidden lg:static lg:w-64`}
       >
         <nav className="p-4 space-y-2">
@@ -168,7 +168,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <div key={index}>
               <Link
                 href={item.href}
-                className={`flex items-center px-2 lg:px-4 py-3 rounded-lg transition-colors justify-center lg:justify-start lg:gap-3 ${
+                className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
                   item.active
                     ? 'bg-blue-50 text-blue-600 font-medium'
                     : 'text-gray-700 hover:bg-gray-50'
@@ -176,19 +176,19 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 title={item.label}
               >
                 {item.icon}
-                <span className="hidden lg:block">{item.label}</span>
+                <span>{item.label}</span>
                 {item.submenu && (
                   <ChevronRight
-                    className={`w-4 h-4 ml-auto transition-transform hidden lg:block ${
+                    className={`w-4 h-4 ml-auto transition-transform ${
                       item.active ? 'rotate-90' : ''
                     }`}
                   />
                 )}
               </Link>
 
-              {/* Submenu - Hidden on mobile */}
+              {/* Submenu */}
               {item.submenu && item.active && (
-                <div className="ml-12 mt-2 space-y-1 hidden lg:block">
+                <div className="ml-12 mt-2 space-y-1">
                   {item.submenu.map((subitem, subindex) => (
                     <Link
                       key={subindex}
@@ -210,11 +210,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           {/* Logout Button */}
           <button
             onClick={handleLogout}
-            className="flex items-center px-2 lg:px-4 py-3 rounded-lg text-red-600 hover:bg-red-50 w-full transition-colors mt-8 justify-center lg:justify-start lg:gap-3"
+            className="flex items-center gap-3 px-4 py-3 rounded-lg text-red-600 hover:bg-red-50 w-full transition-colors mt-8"
             title="Logout"
           >
             <LogOut className="w-5 h-5" />
-            <span className="hidden lg:block">Logout</span>
+            <span>Logout</span>
           </button>
         </nav>
       </aside>
