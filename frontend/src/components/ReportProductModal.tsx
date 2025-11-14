@@ -30,17 +30,17 @@ export default function ReportProductModal({ isOpen, onClose, product, locationI
   })
 
   const problemTypes = [
-    { value: 'PRODUCT_DEFECT', label: 'Produk Rusak/Kemasan Bocor', icon: '😢' },
-    { value: 'EXPIRED', label: 'Kadaluarsa/Basi', icon: '⚠️' },
-    { value: 'MISMATCH', label: 'Tidak Sesuai Pesanan', icon: '🤔' },
-    { value: 'OTHER', label: 'Lainnya', icon: '💬' }
+    { value: 'PRODUCT_DEFECT', label: 'Produk Rusak', sublabel: 'Kemasan Bocor', icon: '😢', description: 'Produk rusak atau kemasan bocor' },
+    { value: 'EXPIRED', label: 'Kadaluarsa', sublabel: 'Basi', icon: '⚠️', description: 'Produk kadaluarsa atau sudah basi' },
+    { value: 'MISMATCH', label: 'Tidak Sesuai', sublabel: 'Pesanan', icon: '🤔', description: 'Tidak sesuai dengan pesanan' },
+    { value: 'OTHER', label: 'Lainnya', sublabel: '', icon: '💬', description: 'Masalah lainnya' }
   ]
 
   const severityLevels = [
-    { value: 'LOW', label: 'Ringan', color: 'bg-gray-100 text-gray-700' },
-    { value: 'MEDIUM', label: 'Sedang', color: 'bg-yellow-100 text-yellow-700' },
-    { value: 'HIGH', label: 'Berat', color: 'bg-orange-100 text-orange-700' },
-    { value: 'CRITICAL', label: 'Kritis', color: 'bg-red-100 text-red-700' }
+    { value: 'LOW', label: 'Ringan', icon: '🔵', color: 'bg-blue-100 text-blue-700' },
+    { value: 'MEDIUM', label: 'Sedang', icon: '🟡', color: 'bg-yellow-100 text-yellow-700' },
+    { value: 'HIGH', label: 'Berat', icon: '🟠', color: 'bg-orange-100 text-orange-700' },
+    { value: 'CRITICAL', label: 'Kritis', icon: '🔴', color: 'bg-red-100 text-red-700' }
   ]
 
   function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -211,23 +211,29 @@ export default function ReportProductModal({ isOpen, onClose, product, locationI
               <span>🔍</span>
               Apa Masalahnya? <span className="text-red-500">*</span>
             </label>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-4 gap-3">
               {problemTypes.map(type => (
                 <button
                   key={type.value}
                   type="button"
                   onClick={() => setFormData(prev => ({ ...prev, problemType: type.value }))}
-                  className={`p-4 rounded-xl border-2 transition-all duration-200 transform hover:scale-105 ${
+                  title={type.description}
+                  className={`p-5 rounded-2xl border-2 transition-all duration-200 transform hover:scale-110 flex flex-col items-center gap-2 ${
                     formData.problemType === type.value
-                      ? 'border-orange-500 bg-gradient-to-br from-orange-50 to-red-50 shadow-md scale-105'
-                      : 'border-gray-200 hover:border-orange-300 hover:bg-orange-50'
+                      ? 'border-orange-500 bg-gradient-to-br from-orange-50 to-red-50 shadow-lg scale-110'
+                      : 'border-gray-200 hover:border-orange-300 hover:bg-orange-50 hover:shadow-md'
                   }`}
                 >
-                  <div className="flex items-center gap-3">
-                    <span className="text-3xl">{type.icon}</span>
-                    <span className={`font-semibold text-sm ${
+                  <span className="text-4xl">{type.icon}</span>
+                  <div className="text-center">
+                    <span className={`block text-xs font-bold ${
                       formData.problemType === type.value ? 'text-orange-700' : 'text-gray-700'
                     }`}>{type.label}</span>
+                    {type.sublabel && (
+                      <span className={`block text-xs ${
+                        formData.problemType === type.value ? 'text-orange-600' : 'text-gray-500'
+                      }`}>{type.sublabel}</span>
+                    )}
                   </div>
                 </button>
               ))}
@@ -240,19 +246,23 @@ export default function ReportProductModal({ isOpen, onClose, product, locationI
               <span>📊</span>
               Seberapa Parah? <span className="text-gray-400 text-xs font-normal">(Boleh skip)</span>
             </label>
-            <div className="grid grid-cols-4 gap-2">
+            <div className="grid grid-cols-4 gap-3">
               {severityLevels.map(level => (
                 <button
                   key={level.value}
                   type="button"
                   onClick={() => setFormData(prev => ({ ...prev, severity: level.value }))}
-                  className={`px-3 py-3 rounded-xl text-xs font-bold transition-all duration-200 transform hover:scale-105 ${
+                  title={level.label}
+                  className={`p-4 rounded-2xl transition-all duration-200 transform hover:scale-110 flex flex-col items-center gap-1 ${
                     formData.severity === level.value
-                      ? `${level.color} ring-2 ring-offset-2 shadow-md scale-105`
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      ? `${level.color} ring-2 ring-offset-2 shadow-lg scale-110`
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200 hover:shadow-md'
                   }`}
                 >
-                  {level.label}
+                  <span className="text-3xl">{level.icon}</span>
+                  <span className={`text-xs font-bold ${
+                    formData.severity === level.value ? '' : 'text-gray-600'
+                  }`}>{level.label}</span>
                 </button>
               ))}
             </div>
