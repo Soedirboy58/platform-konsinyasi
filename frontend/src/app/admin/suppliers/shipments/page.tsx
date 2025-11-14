@@ -934,102 +934,114 @@ function ReturnsTab() {
                 <p className="text-gray-600">Belum ada pengajuan retur produk rusak/cacat oleh admin</p>
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
+              <div>
+                <table className="w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                         Produk
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                         Supplier
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                         Lokasi
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                      <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase">
                         Qty
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                         Alasan
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                      <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase">
                         Status
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                         Diajukan Oleh
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                         Tanggal
                       </th>
-                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                      <th className="px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase">
                         Aksi
                       </th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {manualReturns.filter(r => r.source === 'ADMIN' || !r.source).map((returnItem) => (
-                      <tr key={returnItem.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-3">
-                            {returnItem.product?.photo_url && (
-                              <img 
-                                src={returnItem.product.photo_url} 
-                                alt={returnItem.product?.name}
-                                className="w-10 h-10 rounded object-cover"
-                              />
-                            )}
-                            <div className="text-sm font-medium text-gray-900">
-                              {returnItem.product?.name || 'Produk tidak diketahui'}
+                    {manualReturns.filter(r => r.source === 'ADMIN' || !r.source).map((returnItem) => {
+                      const statusIcons = {
+                        PENDING: { icon: '⏳', color: 'text-yellow-600', title: 'Menunggu Review' },
+                        APPROVED: { icon: '✅', color: 'text-green-600', title: 'Disetujui' },
+                        REJECTED: { icon: '❌', color: 'text-red-600', title: 'Ditolak' },
+                        COMPLETED: { icon: '✔️', color: 'text-blue-600', title: 'Selesai' }
+                      }
+                      const status = statusIcons[returnItem.status as keyof typeof statusIcons] || statusIcons.PENDING
+                      
+                      return (
+                        <tr key={returnItem.id} className="hover:bg-gray-50">
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-2">
+                              {returnItem.product?.photo_url && (
+                                <img 
+                                  src={returnItem.product.photo_url} 
+                                  alt={returnItem.product?.name}
+                                  className="w-10 h-10 rounded object-cover"
+                                />
+                              )}
+                              <div className="text-sm font-medium text-gray-900">
+                                {returnItem.product?.name || 'Produk tidak diketahui'}
+                              </div>
                             </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 text-sm text-gray-900">
-                          {returnItem.supplier?.business_name || '-'}
-                        </td>
-                        <td className="px-6 py-4 text-sm text-gray-900">
-                          {returnItem.location?.name || '-'}
-                        </td>
-                        <td className="px-6 py-4 text-sm font-medium text-gray-900">
-                          {returnItem.quantity} unit
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="text-sm text-gray-700 max-w-xs truncate" title={returnItem.reason}>
-                            {returnItem.reason}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          {getStatusBadge(returnItem.status)}
-                        </td>
-                        <td className="px-6 py-4 text-sm text-gray-600">
-                          <div className="flex items-center gap-1">
-                            <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded">ADMIN</span>
-                            <span>{returnItem.requested_by_profile?.full_name || 'Admin'}</span>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 text-sm text-gray-500">
-                          {new Date(returnItem.requested_at).toLocaleDateString('id-ID', {
-                            day: 'numeric',
-                            month: 'short',
-                            year: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit'
-                          })}
-                        </td>
-                        <td className="px-6 py-4 text-right">
-                          <button
-                            onClick={() => {
-                              setSelectedReturn(returnItem)
-                              setShowReturnDetailModal(true)
-                            }}
-                            className="text-blue-600 hover:text-blue-800 p-2 rounded hover:bg-blue-50 transition"
-                            title="Lihat Detail"
-                          >
-                            <Eye className="w-5 h-5" />
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
+                          </td>
+                          <td className="px-3 py-3 text-sm text-gray-700">
+                            {returnItem.supplier?.business_name || '-'}
+                          </td>
+                          <td className="px-3 py-3 text-sm text-gray-700">
+                            {returnItem.location?.name || '-'}
+                          </td>
+                          <td className="px-3 py-3 text-sm font-medium text-gray-900 text-center">
+                            {returnItem.quantity}
+                          </td>
+                          <td className="px-3 py-3">
+                            <div className="text-sm text-gray-700 max-w-xs truncate" title={returnItem.reason}>
+                              {returnItem.reason}
+                            </div>
+                          </td>
+                          <td className="px-3 py-3 text-center">
+                            <span className={`text-2xl ${status.color}`} title={status.title}>
+                              {status.icon}
+                            </span>
+                          </td>
+                          <td className="px-3 py-3 text-sm text-gray-600">
+                            <div className="flex items-center gap-1">
+                              <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded">ADMIN</span>
+                              <span>{returnItem.requested_by_profile?.full_name || 'Admin'}</span>
+                            </div>
+                          </td>
+                          <td className="px-3 py-3 text-xs text-gray-500">
+                            {new Date(returnItem.requested_at).toLocaleDateString('id-ID', {
+                              day: '2-digit',
+                              month: 'short',
+                              year: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                          </td>
+                          <td className="px-2 py-3 text-center">
+                            <button
+                              onClick={() => {
+                                setSelectedReturn(returnItem)
+                                setShowReturnDetailModal(true)
+                              }}
+                              className="text-blue-600 hover:text-blue-800 p-2 rounded hover:bg-blue-50 transition"
+                              title="Lihat Detail"
+                            >
+                              <Eye className="w-5 h-5" />
+                            </button>
+                          </td>
+                        </tr>
+                      )
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -1047,54 +1059,63 @@ function ReturnsTab() {
                 <p className="text-gray-600">Belum ada customer yang melaporkan produk bermasalah</p>
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
+              <div>
+                <table className="w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                         Produk
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                         Supplier
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                         Lokasi
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                      <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase">
                         Qty
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">
                         Tingkat
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                         Alasan
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                      <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase">
                         Status
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                         Dilaporkan Oleh
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                         Tanggal
                       </th>
-                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                      <th className="px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase">
                         Aksi
                       </th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {manualReturns.filter(r => r.source === 'CUSTOMER').map((returnItem) => {
-                      const severityColors = {
-                        LOW: 'bg-gray-100 text-gray-700',
-                        MEDIUM: 'bg-yellow-100 text-yellow-700',
-                        HIGH: 'bg-orange-100 text-orange-700',
-                        CRITICAL: 'bg-red-100 text-red-700'
+                      const severityIcons = {
+                        LOW: { icon: '🔵', color: 'text-gray-500', title: 'Ringan' },
+                        MEDIUM: { icon: '🟡', color: 'text-yellow-500', title: 'Sedang' },
+                        HIGH: { icon: '🟠', color: 'text-orange-500', title: 'Berat' },
+                        CRITICAL: { icon: '🔴', color: 'text-red-500', title: 'Kritis' }
                       }
+                      const statusIcons = {
+                        PENDING: { icon: '⏳', color: 'text-yellow-600', title: 'Menunggu Review' },
+                        APPROVED: { icon: '✅', color: 'text-green-600', title: 'Disetujui' },
+                        REJECTED: { icon: '❌', color: 'text-red-600', title: 'Ditolak' },
+                        COMPLETED: { icon: '✔️', color: 'text-blue-600', title: 'Selesai' }
+                      }
+                      const severity = severityIcons[returnItem.severity as keyof typeof severityIcons] || severityIcons.MEDIUM
+                      const status = statusIcons[returnItem.status as keyof typeof statusIcons] || statusIcons.PENDING
+                      
                       return (
                         <tr key={returnItem.id} className="hover:bg-gray-50">
-                          <td className="px-6 py-4">
-                            <div className="flex items-center gap-3">
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-2">
                               {returnItem.product?.photo_url && (
                                 <img 
                                   src={returnItem.product.photo_url} 
@@ -1107,49 +1128,49 @@ function ReturnsTab() {
                               </div>
                             </div>
                           </td>
-                          <td className="px-6 py-4 text-sm text-gray-900">
+                          <td className="px-3 py-3 text-sm text-gray-700">
                             {returnItem.supplier?.business_name || '-'}
                           </td>
-                          <td className="px-6 py-4 text-sm text-gray-900">
+                          <td className="px-3 py-3 text-sm text-gray-700">
                             {returnItem.location?.name || '-'}
                           </td>
-                          <td className="px-6 py-4 text-sm font-medium text-gray-900">
-                            {returnItem.quantity} unit
+                          <td className="px-3 py-3 text-sm font-medium text-gray-900 text-center">
+                            {returnItem.quantity}
                           </td>
-                          <td className="px-6 py-4">
-                            <span className={`px-2 py-1 text-xs font-medium rounded ${severityColors[returnItem.severity as keyof typeof severityColors] || severityColors.MEDIUM}`}>
-                              {returnItem.severity || 'MEDIUM'}
+                          <td className="px-3 py-3 text-center">
+                            <span className={`text-2xl ${severity.color}`} title={severity.title}>
+                              {severity.icon}
                             </span>
                           </td>
-                          <td className="px-6 py-4">
+                          <td className="px-3 py-3">
                             <div className="text-sm text-gray-700 max-w-xs truncate" title={returnItem.reason}>
                               {returnItem.reason}
                             </div>
                           </td>
-                          <td className="px-6 py-4">
-                            {getStatusBadge(returnItem.status)}
+                          <td className="px-3 py-3 text-center">
+                            <span className={`text-2xl ${status.color}`} title={status.title}>
+                              {status.icon}
+                            </span>
                           </td>
-                          <td className="px-6 py-4 text-sm text-gray-600">
+                          <td className="px-3 py-3 text-sm text-gray-600">
                             <div className="flex flex-col">
-                              <div className="flex items-center gap-1">
-                                <span className="px-2 py-0.5 bg-purple-100 text-purple-700 text-xs rounded">CUSTOMER</span>
-                              </div>
+                              <span className="px-2 py-0.5 bg-purple-100 text-purple-700 text-xs rounded inline-block w-fit">CUSTOMER</span>
                               <span className="text-xs mt-1">{returnItem.customer_name || 'Anonim'}</span>
                               {returnItem.customer_contact && (
                                 <span className="text-xs text-gray-500">{returnItem.customer_contact}</span>
                               )}
                             </div>
                           </td>
-                          <td className="px-6 py-4 text-sm text-gray-500">
+                          <td className="px-3 py-3 text-xs text-gray-500">
                             {new Date(returnItem.requested_at).toLocaleDateString('id-ID', {
-                              day: 'numeric',
+                              day: '2-digit',
                               month: 'short',
                               year: 'numeric',
                               hour: '2-digit',
                               minute: '2-digit'
                             })}
                           </td>
-                          <td className="px-6 py-4 text-right">
+                          <td className="px-2 py-3 text-center">
                             <button
                               onClick={() => {
                                 setSelectedReturn(returnItem)
