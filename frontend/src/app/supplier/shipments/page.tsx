@@ -57,7 +57,7 @@ export default function ShipmentsPage() {
 
       {/* Tabs Navigation */}
       <div className="border-b border-gray-200 overflow-x-auto">
-        <nav className="-mb-px flex space-x-4 sm:space-x-8 min-w-max px-1">
+        <nav className="-mb-px flex justify-center space-x-4 sm:space-x-8 min-w-max px-1">
           <button
             onClick={() => setActiveTab('create')}
             className={`

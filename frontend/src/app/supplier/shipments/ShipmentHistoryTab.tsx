@@ -178,7 +178,7 @@ export default function ShipmentHistoryTab() {
   return (
     <div className="space-y-6">
       {/* Filter */}
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap justify-center gap-2">
         {['ALL', 'PENDING', 'APPROVED', 'REJECTED'].map(status => (
           <button
             key={status}
