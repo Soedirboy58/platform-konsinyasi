@@ -1378,6 +1378,211 @@ export default function ShipmentsPage() {
           <ReturnsTab />
         )}
       </main>
+
+      {/* Return Detail Modal */}
+      {showReturnDetailModal && selectedReturn && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+            {/* Header */}
+            <div className="p-6 border-b sticky top-0 bg-white z-10">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">Detail Permintaan Retur</h3>
+                  <p className="text-sm text-gray-600 mt-1">
+                    {selectedReturn.source === 'CUSTOMER' ? '👥 Laporan dari Customer' : '📋 Retur dari Admin'}
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    setShowReturnDetailModal(false)
+                    setSelectedReturn(null)
+                  }}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+            </div>
+
+            {/* Content */}
+            <div className="p-6 space-y-6">
+              {/* Product Info */}
+              <div className="flex items-start gap-4 p-4 bg-gray-50 rounded-lg">
+                {selectedReturn.product?.photo_url && (
+                  <img 
+                    src={selectedReturn.product.photo_url}
+                    alt={selectedReturn.product.name}
+                    className="w-20 h-20 rounded-lg object-cover"
+                  />
+                )}
+                <div className="flex-1">
+                  <h4 className="font-semibold text-gray-900">{selectedReturn.product?.name}</h4>
+                  <div className="mt-2 space-y-1 text-sm">
+                    <p><span className="text-gray-600">Jumlah:</span> <span className="font-medium">{selectedReturn.quantity} pcs</span></p>
+                    <p><span className="text-gray-600">Lokasi:</span> <span className="font-medium">{selectedReturn.location?.name}</span></p>
+                    <p><span className="text-gray-600">Supplier:</span> <span className="font-medium">{selectedReturn.supplier?.business_name}</span></p>
+                  </div>
+                </div>
+                {/* Status Badge */}
+                <div>
+                  {selectedReturn.status === 'PENDING' && (
+                    <span className="px-3 py-1 bg-yellow-100 text-yellow-800 text-sm font-medium rounded-full">
+                      ⏳ Menunggu Review
+                    </span>
+                  )}
+                  {selectedReturn.status === 'APPROVED' && (
+                    <span className="px-3 py-1 bg-green-100 text-green-800 text-sm font-medium rounded-full">
+                      ✅ Disetujui
+                    </span>
+                  )}
+                  {selectedReturn.status === 'REJECTED' && (
+                    <span className="px-3 py-1 bg-red-100 text-red-800 text-sm font-medium rounded-full">
+                      ❌ Ditolak
+                    </span>
+                  )}
+                  {selectedReturn.status === 'COMPLETED' && (
+                    <span className="px-3 py-1 bg-blue-100 text-blue-800 text-sm font-medium rounded-full">
+                      ✓ Selesai
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Customer Info (if from customer) */}
+              {selectedReturn.source === 'CUSTOMER' && (
+                <div className="p-4 bg-purple-50 border border-purple-200 rounded-lg">
+                  <h5 className="font-medium text-purple-900 mb-2">👤 Informasi Pelapor</h5>
+                  <div className="space-y-1 text-sm">
+                    <p><span className="text-purple-700">Nama:</span> <span className="font-medium">{selectedReturn.customer_name || 'Anonim'}</span></p>
+                    {selectedReturn.customer_contact && (
+                      <p><span className="text-purple-700">Kontak:</span> <span className="font-medium">{selectedReturn.customer_contact}</span></p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Severity (if exists) */}
+              {selectedReturn.severity && (
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-gray-600">Tingkat Keparahan:</span>
+                  {selectedReturn.severity === 'LOW' && (
+                    <span className="px-3 py-1 bg-gray-100 text-gray-700 text-sm font-medium rounded-full">Ringan</span>
+                  )}
+                  {selectedReturn.severity === 'MEDIUM' && (
+                    <span className="px-3 py-1 bg-yellow-100 text-yellow-700 text-sm font-medium rounded-full">Sedang</span>
+                  )}
+                  {selectedReturn.severity === 'HIGH' && (
+                    <span className="px-3 py-1 bg-orange-100 text-orange-700 text-sm font-medium rounded-full">Berat</span>
+                  )}
+                  {selectedReturn.severity === 'CRITICAL' && (
+                    <span className="px-3 py-1 bg-red-100 text-red-700 text-sm font-medium rounded-full">Kritis</span>
+                  )}
+                </div>
+              )}
+
+              {/* Reason */}
+              <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+                <h5 className="font-medium text-red-900 mb-2">📝 Alasan Retur</h5>
+                <p className="text-sm text-red-800">{selectedReturn.reason}</p>
+              </div>
+
+              {/* Proof Photos */}
+              {selectedReturn.proof_photos && selectedReturn.proof_photos.length > 0 && (
+                <div>
+                  <h5 className="font-medium text-gray-900 mb-3">📸 Foto Bukti</h5>
+                  <div className="grid grid-cols-3 gap-3">
+                    {selectedReturn.proof_photos.map((photo, index) => (
+                      <a 
+                        key={index}
+                        href={photo}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="block"
+                      >
+                        <img 
+                          src={photo}
+                          alt={`Bukti ${index + 1}`}
+                          className="w-full h-32 object-cover rounded-lg hover:opacity-80 transition cursor-pointer"
+                        />
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Review Notes */}
+              {selectedReturn.review_notes && (
+                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <h5 className="font-medium text-blue-900 mb-2">💬 Catatan Review</h5>
+                  <p className="text-sm text-blue-800">{selectedReturn.review_notes}</p>
+                </div>
+              )}
+
+              {/* Timeline */}
+              <div className="border-t pt-4">
+                <h5 className="font-medium text-gray-900 mb-3">⏰ Timeline</h5>
+                <div className="space-y-2 text-sm">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 bg-blue-600 rounded-full"></div>
+                    <span className="text-gray-600">Diajukan:</span>
+                    <span className="font-medium">
+                      {new Date(selectedReturn.requested_at).toLocaleString('id-ID', {
+                        dateStyle: 'medium',
+                        timeStyle: 'short'
+                      })}
+                    </span>
+                    {selectedReturn.requested_by_profile && (
+                      <span className="text-gray-600">oleh {selectedReturn.requested_by_profile.full_name}</span>
+                    )}
+                  </div>
+                  
+                  {selectedReturn.reviewed_at && (
+                    <div className="flex items-center gap-2">
+                      <div className={`w-2 h-2 rounded-full ${selectedReturn.status === 'APPROVED' ? 'bg-green-600' : 'bg-red-600'}`}></div>
+                      <span className="text-gray-600">Direview:</span>
+                      <span className="font-medium">
+                        {new Date(selectedReturn.reviewed_at).toLocaleString('id-ID', {
+                          dateStyle: 'medium',
+                          timeStyle: 'short'
+                        })}
+                      </span>
+                      {selectedReturn.reviewed_by_profile && (
+                        <span className="text-gray-600">oleh {selectedReturn.reviewed_by_profile.full_name}</span>
+                      )}
+                    </div>
+                  )}
+
+                  {selectedReturn.completed_at && (
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 bg-blue-600 rounded-full"></div>
+                      <span className="text-gray-600">Selesai:</span>
+                      <span className="font-medium">
+                        {new Date(selectedReturn.completed_at).toLocaleString('id-ID', {
+                          dateStyle: 'medium',
+                          timeStyle: 'short'
+                        })}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Footer Actions */}
+            <div className="p-6 border-t bg-gray-50">
+              <button
+                onClick={() => {
+                  setShowReturnDetailModal(false)
+                  setSelectedReturn(null)
+                }}
+                className="w-full px-6 py-3 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 font-medium"
+              >
+                Tutup
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
