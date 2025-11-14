@@ -39,10 +39,19 @@ export default function ReturnTab() {
   const [reviewAction, setReviewAction] = useState<'approve' | 'reject'>('approve')
   const [reviewNotes, setReviewNotes] = useState('')
   const [showDetailModal, setShowDetailModal] = useState(false)
+  
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 10
+  const [totalCount, setTotalCount] = useState(0)
+  
+  // Bulk selection
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [bulkProcessing, setBulkProcessing] = useState(false)
 
   useEffect(() => {
     loadReturns()
-  }, [])
+  }, [currentPage]) // Re-fetch when page changes
 
   async function loadReturns() {
     setLoading(true)
@@ -74,23 +83,29 @@ export default function ReturnTab() {
 
       console.log('✅ Supplier ID:', supplier.id)
 
+      // Get total count for pagination
+      const { count } = await supabase
+        .from('shipment_returns')
+        .select('*', { count: 'exact', head: true })
+        .eq('supplier_id', supplier.id)
+      
+      setTotalCount(count || 0)
+      console.log('📊 Total returns:', count)
+
+      // Get paginated data
+      const from = (currentPage - 1) * itemsPerPage
+      const to = from + itemsPerPage - 1
+
       const { data, error } = await supabase
         .from('shipment_returns')
         .select(`
-          id,
-          product_id,
-          quantity,
-          reason,
-          location_id,
-          status,
-          requested_at,
-          reviewed_at,
-          review_notes,
+          *,
           product:products(name, photo_url),
           location:locations(name)
         `)
         .eq('supplier_id', supplier.id)
         .order('requested_at', { ascending: false })
+        .range(from, to)
 
       if (error) {
         console.error('❌ Error loading returns:', error)
@@ -121,6 +136,98 @@ export default function ReturnTab() {
     setReviewAction(action)
     setReviewNotes('')
     setShowReviewModal(true)
+  }
+
+  // Bulk selection handlers
+  const toggleSelectAll = () => {
+    if (selectedIds.size === returnsList.length && returnsList.length > 0) {
+      setSelectedIds(new Set())
+    } else {
+      setSelectedIds(new Set(returnsList.map(r => r.id)))
+    }
+  }
+
+  const toggleSelect = (id: string) => {
+    const newSet = new Set(selectedIds)
+    if (newSet.has(id)) {
+      newSet.delete(id)
+    } else {
+      newSet.add(id)
+    }
+    setSelectedIds(newSet)
+  }
+
+  // Bulk actions
+  const handleBulkConfirm = async () => {
+    if (selectedIds.size === 0) return
+    
+    setBulkProcessing(true)
+    try {
+      const promises = Array.from(selectedIds).map(id =>
+        supabase.rpc('approve_return_request', {
+          p_return_id: id,
+          p_review_notes: 'Konfirmasi massal'
+        })
+      )
+
+      const results = await Promise.allSettled(promises)
+      const succeeded = results.filter(r => r.status === 'fulfilled').length
+      const failed = results.filter(r => r.status === 'rejected').length
+
+      if (succeeded > 0) {
+        toast.success(`${succeeded} retur dikonfirmasi`)
+      }
+      if (failed > 0) {
+        toast.error(`${failed} retur gagal dikonfirmasi`)
+      }
+
+      setSelectedIds(new Set())
+      loadReturns()
+    } catch (error) {
+      console.error('Bulk confirm error:', error)
+      toast.error('Gagal konfirmasi retur')
+    } finally {
+      setBulkProcessing(false)
+    }
+  }
+
+  const handleBulkReject = async () => {
+    if (selectedIds.size === 0) return
+    
+    const reason = prompt('Alasan penolakan massal:')
+    if (!reason || !reason.trim()) {
+      toast.error('Alasan penolakan wajib diisi')
+      return
+    }
+
+    setBulkProcessing(true)
+    try {
+      const promises = Array.from(selectedIds).map(id =>
+        supabase.rpc('reject_return_request', {
+          p_return_id: id,
+          p_review_notes: reason
+        })
+      )
+
+      const results = await Promise.allSettled(promises)
+      const succeeded = results.filter(r => r.status === 'fulfilled').length
+      const failed = results.filter(r => r.status === 'rejected').length
+
+      if (succeeded > 0) {
+        toast.success(`${succeeded} retur ditolak`)
+      }
+      if (failed > 0) {
+        toast.error(`${failed} retur gagal ditolak`)
+      }
+
+      setSelectedIds(new Set())
+      loadReturns()
+    } catch (error) {
+      console.error('Bulk reject error:', error)
+      toast.error('Gagal tolak retur')
+    } finally {
+      setBulkProcessing(false)
+    }
   }
 
   async function handleSubmitReview() {
@@ -210,39 +317,88 @@ export default function ReturnTab() {
           </p>
         </div>
 
+        {/* Bulk action bar */}
+        {selectedIds.size > 0 && (
+          <div className="bg-blue-50 px-6 py-3 flex items-center justify-between border-b">
+            <span className="text-sm font-medium text-blue-900">
+              {selectedIds.size} item dipilih
+            </span>
+            <div className="flex gap-2">
+              <button
+                onClick={handleBulkConfirm}
+                disabled={bulkProcessing}
+                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 text-sm font-medium flex items-center gap-2"
+              >
+                {bulkProcessing ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    Memproses...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="w-4 h-4" />
+                    Konfirmasi Retur ({selectedIds.size})
+                  </>
+                )}
+              </button>
+              <button
+                onClick={handleBulkReject}
+                disabled={bulkProcessing}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 text-sm font-medium flex items-center gap-2"
+              >
+                <XCircle className="w-4 h-4" />
+                Tolak Retur ({selectedIds.size})
+              </button>
+            </div>
+          </div>
+        )}
+
         {returnsList.length === 0 ? (
           <div className="p-12 text-center">
             <Package className="w-16 h-16 text-gray-300 mx-auto mb-4" />
             <p className="text-gray-600">Belum ada permintaan retur</p>
           </div>
         ) : (
-          <div className="divide-y">
-            {returnsList.map(returnItem => {
-              // Defensive null checks
-              const productName = returnItem.product?.name || 'Produk tidak ditemukan'
-              const photoUrl = returnItem.product?.photo_url
-              const locationName = returnItem.location?.name || 'Lokasi tidak ditemukan'
+          <>
+            <div className="divide-y">
+              {returnsList.map(returnItem => {
+                // Defensive null checks
+                const productName = returnItem.product?.name || 'Produk tidak ditemukan'
+                const photoUrl = returnItem.product?.photo_url
+                const locationName = returnItem.location?.name || 'Lokasi tidak ditemukan'
+                const isSelected = selectedIds.has(returnItem.id)
 
-              return (
-                <div key={returnItem.id} className="p-6 hover:bg-gray-50">
-                  <div className="flex gap-4">
-                    {/* Product Image */}
-                    <div className="w-20 h-20 bg-gray-100 rounded-lg flex-shrink-0 overflow-hidden">
-                      {photoUrl ? (
-                        <img 
-                          src={photoUrl} 
-                          alt={productName}
-                          className="w-full h-full object-cover"
-                          onError={(e) => {
-                            // Fallback jika gambar gagal load
-                            e.currentTarget.style.display = 'none'
-                            e.currentTarget.parentElement!.innerHTML = '<div class="w-full h-full flex items-center justify-center"><svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg></div>'
-                          }}
+                return (
+                  <div key={returnItem.id} className={`p-6 hover:bg-gray-50 ${isSelected ? 'bg-blue-50' : ''}`}>
+                    <div className="flex gap-4">
+                      {/* Checkbox */}
+                      <div className="flex items-start pt-1">
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => toggleSelect(returnItem.id)}
+                          disabled={returnItem.status !== 'PENDING'}
+                          className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-30"
                         />
-                      ) : (
-                        <Package className="w-full h-full p-4 text-gray-400" />
-                      )}
-                    </div>
+                      </div>
+
+                      {/* Product Image */}
+                      <div className="w-20 h-20 bg-gray-100 rounded-lg flex-shrink-0 overflow-hidden">
+                        {photoUrl ? (
+                          <img 
+                            src={photoUrl} 
+                            alt={productName}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              // Fallback jika gambar gagal load
+                              e.currentTarget.style.display = 'none'
+                              e.currentTarget.parentElement!.innerHTML = '<div class="w-full h-full flex items-center justify-center"><svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg></div>'
+                            }}
+                          />
+                        ) : (
+                          <Package className="w-full h-full p-4 text-gray-400" />
+                        )}
+                      </div>
 
                     {/* Details */}
                     <div className="flex-1">
@@ -308,7 +464,7 @@ export default function ReturnTab() {
                             disabled={processingId === returnItem.id}
                             className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-300 text-sm font-medium"
                           >
-                            Setujui Retur
+                            Konfirmasi Retur
                           </button>
                           <button
                             onClick={() => handleReviewClick(returnItem, 'reject')}
@@ -337,6 +493,35 @@ export default function ReturnTab() {
               )
             })}
           </div>
+
+          {/* Pagination */}
+          {totalCount > itemsPerPage && (
+            <div className="px-6 py-4 border-t flex items-center justify-between">
+              <div className="text-sm text-gray-600">
+                Menampilkan {Math.min((currentPage - 1) * itemsPerPage + 1, totalCount)} - {Math.min(currentPage * itemsPerPage, totalCount)} dari {totalCount} retur
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="px-3 py-1 border rounded-lg hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed text-sm"
+                >
+                  Sebelumnya
+                </button>
+                <span className="text-sm text-gray-600">
+                  Halaman {currentPage} dari {Math.ceil(totalCount / itemsPerPage)}
+                </span>
+                <button
+                  onClick={() => setCurrentPage(p => Math.min(Math.ceil(totalCount / itemsPerPage), p + 1))}
+                  disabled={currentPage >= Math.ceil(totalCount / itemsPerPage)}
+                  className="px-3 py-1 border rounded-lg hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed text-sm"
+                >
+                  Selanjutnya
+                </button>
+              </div>
+            </div>
+          )}
+        </>
         )}
       </div>
 
@@ -346,7 +531,7 @@ export default function ReturnTab() {
           <div className="bg-white rounded-lg max-w-md w-full">
             <div className="p-6 border-b">
               <h3 className="text-lg font-semibold">
-                {reviewAction === 'approve' ? 'Setujui' : 'Tolak'} Retur
+                {reviewAction === 'approve' ? 'Konfirmasi Retur' : 'Tolak Retur'}
               </h3>
               <p className="text-sm text-gray-600 mt-1">{selectedReturn.product.name}</p>
             </div>
@@ -383,7 +568,7 @@ export default function ReturnTab() {
                     : 'bg-red-600 hover:bg-red-700'
                 } disabled:bg-gray-300`}
               >
-                {reviewAction === 'approve' ? 'Setujui' : 'Tolak'}
+                {reviewAction === 'approve' ? 'Konfirmasi Retur' : 'Tolak Retur'}
               </button>
             </div>
           </div>
