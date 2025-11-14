@@ -376,35 +376,60 @@ export default function SupplierDashboard() {
         />
       </div>
 
-      <div className="bg-white rounded-lg shadow p-6 mb-6">
-        <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+      <div className="bg-white rounded-lg shadow p-4 sm:p-6 mb-6">
+        <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
           <TrendingUp className="w-5 h-5 text-gray-600" />
           Top 10 Produk Terlaris
         </h2>
         {topProducts.length === 0 ? (
           <p className="text-gray-500 text-center py-8">Belum ada data penjualan</p>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Rank</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nama Produk</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Terjual</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Total Pendapatan</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {topProducts.map((product, index) => (
-                  <tr key={product.product_id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 text-sm text-gray-900 font-semibold">#{index + 1}</td>
-                    <td className="px-4 py-3 text-sm text-gray-900">{product.product_name}</td>
-                    <td className="px-4 py-3 text-sm text-gray-900 text-right">{product.total_sold}</td>
-                    <td className="px-4 py-3 text-sm text-gray-900 text-right font-medium">{formatRupiah(product.total_revenue)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
+            {topProducts.map((product, index) => {
+              // Medal colors for top 3
+              const getRankStyle = (rank: number) => {
+                if (rank === 0) return 'bg-gradient-to-br from-yellow-400 to-yellow-600 text-white' // Gold
+                if (rank === 1) return 'bg-gradient-to-br from-gray-300 to-gray-500 text-white' // Silver
+                if (rank === 2) return 'bg-gradient-to-br from-orange-400 to-orange-600 text-white' // Bronze
+                return 'bg-gray-100 text-gray-700'
+              }
+
+              return (
+                <div 
+                  key={product.product_id}
+                  className="border border-gray-200 rounded-lg p-4 hover:border-primary-300 hover:shadow-md transition-all"
+                >
+                  {/* Rank Badge */}
+                  <div className="flex items-center justify-between mb-3">
+                    <div className={`${getRankStyle(index)} w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg shadow-sm`}>
+                      {index + 1}
+                    </div>
+                    {index < 3 && (
+                      <span className="text-2xl">
+                        {index === 0 ? '🏆' : index === 1 ? '🥈' : '🥉'}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Product Name */}
+                  <h3 className="font-semibold text-gray-900 text-sm mb-3 line-clamp-2 min-h-[2.5rem]">
+                    {product.product_name}
+                  </h3>
+
+                  {/* Stats */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-gray-500">Terjual</span>
+                      <span className="font-bold text-primary-600 text-sm">{product.total_sold} pcs</span>
+                    </div>
+                    <div className="pt-2 border-t border-gray-100">
+                      <p className="text-xs text-gray-500 mb-1">Total Pendapatan</p>
+                      <p className="font-bold text-gray-900 text-sm">{formatRupiah(product.total_revenue)}</p>
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
           </div>
         )}
       </div>
