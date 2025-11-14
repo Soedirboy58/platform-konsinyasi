@@ -178,12 +178,12 @@ export default function ShipmentHistoryTab() {
   return (
     <div className="space-y-6">
       {/* Filter */}
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         {['ALL', 'PENDING', 'APPROVED', 'REJECTED'].map(status => (
           <button
             key={status}
             onClick={() => setFilter(status as any)}
-            className={`px-4 py-2 rounded-lg font-medium transition ${
+            className={`px-3 sm:px-4 py-2 rounded-lg font-medium transition text-xs sm:text-sm ${
               filter === status
                 ? 'bg-primary-600 text-white'
                 : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'
@@ -196,88 +196,161 @@ export default function ShipmentHistoryTab() {
 
       {/* Shipments List */}
       {filteredShipments.length === 0 ? (
-        <div className="bg-white rounded-lg shadow p-12 text-center">
-          <Truck className="w-16 h-16 mx-auto mb-4 text-gray-400" />
-          <p className="text-gray-600 text-lg">Belum ada riwayat pengiriman</p>
-          <p className="text-gray-500 text-sm mt-2">Pengiriman yang Anda ajukan akan muncul di sini</p>
+        <div className="bg-white rounded-lg shadow p-8 sm:p-12 text-center">
+          <Truck className="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-4 text-gray-400" />
+          <p className="text-gray-600 text-base sm:text-lg">Belum ada riwayat pengiriman</p>
+          <p className="text-gray-500 text-xs sm:text-sm mt-2">Pengiriman yang Anda ajukan akan muncul di sini</p>
         </div>
       ) : (
-        <div className="space-y-4">
-          {filteredShipments.map(shipment => (
-            <div key={shipment.id} className="bg-white rounded-lg shadow hover:shadow-md transition">
-              {/* Header */}
-              <div className="p-6 border-b border-gray-200">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      <MapPin className="w-5 h-5 text-gray-400" />
-                      <h3 className="text-lg font-semibold text-gray-900">
-                        {shipment.location_name}
-                      </h3>
-                      <span className="text-sm text-gray-500">({shipment.location_code})</span>
+        <>
+          {/* Desktop Card View (hidden on mobile) */}
+          <div className="hidden md:block space-y-4">
+            {filteredShipments.map(shipment => (
+              <div key={shipment.id} className="bg-white rounded-lg shadow hover:shadow-md transition">
+                {/* Header */}
+                <div className="p-6 border-b border-gray-200">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-2">
+                        <MapPin className="w-5 h-5 text-gray-400" />
+                        <h3 className="text-lg font-semibold text-gray-900">
+                          {shipment.location_name}
+                        </h3>
+                        <span className="text-sm text-gray-500">({shipment.location_code})</span>
+                      </div>
+                      <p className="text-sm text-gray-600">
+                        Diajukan pada {formatDate(shipment.created_at)}
+                      </p>
                     </div>
-                    <p className="text-sm text-gray-600">
-                      Diajukan pada {formatDate(shipment.created_at)}
-                    </p>
+                    <div>
+                      {getStatusBadge(shipment.status)}
+                    </div>
                   </div>
-                  <div>
+
+                  {/* Rejection Reason */}
+                  {shipment.status === 'REJECTED' && shipment.rejection_reason && (
+                    <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                      <p className="text-sm text-red-800">
+                        <strong>Alasan Penolakan:</strong> {shipment.rejection_reason}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Notes */}
+                  {shipment.notes && (
+                    <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+                      <p className="text-sm text-gray-700">
+                        <strong>Catatan:</strong> {shipment.notes}
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Items */}
+                <div className="p-6">
+                  <h4 className="font-medium text-gray-900 mb-3 flex items-center gap-2">
+                    <Package className="w-4 h-4" />
+                    Produk ({shipment.total_items} item, {shipment.total_quantity} unit)
+                  </h4>
+                  <div className="space-y-2">
+                    {shipment.items.map((item, idx) => (
+                      <div key={idx} className="flex items-center justify-between py-2 px-4 bg-gray-50 rounded-lg">
+                        <span className="text-sm text-gray-700">{item.product_name}</span>
+                        <span className="text-sm font-semibold text-primary-600">{item.quantity} unit</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Timeline */}
+                <div className="px-6 pb-6">
+                  <div className="flex items-center gap-4 text-xs text-gray-500">
+                    <div className="flex items-center gap-1">
+                      <Clock className="w-3 h-3" />
+                      <span>Dibuat: {formatDate(shipment.created_at)}</span>
+                    </div>
+                    {shipment.completed_at && (
+                      <div className="flex items-center gap-1">
+                        <CheckCircle className="w-3 h-3" />
+                        <span>Selesai: {formatDate(shipment.completed_at)}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Mobile Card View (hidden on desktop) */}
+          <div className="md:hidden space-y-3">
+            {filteredShipments.map(shipment => (
+              <div key={shipment.id} className="bg-white border border-gray-200 rounded-lg p-3 hover:border-gray-300 transition">
+                {/* Header */}
+                <div className="flex items-start justify-between mb-2">
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-sm text-gray-900 truncate flex items-center gap-2">
+                      <MapPin className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                      {shipment.location_name}
+                    </h3>
+                    <p className="text-xs text-gray-500 mt-0.5">{shipment.location_code}</p>
+                  </div>
+                  <div className="flex-shrink-0 ml-2">
                     {getStatusBadge(shipment.status)}
                   </div>
                 </div>
 
-                {/* Rejection Reason */}
+                {/* Details Grid */}
+                <div className="grid grid-cols-2 gap-2 text-xs mt-3">
+                  <div>
+                    <p className="text-gray-500">Total Item</p>
+                    <p className="font-medium text-gray-900">{shipment.total_items} item</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500">Total Qty</p>
+                    <p className="font-medium text-gray-900">{shipment.total_quantity} unit</p>
+                  </div>
+                  <div className="col-span-2">
+                    <p className="text-gray-500">Diajukan</p>
+                    <p className="font-medium text-gray-900">{new Date(shipment.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+                  </div>
+                </div>
+
+                {/* Items List (collapsible on mobile) */}
+                <div className="mt-3 pt-3 border-t border-gray-100">
+                  <details className="group">
+                    <summary className="flex items-center gap-2 text-xs font-medium text-gray-700 cursor-pointer list-none">
+                      <Package className="w-3.5 h-3.5" />
+                      <span>Produk ({shipment.total_items} item)</span>
+                      <span className="ml-auto text-gray-400 group-open:rotate-180 transition">▼</span>
+                    </summary>
+                    <div className="mt-2 space-y-1.5">
+                      {shipment.items.map((item, idx) => (
+                        <div key={idx} className="flex items-center justify-between py-1.5 px-2 bg-gray-50 rounded text-xs">
+                          <span className="text-gray-700">{item.product_name}</span>
+                          <span className="font-semibold text-primary-600">{item.quantity}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </details>
+                </div>
+
+                {/* Rejection Reason (mobile) */}
                 {shipment.status === 'REJECTED' && shipment.rejection_reason && (
-                  <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-                    <p className="text-sm text-red-800">
-                      <strong>Alasan Penolakan:</strong> {shipment.rejection_reason}
-                    </p>
+                  <div className="mt-3 p-2 bg-red-50 border border-red-200 rounded text-xs text-red-800">
+                    <strong>Alasan Penolakan:</strong> {shipment.rejection_reason}
                   </div>
                 )}
 
-                {/* Notes */}
+                {/* Notes (mobile) */}
                 {shipment.notes && (
-                  <div className="mt-4 p-3 bg-gray-50 rounded-lg">
-                    <p className="text-sm text-gray-700">
-                      <strong>Catatan:</strong> {shipment.notes}
-                    </p>
+                  <div className="mt-3 p-2 bg-gray-50 rounded text-xs text-gray-700">
+                    <strong>Catatan:</strong> {shipment.notes}
                   </div>
                 )}
               </div>
-
-              {/* Items */}
-              <div className="p-6">
-                <h4 className="font-medium text-gray-900 mb-3 flex items-center gap-2">
-                  <Package className="w-4 h-4" />
-                  Produk ({shipment.total_items} item, {shipment.total_quantity} unit)
-                </h4>
-                <div className="space-y-2">
-                  {shipment.items.map((item, idx) => (
-                    <div key={idx} className="flex items-center justify-between py-2 px-4 bg-gray-50 rounded-lg">
-                      <span className="text-sm text-gray-700">{item.product_name}</span>
-                      <span className="text-sm font-semibold text-primary-600">{item.quantity} unit</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Timeline */}
-              <div className="px-6 pb-6">
-                <div className="flex items-center gap-4 text-xs text-gray-500">
-                  <div className="flex items-center gap-1">
-                    <Clock className="w-3 h-3" />
-                    <span>Dibuat: {formatDate(shipment.created_at)}</span>
-                  </div>
-                  {shipment.completed_at && (
-                    <div className="flex items-center gap-1">
-                      <CheckCircle className="w-3 h-3" />
-                      <span>Selesai: {formatDate(shipment.completed_at)}</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        </>
       )}
     </div>
   )

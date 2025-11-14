@@ -319,15 +319,15 @@ export default function ReturnTab() {
 
         {/* Bulk action bar */}
         {selectedIds.size > 0 && (
-          <div className="bg-blue-50 px-6 py-3 flex items-center justify-between border-b">
-            <span className="text-sm font-medium text-blue-900">
+          <div className="bg-blue-50 px-4 sm:px-6 py-3 flex flex-col sm:flex-row items-center justify-between border-b gap-3">
+            <span className="text-xs sm:text-sm font-medium text-blue-900">
               {selectedIds.size} item dipilih
             </span>
-            <div className="flex gap-2">
+            <div className="flex gap-2 w-full sm:w-auto">
               <button
                 onClick={handleBulkConfirm}
                 disabled={bulkProcessing}
-                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 text-sm font-medium flex items-center gap-2"
+                className="flex-1 sm:flex-none px-3 sm:px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 text-xs sm:text-sm font-medium flex items-center justify-center gap-2"
               >
                 {bulkProcessing ? (
                   <>
@@ -337,17 +337,19 @@ export default function ReturnTab() {
                 ) : (
                   <>
                     <CheckCircle className="w-4 h-4" />
-                    Konfirmasi Retur ({selectedIds.size})
+                    <span className="hidden sm:inline">Konfirmasi ({selectedIds.size})</span>
+                    <span className="sm:hidden">✓ Konfirmasi</span>
                   </>
                 )}
               </button>
               <button
                 onClick={handleBulkReject}
                 disabled={bulkProcessing}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 text-sm font-medium flex items-center gap-2"
+                className="flex-1 sm:flex-none px-3 sm:px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 text-xs sm:text-sm font-medium flex items-center justify-center gap-2"
               >
                 <XCircle className="w-4 h-4" />
-                Tolak Retur ({selectedIds.size})
+                <span className="hidden sm:inline">Tolak ({selectedIds.size})</span>
+                <span className="sm:hidden">✕ Tolak</span>
               </button>
             </div>
           </div>
@@ -360,7 +362,8 @@ export default function ReturnTab() {
           </div>
         ) : (
           <>
-            <div className="divide-y">
+            {/* Desktop View */}
+            <div className="hidden md:block divide-y">
               {returnsList.map(returnItem => {
                 // Defensive null checks
                 const productName = returnItem.product?.name || 'Produk tidak ditemukan'
@@ -494,27 +497,154 @@ export default function ReturnTab() {
             })}
           </div>
 
+          {/* Mobile View */}
+          <div className="md:hidden space-y-3 p-4">
+            {returnsList.map(returnItem => {
+              const productName = returnItem.product?.name || 'Produk tidak ditemukan'
+              const photoUrl = returnItem.product?.photo_url
+              const locationName = returnItem.location?.name || 'Lokasi tidak ditemukan'
+              const isSelected = selectedIds.has(returnItem.id)
+
+              return (
+                <div key={returnItem.id} className={`border rounded-lg p-3 ${isSelected ? 'border-blue-500 bg-blue-50' : 'border-gray-200'} hover:border-gray-300 transition`}>
+                  {/* Header with checkbox and status */}
+                  <div className="flex items-start gap-3 mb-2">
+                    {returnItem.status === 'PENDING' && (
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => toggleSelect(returnItem.id)}
+                        className="mt-1 w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                    )}
+                    
+                    {/* Product Image */}
+                    <div className="w-14 h-14 bg-gray-100 rounded-lg flex-shrink-0 overflow-hidden">
+                      {photoUrl ? (
+                        <img 
+                          src={photoUrl} 
+                          alt={productName}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            e.currentTarget.style.display = 'none'
+                            e.currentTarget.parentElement!.innerHTML = '<div class="w-full h-full flex items-center justify-center"><svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg></div>'
+                          }}
+                        />
+                      ) : (
+                        <Package className="w-full h-full p-3 text-gray-400" />
+                      )}
+                    </div>
+
+                    {/* Product name and location */}
+                    <div className="flex-1 min-w-0">
+                      <h4 className="font-semibold text-sm text-gray-900 truncate">{productName}</h4>
+                      <p className="text-xs text-gray-500">{locationName}</p>
+                    </div>
+
+                    {/* Status badge */}
+                    <div className="flex-shrink-0">
+                      {getStatusBadge(returnItem.status)}
+                    </div>
+                  </div>
+
+                  {/* Details Grid */}
+                  <div className="grid grid-cols-2 gap-2 text-xs mt-3">
+                    <div>
+                      <p className="text-gray-500">Jumlah</p>
+                      <p className="font-medium text-gray-900">{returnItem.quantity} pcs</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-500">Diajukan</p>
+                      <p className="font-medium text-gray-900">{new Date(returnItem.requested_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}</p>
+                    </div>
+                  </div>
+
+                  {/* Reason */}
+                  <div className="mt-3 p-2 bg-red-50 border border-red-200 rounded text-xs">
+                    <div className="flex items-start gap-1.5">
+                      <AlertTriangle className="w-3.5 h-3.5 text-red-600 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <p className="font-medium text-red-900">Alasan:</p>
+                        <p className="text-red-800">{returnItem.reason}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Review notes */}
+                  {returnItem.review_notes && (
+                    <div className="mt-2 p-2 bg-gray-50 border rounded text-xs text-gray-700">
+                      <strong>Catatan:</strong> {returnItem.review_notes}
+                    </div>
+                  )}
+
+                  {/* Actions */}
+                  <div className="flex gap-2 mt-3">
+                    <button
+                      onClick={() => {
+                        setSelectedReturn(returnItem)
+                        setShowDetailModal(true)
+                      }}
+                      className="flex-shrink-0 px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 text-xs font-medium flex items-center gap-1"
+                    >
+                      <Eye className="w-3.5 h-3.5" />
+                      Detail
+                    </button>
+
+                    {returnItem.status === 'PENDING' && (
+                      <>
+                        <button
+                          onClick={() => handleReviewClick(returnItem, 'approve')}
+                          disabled={processingId === returnItem.id}
+                          className="flex-1 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-300 text-xs font-medium"
+                        >
+                          ✓ Konfirmasi
+                        </button>
+                        <button
+                          onClick={() => handleReviewClick(returnItem, 'reject')}
+                          disabled={processingId === returnItem.id}
+                          className="flex-1 px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:bg-gray-300 text-xs font-medium"
+                        >
+                          ✕ Tolak
+                        </button>
+                      </>
+                    )}
+
+                    {returnItem.status === 'APPROVED' && (
+                      <button
+                        onClick={() => confirmPickup(returnItem.id)}
+                        disabled={processingId === returnItem.id}
+                        className="flex-1 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 text-xs font-medium"
+                      >
+                        {processingId === returnItem.id ? 'Memproses...' : '✓ Produk Diambil'}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+
           {/* Pagination */}
           {totalCount > itemsPerPage && (
-            <div className="px-6 py-4 border-t flex items-center justify-between">
-              <div className="text-sm text-gray-600">
+            <div className="px-4 sm:px-6 py-4 border-t flex flex-col sm:flex-row items-center justify-between gap-3">
+              <div className="text-xs sm:text-sm text-gray-600">
                 Menampilkan {Math.min((currentPage - 1) * itemsPerPage + 1, totalCount)} - {Math.min(currentPage * itemsPerPage, totalCount)} dari {totalCount} retur
               </div>
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                   disabled={currentPage === 1}
-                  className="px-3 py-1 border rounded-lg hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed text-sm"
+                  className="px-2.5 sm:px-3 py-1 border rounded-lg hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed text-xs sm:text-sm"
                 >
                   Sebelumnya
                 </button>
-                <span className="text-sm text-gray-600">
-                  Halaman {currentPage} dari {Math.ceil(totalCount / itemsPerPage)}
+                <span className="text-xs sm:text-sm text-gray-600">
+                  Hal {currentPage}/{Math.ceil(totalCount / itemsPerPage)}
                 </span>
                 <button
                   onClick={() => setCurrentPage(p => Math.min(Math.ceil(totalCount / itemsPerPage), p + 1))}
                   disabled={currentPage >= Math.ceil(totalCount / itemsPerPage)}
-                  className="px-3 py-1 border rounded-lg hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed text-sm"
+                  className="px-2.5 sm:px-3 py-1 border rounded-lg hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed text-xs sm:text-sm"
                 >
                   Selanjutnya
                 </button>

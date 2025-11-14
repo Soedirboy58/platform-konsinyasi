@@ -51,17 +51,17 @@ export default function ShipmentsPage() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold text-gray-900">Management Pengiriman</h1>
-        <p className="mt-2 text-gray-600">Kelola pengiriman produk ke kantin</p>
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Management Pengiriman</h1>
+        <p className="mt-2 text-sm sm:text-base text-gray-600">Kelola pengiriman produk ke kantin</p>
       </div>
 
       {/* Tabs Navigation */}
-      <div className="border-b border-gray-200">
-        <nav className="-mb-px flex space-x-8">
+      <div className="border-b border-gray-200 overflow-x-auto">
+        <nav className="-mb-px flex space-x-4 sm:space-x-8 min-w-max px-1">
           <button
             onClick={() => setActiveTab('create')}
             className={`
-              group inline-flex items-center py-4 px-1 border-b-2 font-medium text-sm
+              group inline-flex items-center py-3 sm:py-4 px-1 border-b-2 font-medium text-xs sm:text-sm whitespace-nowrap
               ${activeTab === 'create'
                 ? 'border-primary-600 text-primary-600'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
@@ -69,16 +69,17 @@ export default function ShipmentsPage() {
             `}
           >
             <Package className={`
-              -ml-0.5 mr-2 h-5 w-5
+              -ml-0.5 mr-1.5 sm:mr-2 h-4 w-4 sm:h-5 sm:w-5
               ${activeTab === 'create' ? 'text-primary-600' : 'text-gray-400 group-hover:text-gray-500'}
             `} />
-            Proses Pengiriman
+            <span className="hidden sm:inline">Proses Pengiriman</span>
+            <span className="sm:hidden">Proses</span>
           </button>
 
           <button
             onClick={() => setActiveTab('history')}
             className={`
-              group inline-flex items-center py-4 px-1 border-b-2 font-medium text-sm
+              group inline-flex items-center py-3 sm:py-4 px-1 border-b-2 font-medium text-xs sm:text-sm whitespace-nowrap
               ${activeTab === 'history'
                 ? 'border-primary-600 text-primary-600'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
@@ -86,16 +87,17 @@ export default function ShipmentsPage() {
             `}
           >
             <History className={`
-              -ml-0.5 mr-2 h-5 w-5
+              -ml-0.5 mr-1.5 sm:mr-2 h-4 w-4 sm:h-5 sm:w-5
               ${activeTab === 'history' ? 'text-primary-600' : 'text-gray-400 group-hover:text-gray-500'}
             `} />
-            Riwayat Pengiriman
+            <span className="hidden sm:inline">Riwayat Pengiriman</span>
+            <span className="sm:hidden">Riwayat</span>
           </button>
 
           <button
             onClick={() => setActiveTab('returns')}
             className={`
-              group inline-flex items-center py-4 px-1 border-b-2 font-medium text-sm
+              group inline-flex items-center py-3 sm:py-4 px-1 border-b-2 font-medium text-xs sm:text-sm whitespace-nowrap
               ${activeTab === 'returns'
                 ? 'border-primary-600 text-primary-600'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
@@ -103,16 +105,17 @@ export default function ShipmentsPage() {
             `}
           >
             <RotateCcw className={`
-              -ml-0.5 mr-2 h-5 w-5
+              -ml-0.5 mr-1.5 sm:mr-2 h-4 w-4 sm:h-5 sm:w-5
               ${activeTab === 'returns' ? 'text-primary-600' : 'text-gray-400 group-hover:text-gray-500'}
             `} />
-            Retur Produk
+            <span className="hidden sm:inline">Retur Produk</span>
+            <span className="sm:hidden">Retur</span>
           </button>
         </nav>
       </div>
 
       {/* Tab Content */}
-      <div className="mt-6">
+      <div className="mt-4 sm:mt-6">
         {activeTab === 'create' && <CreateShipmentTab />}
         {activeTab === 'history' && <ShipmentHistoryTab />}
         {activeTab === 'returns' && <ReturnsTab />}
