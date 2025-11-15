@@ -1,0 +1,137 @@
+<!-- 
+SUPABASE EMAIL TEMPLATE - CONFIRM SIGNUP
+Copy seluruh file ini ke: Supabase Dashboard → Authentication → Email Templates → Confirm signup
+
+SUBJECT LINE:
+Verifikasi Email - Platform Konsinyasi Katalara
+-->
+
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verifikasi Email Anda</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f3f4f6;">
+    <table role="presentation" style="width: 100%; border-collapse: collapse; background-color: #f3f4f6; padding: 40px 20px;">
+        <tr>
+            <td align="center">
+                <!-- Main Container -->
+                <table role="presentation" style="max-width: 600px; width: 100%; border-collapse: collapse; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+                    
+                    <!-- Header -->
+                    <tr>
+                        <td style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); padding: 30px 20px; text-align: center;">
+                            <h1 style="margin: 0; color: #ffffff; font-size: 26px; font-weight: 700;">
+                                🎉 Selamat Datang!
+                            </h1>
+                            <p style="margin: 8px 0 0; color: #d1fae5; font-size: 15px;">
+                                Platform Konsinyasi by Katalara
+                            </p>
+                        </td>
+                    </tr>
+                    
+                    <!-- Content -->
+                    <tr>
+                        <td style="padding: 30px 20px;">
+                            <h2 style="margin: 0 0 16px; color: #1f2937; font-size: 20px; font-weight: 600;">
+                                Hai! 👋
+                            </h2>
+                            
+                            <p style="margin: 0 0 12px; color: #4b5563; font-size: 15px; line-height: 1.6;">
+                                Terima kasih telah mendaftar sebagai <strong>Supplier</strong> di Platform Konsinyasi Katalara!
+                            </p>
+                            
+                            <p style="margin: 0 0 20px; color: #4b5563; font-size: 15px; line-height: 1.6;">
+                                Untuk melanjutkan, silakan verifikasi email Anda dengan klik tombol di bawah:
+                            </p>
+                            
+                            <!-- CTA Button -->
+                            <table role="presentation" style="margin: 0 0 20px; width: 100%;">
+                                <tr>
+                                    <td align="center">
+                                        <table role="presentation">
+                                            <tr>
+                                                <td style="border-radius: 8px; background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
+                                                    <a href="{{ .ConfirmationURL }}" 
+                                                       target="_blank" 
+                                                       style="display: inline-block; padding: 14px 36px; color: #ffffff; text-decoration: none; font-weight: 600; font-size: 15px;">
+                                                        ✅ Verifikasi Email Saya
+                                                    </a>
+                                                </td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                            </table>
+                            
+                            <!-- Info Box -->
+                            <div style="background-color: #eff6ff; border-left: 3px solid #3b82f6; padding: 14px 16px; margin: 0 0 20px; border-radius: 4px;">
+                                <p style="margin: 0; color: #1e40af; font-size: 13px; line-height: 1.5;">
+                                    <strong>📋 Langkah Selanjutnya:</strong><br/>
+                                    1️⃣ Klik tombol verifikasi di atas<br/>
+                                    2️⃣ Login ke portal supplier<br/>
+                                    3️⃣ Lengkapi data bisnis Anda<br/>
+                                    4️⃣ Mulai kelola produk & penjualan
+                                </p>
+                            </div>
+                            
+                            <!-- Alternative Link -->
+                            <p style="margin: 0 0 6px; color: #6b7280; font-size: 12px;">
+                                Atau copy & paste link berikut ke browser:
+                            </p>
+                            <p style="margin: 0 0 20px; word-break: break-all; font-size: 12px;">
+                                <a href="{{ .ConfirmationURL }}" 
+                                   style="color: #10b981; text-decoration: underline;">
+                                    {{ .ConfirmationURL }}
+                                </a>
+                            </p>
+                            
+                            <!-- Warning -->
+                            <div style="background-color: #fef3c7; border-left: 3px solid #f59e0b; padding: 12px 14px; margin: 0 0 20px; border-radius: 4px;">
+                                <p style="margin: 0; color: #92400e; font-size: 12px; line-height: 1.4;">
+                                    ⚠️ <strong>Penting:</strong> Link ini akan kadaluarsa dalam <strong>24 jam</strong>. Jika Anda tidak mendaftar, abaikan email ini.
+                                </p>
+                            </div>
+                            
+                            <p style="margin: 0; color: #6b7280; font-size: 13px; line-height: 1.5;">
+                                Butuh bantuan? Hubungi kami di <a href="mailto:support@katalara.com" style="color: #10b981; text-decoration: none;">support@katalara.com</a>
+                            </p>
+                        </td>
+                    </tr>
+                    
+                    <!-- Footer -->
+                    <tr>
+                        <td style="background-color: #f9fafb; padding: 20px; text-align: center; border-top: 1px solid #e5e7eb;">
+                            <p style="margin: 0 0 6px; color: #374151; font-size: 14px; font-weight: 600;">
+                                Platform Konsinyasi
+                            </p>
+                            <p style="margin: 0 0 10px; color: #6b7280; font-size: 12px;">
+                                Powered by <strong style="color: #10b981;">Katalara</strong>
+                            </p>
+                            <p style="margin: 0; color: #9ca3af; font-size: 11px;">
+                                © 2024 Katalara. All rights reserved.
+                            </p>
+                        </td>
+                    </tr>
+                    
+                </table>
+                
+                <!-- Disclaimer -->
+                <table role="presentation" style="max-width: 600px; width: 100%; margin-top: 16px;">
+                    <tr>
+                        <td style="text-align: center;">
+                            <p style="margin: 0; color: #9ca3af; font-size: 11px; line-height: 1.4;">
+                                Email otomatis. Mohon tidak membalas.<br/>
+                                Jika Anda tidak mendaftar, abaikan email ini.
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+                
+            </td>
+        </tr>
+    </table>
+</body>
+</html>

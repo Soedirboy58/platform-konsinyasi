@@ -1,13 +1,14 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { toast } from 'sonner'
 
 export default function SupplierLogin() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [loading, setLoading] = useState(false)
   const [isRegister, setIsRegister] = useState(false)
   const [formData, setFormData] = useState({
@@ -15,6 +16,30 @@ export default function SupplierLogin() {
     password: '',
     fullName: '',
   })
+
+  // Check for verification success or error
+  useEffect(() => {
+    const verified = searchParams.get('verified')
+    const error = searchParams.get('error')
+    
+    if (verified === 'true') {
+      toast.success('✅ Email berhasil diverifikasi!', {
+        duration: 5000,
+        description: 'Silakan login dengan email dan password Anda untuk melanjutkan.'
+      })
+      // Clean URL
+      window.history.replaceState({}, '', '/supplier/login')
+    }
+    
+    if (error === 'verification_failed') {
+      toast.error('❌ Verifikasi gagal', {
+        duration: 5000,
+        description: 'Link verifikasi tidak valid atau sudah kadaluarsa. Silakan daftar ulang.'
+      })
+      // Clean URL
+      window.history.replaceState({}, '', '/supplier/login')
+    }
+  }, [searchParams])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
