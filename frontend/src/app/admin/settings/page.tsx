@@ -933,82 +933,87 @@ export default function Settings() {
         )}
       </main>
 
-      {/* Barcode Modal */}
+      {/* Barcode Modal - Mobile Responsive */}
       {showBarcodeModal && selectedOutletForBarcode && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-t-xl">
-              <h2 className="text-2xl font-bold">{selectedOutletForBarcode.name}</h2>
-              <p className="text-purple-100 text-sm mt-1">QR Code & Barcode untuk Checkout</p>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[95vh] overflow-y-auto">
+            {/* Header */}
+            <div className="p-4 sm:p-6 border-b bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-t-xl sticky top-0 z-10">
+              <h2 className="text-lg sm:text-2xl font-bold">{selectedOutletForBarcode.name}</h2>
+              <p className="text-purple-100 text-xs sm:text-sm mt-1">QR Code & Barcode untuk Checkout</p>
             </div>
 
-            <div className="p-8 space-y-6">
+            <div className="p-4 sm:p-8 space-y-4 sm:space-y-6">
               {/* QR Code Section */}
               <div className="text-center">
-                <div className="inline-block bg-gradient-to-br from-purple-50 to-blue-50 p-6 rounded-xl shadow-inner">
-                  <canvas ref={qrCanvasRef} className="mx-auto" />
+                <div className="inline-block bg-gradient-to-br from-purple-50 to-blue-50 p-4 sm:p-6 rounded-xl shadow-inner">
+                  <canvas ref={qrCanvasRef} className="mx-auto max-w-full h-auto" style={{ maxWidth: '300px' }} />
                 </div>
-                <p className="text-sm text-gray-600 mt-4 font-mono bg-gray-100 px-4 py-2 rounded-lg inline-block">
-                  {window.location.origin}/kantin/{selectedOutletForBarcode.qr_code}
-                </p>
+                <div className="mt-3 sm:mt-4 px-2">
+                  <p className="text-xs sm:text-sm text-gray-600 font-mono bg-gray-100 px-3 py-2 rounded-lg break-all">
+                    {typeof window !== 'undefined' && `${window.location.origin}/kantin/${selectedOutletForBarcode.qr_code}`}
+                  </p>
+                </div>
               </div>
 
               {/* 1D Barcode Section */}
-              <div className="border-t pt-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                  <QrCode className="w-5 h-5 text-purple-600" />
-                  Linear Barcode (Code 128)
+              <div className="border-t pt-4 sm:pt-6">
+                <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4 flex items-center gap-2">
+                  <QrCode className="w-4 h-4 sm:w-5 sm:h-5 text-purple-600" />
+                  <span className="text-sm sm:text-base">Linear Barcode (Code 128)</span>
                 </h3>
-                <div className="bg-white p-6 border-2 border-gray-200 rounded-xl">
-                  <Barcode 
-                    value={selectedOutletForBarcode.qr_code.toUpperCase()} 
-                    format="CODE128"
-                    width={2}
-                    height={80}
-                    displayValue={true}
-                    fontSize={16}
-                    background="#ffffff"
-                    lineColor="#000000"
-                  />
+                <div className="bg-white p-3 sm:p-6 border-2 border-gray-200 rounded-xl overflow-x-auto">
+                  <div className="min-w-max mx-auto">
+                    <Barcode 
+                      value={selectedOutletForBarcode.qr_code.toUpperCase()} 
+                      format="CODE128"
+                      width={1.5}
+                      height={60}
+                      displayValue={true}
+                      fontSize={14}
+                      background="#ffffff"
+                      lineColor="#000000"
+                    />
+                  </div>
                 </div>
-                <p className="text-xs text-gray-500 mt-2 text-center">
+                <p className="text-xs text-gray-500 mt-2 text-center px-2">
                   📱 Scan dengan barcode scanner untuk akses cepat
                 </p>
               </div>
 
               {/* Info Section */}
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <h4 className="font-semibold text-blue-900 mb-2">💡 Cara Penggunaan:</h4>
-                <ul className="text-sm text-blue-800 space-y-1">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 sm:p-4">
+                <h4 className="font-semibold text-blue-900 mb-2 text-sm sm:text-base">💡 Cara Penggunaan:</h4>
+                <ul className="text-xs sm:text-sm text-blue-800 space-y-1">
                   <li>• <strong>QR Code:</strong> Scan dengan smartphone untuk langsung buka halaman checkout</li>
                   <li>• <strong>Barcode:</strong> Scan dengan barcode scanner untuk input cepat di POS system</li>
-                  <li>• <strong>Print:</strong> Cetak dan tempel di area outlet yang mudah terlihat customer</li>
-                  <li>• <strong>Download:</strong> Simpan sebagai gambar untuk digital signage atau screen</li>
+                  <li className="hidden sm:list-item">• <strong>Print:</strong> Cetak dan tempel di area outlet yang mudah terlihat customer</li>
+                  <li className="hidden sm:list-item">• <strong>Download:</strong> Simpan sebagai gambar untuk digital signage atau screen</li>
                 </ul>
               </div>
 
-              {/* Action Buttons */}
-              <div className="flex gap-3 pt-4">
+              {/* Action Buttons - Mobile Responsive */}
+              <div className="space-y-2 sm:space-y-0 sm:flex sm:gap-3 pt-2 sm:pt-4 sticky bottom-0 bg-white pb-2">
                 <button
                   onClick={handleDownloadQR}
-                  className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium"
+                  className="w-full sm:flex-1 flex items-center justify-center gap-2 px-4 sm:px-6 py-2.5 sm:py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium text-sm sm:text-base"
                 >
-                  <Download className="w-5 h-5" />
-                  Download QR Code
+                  <Download className="w-4 h-4 sm:w-5 sm:h-5" />
+                  Download QR
                 </button>
                 <button
                   onClick={handlePrintBarcode}
-                  className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+                  className="w-full sm:flex-1 flex items-center justify-center gap-2 px-4 sm:px-6 py-2.5 sm:py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-sm sm:text-base"
                 >
-                  <Printer className="w-5 h-5" />
-                  Print Semua
+                  <Printer className="w-4 h-4 sm:w-5 sm:h-5" />
+                  Print
                 </button>
                 <button
                   onClick={() => {
                     setShowBarcodeModal(false)
                     setSelectedOutletForBarcode(null)
                   }}
-                  className="px-6 py-3 border-2 border-gray-300 rounded-lg hover:bg-gray-50 font-medium"
+                  className="w-full sm:w-auto px-4 sm:px-6 py-2.5 sm:py-3 border-2 border-gray-300 rounded-lg hover:bg-gray-50 font-medium text-sm sm:text-base"
                 >
                   Tutup
                 </button>
