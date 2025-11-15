@@ -68,11 +68,18 @@ export default function AdminDashboard() {
         .select('product_id, quantity')
         .gt('quantity', 0)
       
-      // Count unique products with stock (for "Produk di Etalase")
+      // Count unique products with stock (for "Produk di Etalase" - yang tampil di customer view)
       const uniqueProductsInStock = new Set(inventoryLevels?.map(inv => inv.product_id) || []).size
       
-      // Calculate TOTAL quantity across all products (for "Produk Stok Tersedia")
-      const totalStockQuantity = inventoryLevels?.reduce((sum, inv) => sum + (inv.quantity || 0), 0) || 0
+      // Get shipments data to count products that have been sent by suppliers
+      const { data: shipments } = await supabase
+        .from('stock_movements')
+        .select('product_id, quantity')
+        .eq('movement_type', 'IN')
+        .eq('source_type', 'SUPPLIER')
+      
+      // Count unique products that have been shipped by suppliers (for "Produk Stok Tersedia")
+      const productsShippedBySuppliers = new Set(shipments?.map(s => s.product_id) || []).size
       
       // Get today's sales data
       const today = new Date()
@@ -114,14 +121,14 @@ export default function AdminDashboard() {
       })) || []
       
       setStats({
-        totalProducts: products?.length || 0,
+        totalProducts: products?.length || 0, // Semua produk yang terdaftar
         totalSuppliers: suppliers?.length || 0,
         approvedSuppliers: suppliers?.filter(s => s.status === 'APPROVED').length || 0,
         pendingSuppliers: suppliers?.filter(s => s.status === 'PENDING').length || 0,
         approvedProducts: products?.filter(p => p.status === 'APPROVED').length || 0,
         pendingProducts: products?.filter(p => p.status === 'PENDING').length || 0,
-        productsInStock: totalStockQuantity, // TOTAL quantity (e.g., 40 pcs)
-        productsDisplayed: uniqueProductsInStock, // UNIQUE products (e.g., 4 types)
+        productsInStock: productsShippedBySuppliers, // Produk yang dikirim supplier
+        productsDisplayed: uniqueProductsInStock, // Produk yang ready dijual (ada stok)
         expiredProducts: expiredCount,
         dailyRevenue: dailyRevenue,
         dailySales: todaySales?.length || 0,
@@ -259,10 +266,10 @@ export default function AdminDashboard() {
                 <Package className="h-6 w-6" />
               </div>
             </div>
-            <p className="text-sm text-gray-600 mb-1">Total Produk</p>
+            <p className="text-sm text-gray-600 mb-1">Total Produk Terdaftar</p>
             <p className="text-2xl font-bold text-gray-900 mb-1">{stats.totalProducts}</p>
             <Link href="/admin/suppliers/products" className="text-xs text-purple-600 hover:underline">
-              Lihat detail →
+              Kelola produk →
             </Link>
           </div>
 
@@ -289,8 +296,8 @@ export default function AdminDashboard() {
             </div>
             <p className="text-sm text-gray-600 mb-1">Produk Stok Tersedia</p>
             <p className="text-2xl font-bold text-teal-600 mb-1">{stats.productsInStock}</p>
-            <Link href="/admin/suppliers/products" className="text-xs text-teal-600 hover:underline">
-              Lihat detail →
+            <Link href="/admin/suppliers/shipments" className="text-xs text-teal-600 hover:underline">
+              Lihat pengiriman →
             </Link>
           </div>
 
@@ -428,7 +435,7 @@ export default function AdminDashboard() {
               </Link>
 
               <Link 
-                href="/admin/returns/list"
+                href="/admin/suppliers/shipments"
                 className="block p-4 bg-purple-50 hover:bg-purple-100 rounded-lg transition-colors"
               >
                 <div className="flex items-center justify-between">
@@ -455,18 +462,20 @@ export default function AdminDashboard() {
                 </Link>
               )}
 
-              <Link 
-                href="/admin/suppliers/products?status=APPROVED"
+              <a 
+                href="/kantin/outlet_lobby_a"
+                target="_blank"
+                rel="noopener noreferrer"
                 className="block p-4 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors"
               >
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="font-medium text-gray-900">Lihat Etalase Produk</p>
-                    <p className="text-sm text-gray-600">{stats.productsDisplayed} produk di etalase</p>
+                    <p className="font-medium text-gray-900">Lihat Etalase Produk 🔗</p>
+                    <p className="text-sm text-gray-600">{stats.productsDisplayed} produk ready dijual</p>
                   </div>
                   <Archive className="h-6 w-6 text-indigo-600" />
                 </div>
-              </Link>
+              </a>
 
               <Link 
                 href="/admin/reports"
