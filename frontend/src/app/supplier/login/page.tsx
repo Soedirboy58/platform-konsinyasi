@@ -62,6 +62,7 @@ export default function SupplierLogin() {
           email: formData.email.toLowerCase().trim(),
           password: formData.password,
           options: {
+            emailRedirectTo: `${window.location.origin}/auth/callback`,
             data: {
               full_name: formData.fullName,
               role: 'SUPPLIER',
