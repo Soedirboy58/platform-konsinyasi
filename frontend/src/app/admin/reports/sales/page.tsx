@@ -246,20 +246,25 @@ export default function SalesReport() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="bg-white shadow">
+      <header className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 shadow-lg">
         <div className="max-w-7xl mx-auto px-4 py-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Laporan Penjualan</h1>
-              <p className="text-gray-600 mt-1">Tracking & monitoring penjualan produk konsinyasi</p>
+          <div className="flex flex-col lg:flex-row items-center justify-between gap-4">
+            <div className="text-center lg:text-left w-full lg:w-auto">
+              <div className="flex items-center justify-center lg:justify-start gap-3 mb-2">
+                <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center shadow-lg">
+                  <FileText className="w-6 h-6 text-white" />
+                </div>
+                <h1 className="text-2xl lg:text-3xl font-bold text-white">Laporan Penjualan</h1>
+              </div>
+              <p className="text-blue-100 text-sm lg:text-base">📈 Tracking & monitoring penjualan produk konsinyasi</p>
             </div>
             <button
               onClick={exportToCSV}
               disabled={filteredData.length === 0}
-              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-2"
+              className="w-full lg:w-auto px-6 py-3 bg-gradient-to-r from-green-600 to-green-500 text-white rounded-xl hover:from-green-700 hover:to-green-600 disabled:from-gray-400 disabled:to-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg font-semibold transition-all transform hover:scale-105"
             >
-              <Download className="w-4 h-4" />
-              Export CSV
+              <Download className="w-5 h-5" />
+              <span>Export CSV</span>
             </button>
           </div>
         </div>
@@ -399,7 +404,68 @@ export default function SalesReport() {
 
         {/* Sales Table */}
         <div className="bg-white rounded-lg shadow overflow-hidden">
-          <div className="overflow-x-auto">
+          {/* Mobile Card View */}
+          <div className="block lg:hidden">
+            {loading ? (
+              <div className="p-8 text-center text-gray-500">Loading data...</div>
+            ) : currentItems.length === 0 ? (
+              <div className="p-8 text-center">
+                <FileText className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                <p className="text-gray-500">Tidak ada data penjualan</p>
+              </div>
+            ) : (
+              <div className="divide-y divide-gray-200">
+                {currentItems.map((item) => (
+                  <div key={item.id} className="p-4 hover:bg-gray-50">
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-gray-900 text-base mb-1">{item.product_name}</h3>
+                        <div className="flex items-center gap-2 text-xs text-gray-500 mb-2">
+                          <Package className="w-3.5 h-3.5" />
+                          <span>{item.supplier_name}</span>
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          📍 {item.location_name}
+                        </div>
+                      </div>
+                      <span className="px-2.5 py-1 text-xs rounded-full bg-blue-100 text-blue-800 font-semibold">
+                        {item.payment_method || 'QRIS'}
+                      </span>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-3 mb-3">
+                      <div className="bg-gray-50 rounded-lg p-2.5">
+                        <p className="text-xs text-gray-600 mb-1">Quantity</p>
+                        <p className="font-semibold text-gray-900">{item.quantity} pcs</p>
+                      </div>
+                      <div className="bg-gray-50 rounded-lg p-2.5">
+                        <p className="text-xs text-gray-600 mb-1">Harga Satuan</p>
+                        <p className="font-semibold text-gray-900 text-sm">{formatCurrency(item.unit_price)}</p>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center justify-between pt-3 border-t border-gray-200">
+                      <div className="text-xs text-gray-500">
+                        ⏰ {new Date(item.created_at).toLocaleString('id-ID', {
+                          day: '2-digit',
+                          month: 'short',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xs text-gray-600 mb-1">Total</p>
+                        <p className="font-bold text-green-600 text-lg">{formatCurrency(item.subtotal)}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          
+          {/* Desktop Table View */}
+          <div className="hidden lg:block overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>

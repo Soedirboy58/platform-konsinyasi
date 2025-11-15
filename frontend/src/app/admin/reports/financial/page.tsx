@@ -464,27 +464,32 @@ export default function FinancialReport() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="bg-white shadow">
+      <header className="bg-gradient-to-r from-green-600 via-emerald-600 to-teal-600 shadow-lg">
         <div className="max-w-7xl mx-auto px-4 py-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Laporan Keuangan</h1>
-              <p className="text-gray-600 mt-1">Income statement & profit analysis</p>
+          <div className="flex flex-col lg:flex-row items-center justify-between gap-4">
+            <div className="text-center lg:text-left w-full lg:w-auto">
+              <div className="flex items-center justify-center lg:justify-start gap-3 mb-2">
+                <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center shadow-lg">
+                  <DollarSign className="w-6 h-6 text-white" />
+                </div>
+                <h1 className="text-2xl lg:text-3xl font-bold text-white">Laporan Keuangan</h1>
+              </div>
+              <p className="text-green-100 text-sm lg:text-base">💰 Income statement & profit analysis</p>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full lg:w-auto">
               <button
                 onClick={exportToCSV}
-                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2"
+                className="px-5 py-3 bg-gradient-to-r from-green-500 to-green-400 text-white rounded-xl hover:from-green-600 hover:to-green-500 flex items-center justify-center gap-2 shadow-lg font-semibold transition-all transform hover:scale-105"
               >
-                <Download className="w-4 h-4" />
-                Export CSV
+                <Download className="w-5 h-5" />
+                <span>Export CSV</span>
               </button>
               <button
                 onClick={exportToPDF}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 flex items-center gap-2"
+                className="px-5 py-3 bg-gradient-to-r from-red-600 to-red-500 text-white rounded-xl hover:from-red-700 hover:to-red-600 flex items-center justify-center gap-2 shadow-lg font-semibold transition-all transform hover:scale-105"
               >
-                <Download className="w-4 h-4" />
-                Export PDF
+                <Download className="w-5 h-5" />
+                <span>Export PDF</span>
               </button>
             </div>
           </div>
