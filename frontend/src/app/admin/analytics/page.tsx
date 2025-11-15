@@ -70,32 +70,48 @@ export default function Analytics() {
         startDate = new Date('2020-01-01')
       }
 
-      // Fetch transactions with products
-      const { data: transactions } = await supabase
-        .from('sales')
+      // Fetch transactions with products (menggunakan sales_transaction_items)
+      const { data: transactionItems, error: salesError } = await supabase
+        .from('sales_transaction_items')
         .select(`
           id,
           product_id,
           quantity,
-          total_price,
-          created_at,
+          subtotal,
+          sales_transactions!inner(
+            id,
+            created_at,
+            status
+          ),
           products (
             id,
             name,
             supplier_id
           )
         `)
-        .gte('created_at', startDate.toISOString())
-        .order('created_at', { ascending: false })
+        .eq('sales_transactions.status', 'COMPLETED')
+        .gte('sales_transactions.created_at', startDate.toISOString())
+        .order('sales_transactions.created_at', { ascending: false })
 
-      if (transactions) {
+      if (salesError) {
+        console.error('Error fetching sales:', salesError)
+      }
+
+      if (transactionItems && transactionItems.length > 0) {
+        console.log('📊 Analytics Data:', {
+          period,
+          itemCount: transactionItems.length,
+          sample: transactionItems[0]
+        })
+
         // Calculate peak hours
         const hourlyData: { [key: number]: { count: number; sales: number } } = {}
-        transactions.forEach(t => {
-          const hour = new Date(t.created_at).getHours()
+        transactionItems.forEach(item => {
+          const salesTx = item.sales_transactions as any
+          const hour = new Date(salesTx.created_at).getHours()
           if (!hourlyData[hour]) hourlyData[hour] = { count: 0, sales: 0 }
           hourlyData[hour].count++
-          hourlyData[hour].sales += t.total_price
+          hourlyData[hour].sales += item.subtotal || 0
         })
 
         const peakData = Object.entries(hourlyData).map(([hour, data]) => ({
@@ -107,18 +123,18 @@ export default function Analytics() {
 
         // Calculate popular products
         const productData: { [key: string]: { name: string; count: number; revenue: number } } = {}
-        transactions.forEach(t => {
-          if (t.products && typeof t.products === 'object' && 'name' in t.products) {
-            const key = t.product_id
+        transactionItems.forEach(item => {
+          if (item.products && typeof item.products === 'object' && 'name' in item.products) {
+            const key = item.product_id
             if (!productData[key]) {
               productData[key] = { 
-                name: (t.products as any).name, 
+                name: (item.products as any).name, 
                 count: 0, 
                 revenue: 0 
               }
             }
-            productData[key].count += t.quantity
-            productData[key].revenue += t.total_price
+            productData[key].count += item.quantity
+            productData[key].revenue += (item.subtotal || 0)
           }
         })
 
@@ -133,13 +149,14 @@ export default function Analytics() {
         // Calculate bundling insights (products bought together)
         const bundlingMap: { [key: string]: number } = {}
         
-        // Group by timestamp (within 5 minutes = same transaction session)
+        // Group by transaction_id (products in same transaction)
         const sessionMap: { [key: string]: string[] } = {}
-        transactions.forEach(t => {
-          const sessionKey = Math.floor(new Date(t.created_at).getTime() / (5 * 60 * 1000)).toString()
+        transactionItems.forEach(item => {
+          const salesTx = item.sales_transactions as any
+          const sessionKey = salesTx.id // Use transaction ID as session key
           if (!sessionMap[sessionKey]) sessionMap[sessionKey] = []
-          if (t.products && typeof t.products === 'object' && 'name' in t.products) {
-            sessionMap[sessionKey].push((t.products as any).name)
+          if (item.products && typeof item.products === 'object' && 'name' in item.products) {
+            sessionMap[sessionKey].push((item.products as any).name)
           }
         })
 
@@ -172,16 +189,29 @@ export default function Analytics() {
         setBundlingInsights(bundlingData)
 
         // Calculate stats
-        const uniqueProducts = new Set(transactions.map(t => t.product_id)).size
-        const totalRevenue = transactions.reduce((sum, t) => sum + t.total_price, 0)
+        const uniqueProducts = new Set(transactionItems.map(item => item.product_id)).size
+        const totalRevenue = transactionItems.reduce((sum, item) => sum + (item.subtotal || 0), 0)
         const peakHourValue = peakData.length > 0 ? peakData[0].hour : 0
+        const uniqueTransactions = new Set(transactionItems.map(item => (item.sales_transactions as any).id)).size
 
         setStats({
-          total_transactions: transactions.length,
+          total_transactions: uniqueTransactions,
           unique_products: uniqueProducts,
-          avg_transaction_value: transactions.length > 0 ? totalRevenue / transactions.length : 0,
+          avg_transaction_value: uniqueTransactions > 0 ? totalRevenue / uniqueTransactions : 0,
           peak_hour: peakHourValue
         })
+      } else {
+        // No data - reset to empty
+        setPeakHours([])
+        setPopularProducts([])
+        setBundlingInsights([])
+        setStats({
+          total_transactions: 0,
+          unique_products: 0,
+          avg_transaction_value: 0,
+          peak_hour: 0
+        })
+        console.log('📊 No analytics data for period:', period)
       }
     } catch (error) {
       console.error('Error loading analytics:', error)
