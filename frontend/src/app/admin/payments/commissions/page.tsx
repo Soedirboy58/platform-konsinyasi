@@ -472,16 +472,22 @@ export default function CommissionsPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-4 py-4 sm:py-6 sm:px-6 lg:px-8">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Pembayaran ke Supplier</h1>
-              <p className="text-gray-600 mt-1">Kelola transfer pembayaran hasil penjualan (sudah dipotong komisi platform)</p>
+              <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Pembayaran ke Supplier</h1>
+              <p className="text-sm text-gray-600 mt-1">Kelola transfer pembayaran hasil penjualan (sudah dipotong komisi platform)</p>
             </div>
-            <button className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2">
-              <Download className="w-4 h-4" />
-              Export Excel
-            </button>
+            <div className="flex gap-2">
+              <button className="flex-1 sm:flex-none px-4 py-2.5 bg-gradient-to-r from-green-600 to-green-500 text-white rounded-lg hover:from-green-700 hover:to-green-600 flex items-center justify-center gap-2 font-semibold text-sm shadow-md hover:shadow-lg transition-all">
+                <Download className="w-4 h-4" />
+                <span className="hidden sm:inline">Export</span> Excel
+              </button>
+              <button className="flex-1 sm:flex-none px-4 py-2.5 bg-gradient-to-r from-red-600 to-red-500 text-white rounded-lg hover:from-red-700 hover:to-red-600 flex items-center justify-center gap-2 font-semibold text-sm shadow-md hover:shadow-lg transition-all">
+                <Download className="w-4 h-4" />
+                <span className="hidden sm:inline">Export</span> PDF
+              </button>
+            </div>
           </div>
         </div>
       </header>
@@ -663,7 +669,92 @@ export default function CommissionsPage() {
 
         {/* Table */}
         <div className="bg-white rounded-lg shadow overflow-hidden">
-          <div className="overflow-x-auto">
+          {/* Mobile Card View */}
+          <div className="block lg:hidden p-4 space-y-4">
+            {filteredCommissions.map((commission) => (
+              <div key={commission.supplier_id} className="bg-white border rounded-lg p-4 shadow-sm">
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex-1">
+                    <h3 className="text-sm font-semibold text-gray-900">
+                      {commission.supplier_name}
+                    </h3>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {commission.bank_name} - {commission.bank_account}
+                    </p>
+                  </div>
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                    commission.status === 'PAID' 
+                      ? 'bg-green-100 text-green-800'
+                      : commission.status === 'PENDING'
+                      ? 'bg-orange-100 text-orange-800'
+                      : 'bg-red-100 text-red-800'
+                  }`}>
+                    {commission.status === 'PAID' ? '✅ Sudah Bayar' : 
+                     commission.status === 'PENDING' ? '⏳ Pending' : '❌ Belum Bayar'}
+                  </span>
+                </div>
+                
+                <div className="space-y-2 mb-3">
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="text-gray-500">Total Penjualan:</span>
+                    <span className="font-medium text-gray-900">
+                      Rp {commission.total_sales.toLocaleString('id-ID')}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="text-gray-500">Produk Terjual:</span>
+                    <span className="font-medium text-gray-700">{commission.products_sold} produk</span>
+                  </div>
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="text-gray-500">Transaksi:</span>
+                    <span className="font-medium text-gray-700">{commission.transactions} transaksi</span>
+                  </div>
+                  <div className="bg-green-50 rounded p-2 border border-green-200">
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-green-700 font-medium">Transfer ke Supplier:</span>
+                      <span className="text-sm font-bold text-green-700">
+                        Rp {commission.commission_amount.toLocaleString('id-ID')}
+                      </span>
+                    </div>
+                    <p className="text-xs text-green-600 mt-1">
+                      Fee platform: {(commission.commission_rate * 100).toFixed(0)}%
+                    </p>
+                  </div>
+                </div>
+                
+                <div className="flex gap-2">
+                  {commission.status === 'UNPAID' && (
+                    <button
+                      onClick={() => handleOpenPaymentModal(commission)}
+                      className="flex-1 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-xs font-medium flex items-center justify-center gap-1"
+                    >
+                      <Upload className="w-3 h-3" />
+                      Bayar
+                    </button>
+                  )}
+                  {commission.status === 'PENDING' && (
+                    <button
+                      onClick={() => alert('Verifikasi pembayaran')}
+                      className="flex-1 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-xs font-medium flex items-center justify-center gap-1"
+                    >
+                      <Check className="w-3 h-3" />
+                      Verifikasi
+                    </button>
+                  )}
+                  <button 
+                    onClick={() => handleOpenDetailModal(commission)}
+                    className="flex-1 px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 text-xs font-medium flex items-center justify-center gap-1"
+                  >
+                    <Eye className="w-3 h-3" />
+                    Detail
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop Table View */}
+          <div className="hidden lg:block overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
@@ -757,6 +848,7 @@ export default function CommissionsPage() {
             </table>
           </div>
 
+          {/* Empty State */}
           {filteredCommissions.length === 0 && (
             <div className="p-12 text-center">
               <DollarSign className="w-16 h-16 text-gray-300 mx-auto mb-4" />
