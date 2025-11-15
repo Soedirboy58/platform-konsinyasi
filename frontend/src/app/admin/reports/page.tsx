@@ -62,27 +62,41 @@ export default function ReportsAnalytics() {
         startDate.setFullYear(now.getFullYear() - 1)
       }
 
-      // Fetch sales data
-      const { data: sales } = await supabase
-        .from('sales')
+      // Fetch sales data (using sales_transaction_items)
+      const { data: salesItems, error: salesError } = await supabase
+        .from('sales_transaction_items')
         .select(`
-          total_price,
+          subtotal,
           quantity,
-          created_at,
           product_id,
+          sales_transactions!inner(
+            created_at,
+            status
+          ),
           products (
             name
           )
         `)
-        .gte('created_at', startDate.toISOString())
+        .eq('sales_transactions.status', 'COMPLETED')
+        .gte('sales_transactions.created_at', startDate.toISOString())
 
-      if (sales) {
+      if (salesError) {
+        console.error('❌ Error fetching sales:', salesError)
+      }
+
+      if (salesItems && salesItems.length > 0) {
+        console.log('📊 Reports Chart Data:', {
+          period,
+          itemCount: salesItems.length,
+          sample: salesItems[0]
+        })
+
         // Calculate Top 5 Products
         const productMap: { [key: string]: number } = {}
-        sales.forEach(sale => {
-          if (sale.products && typeof sale.products === 'object' && 'name' in sale.products) {
-            const name = (sale.products as any).name
-            productMap[name] = (productMap[name] || 0) + sale.total_price
+        salesItems.forEach(item => {
+          if (item.products && typeof item.products === 'object' && 'name' in item.products) {
+            const name = (item.products as any).name
+            productMap[name] = (productMap[name] || 0) + (item.subtotal || 0)
           }
         })
 
@@ -95,7 +109,7 @@ export default function ReportsAnalytics() {
         const topProductsData: ProductSales[] = sorted.map(([name, sales], idx) => ({
           product_name: name,
           total_sales: sales,
-          percentage: (sales / totalTop5) * 100,
+          percentage: totalTop5 > 0 ? (sales / totalTop5) * 100 : 0,
           color: colors[idx]
         }))
         
@@ -104,8 +118,9 @@ export default function ReportsAnalytics() {
         // Calculate Sales Trend
         const trendMap: { [key: string]: number } = {}
         
-        sales.forEach(sale => {
-          const date = new Date(sale.created_at)
+        salesItems.forEach(item => {
+          const salesTx = item.sales_transactions as any
+          const date = new Date(salesTx.created_at)
           let key = ''
           
           if (period === 'week') {
@@ -120,7 +135,7 @@ export default function ReportsAnalytics() {
             key = date.toLocaleDateString('id-ID', { month: 'short' })
           }
           
-          trendMap[key] = (trendMap[key] || 0) + sale.total_price
+          trendMap[key] = (trendMap[key] || 0) + (item.subtotal || 0)
         })
 
         const trendData = Object.entries(trendMap).map(([week, sales]) => ({
@@ -128,9 +143,15 @@ export default function ReportsAnalytics() {
           sales
         }))
 
-        const max = Math.max(...trendData.map(d => d.sales))
+        const max = Math.max(...trendData.map(d => d.sales), 0)
         setMaxSales(max)
         setSalesTrend(trendData)
+      } else {
+        // No data - reset
+        setTopProducts([])
+        setSalesTrend([])
+        setMaxSales(0)
+        console.log('📊 No sales data for period:', period)
       }
 
     } catch (error) {
