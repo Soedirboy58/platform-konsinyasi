@@ -7,9 +7,17 @@ const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
   title: 'Platform Konsinyasi Terintegrasi',
-  description: 'Kantin Kejujuran & Pre-Order System',
+  description: 'Platform manajemen konsinyasi untuk supplier dan outlet',
   manifest: '/manifest.json',
-  themeColor: '#0ea5e9',
+  themeColor: '#10b981',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'Konsinyasi',
+  },
+  formatDetection: {
+    telephone: false,
+  },
   icons: {
     icon: [
       { url: '/favicon.ico' },
@@ -19,6 +27,12 @@ export const metadata: Metadata = {
     apple: [
       { url: '/apple-icon.png', sizes: '180x180', type: 'image/png' },
     ],
+  },
+  viewport: {
+    width: 'device-width',
+    initialScale: 1,
+    maximumScale: 5,
+    userScalable: true,
   },
 }
 

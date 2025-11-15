@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#10b981" />
+    <meta name="description" content="Platform manajemen konsinyasi untuk supplier dan outlet" />
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="icon" href="/favicon.ico" />
+    <link rel="apple-touch-icon" href="/apple-icon.png" />
+    <title>Platform Konsinyasi - Offline</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+        color: #333;
+      }
+      .container {
+        background: white;
+        border-radius: 20px;
+        padding: 40px;
+        max-width: 400px;
+        text-align: center;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      }
+      .icon {
+        width: 80px;
+        height: 80px;
+        margin: 0 auto 20px;
+        background: #10b981;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 40px;
+      }
+      h1 {
+        font-size: 24px;
+        margin-bottom: 10px;
+        color: #1f2937;
+      }
+      p {
+        color: #6b7280;
+        line-height: 1.6;
+        margin-bottom: 20px;
+      }
+      .button {
+        background: #10b981;
+        color: white;
+        border: none;
+        padding: 12px 30px;
+        border-radius: 8px;
+        font-size: 16px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.3s;
+      }
+      .button:hover {
+        background: #059669;
+      }
+      .spinner {
+        border: 3px solid #f3f3f3;
+        border-top: 3px solid #10b981;
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        animation: spin 1s linear infinite;
+        margin: 20px auto;
+      }
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="icon">📱</div>
+      <h1>Anda sedang offline</h1>
+      <p>Koneksi internet tidak tersedia. Beberapa fitur mungkin tidak dapat diakses.</p>
+      <div class="spinner"></div>
+      <p style="font-size: 14px; margin-top: 10px;">Mencoba menyambung kembali...</p>
+      <button class="button" onclick="location.reload()">Muat Ulang</button>
+    </div>
+    <script>
+      // Auto reload when back online
+      window.addEventListener('online', () => {
+        location.reload();
+      });
+      
+      // Try to reconnect every 5 seconds
+      setInterval(() => {
+        if (navigator.onLine) {
+          location.reload();
+        }
+      }, 5000);
+    </script>
+  </body>
+</html>
