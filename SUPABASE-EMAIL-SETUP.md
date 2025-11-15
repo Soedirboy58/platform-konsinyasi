@@ -52,20 +52,31 @@ Atau gunakan template simple:
 
 ---
 
-### 2️⃣ URL Configuration
+### 2️⃣ URL Configuration (PENTING!)
 1. **Authentication** → **URL Configuration**
-2. Set **Site URL**:
+2. Set **Site URL** (ini yang menentukan link di email):
    ```
-   https://konsinyasi.vercel.app
+   https://konsinyasi-lms0jzlab-katalaras-projects.vercel.app
+   ```
+   ⚠️ **ATAU gunakan domain production terbaru dari `vercel ls`**
+   
+   **Cara cek URL production:**
+   ```bash
+   vercel ls
+   # Copy URL deployment terbaru (yang paling atas)
    ```
 
-3. Add **Redirect URLs**:
+3. Add **Redirect URLs** (semua harus ditambahkan):
    ```
-   https://konsinyasi.vercel.app/auth/callback
-   https://konsinyasi.vercel.app/supplier/login
+   https://konsinyasi-lms0jzlab-katalaras-projects.vercel.app/auth/callback
+   https://konsinyasi-lms0jzlab-katalaras-projects.vercel.app/supplier/login
+   https://konsinyasi-lms0jzlab-katalaras-projects.vercel.app/**
    http://localhost:3000/auth/callback
    http://localhost:3000/supplier/login
+   http://localhost:3000/**
    ```
+   
+   ⚠️ **Ganti dengan URL production Anda yang sebenarnya!**
 
 ---
 
