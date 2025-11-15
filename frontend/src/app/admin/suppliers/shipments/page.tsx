@@ -824,8 +824,9 @@ function ReturnsTab() {
   return (
     <>
       <div className="bg-white rounded-lg shadow">
-        <div className="p-6 border-b">
-          <div className="flex items-center justify-between">
+        <div className="p-4 sm:p-6 border-b">
+          {/* Header Section */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
             <div>
               <h2 className="text-lg font-semibold text-gray-900">Produk yang Perlu Diretur</h2>
               <p className="text-sm text-gray-600 mt-1">
@@ -834,27 +835,27 @@ function ReturnsTab() {
             </div>
             <Link
               href="/admin/returns/create"
-              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 flex items-center gap-2"
+              className="w-full sm:w-auto px-4 py-2.5 bg-gradient-to-r from-red-600 to-red-500 text-white rounded-lg hover:from-red-700 hover:to-red-600 flex items-center justify-center gap-2 font-semibold text-sm shadow-md hover:shadow-lg transition-all"
             >
               <AlertTriangle className="w-4 h-4" />
               Ajukan Retur Manual
             </Link>
           </div>
           
-          {/* Sub-tabs */}
-          <div className="mt-4 flex flex-wrap gap-3">
+          {/* Sub-tabs - Grid 3 Columns */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <button
               onClick={() => setViewType('rejected')}
-              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 shadow-sm ${
+              className={`flex flex-col items-center justify-center gap-2 p-4 rounded-xl text-sm font-semibold transition-all duration-200 shadow-sm ${
                 viewType === 'rejected'
-                  ? 'bg-gradient-to-r from-red-600 to-red-500 text-white shadow-lg transform scale-105'
-                  : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-200 hover:border-red-300'
+                  ? 'bg-gradient-to-br from-red-600 to-red-500 text-white shadow-lg ring-4 ring-red-200'
+                  : 'bg-white text-gray-700 hover:bg-gray-50 border-2 border-gray-200 hover:border-red-300'
               }`}
             >
-              <RotateCcw className="w-4 h-4" />
-              <span>Pengiriman Ditolak</span>
+              <RotateCcw className="w-6 h-6" />
+              <span className="text-center">Pengiriman Ditolak</span>
               {rejectedShipments.length > 0 && (
-                <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
+                <span className={`px-3 py-1 rounded-full text-xs font-bold ${
                   viewType === 'rejected' ? 'bg-white/20 text-white' : 'bg-red-100 text-red-700'
                 }`}>
                   {rejectedShipments.length}
@@ -863,16 +864,16 @@ function ReturnsTab() {
             </button>
             <button
               onClick={() => setViewType('admin')}
-              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 shadow-sm ${
+              className={`flex flex-col items-center justify-center gap-2 p-4 rounded-xl text-sm font-semibold transition-all duration-200 shadow-sm ${
                 viewType === 'admin'
-                  ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-lg transform scale-105'
-                  : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-200 hover:border-blue-300'
+                  ? 'bg-gradient-to-br from-blue-600 to-blue-500 text-white shadow-lg ring-4 ring-blue-200'
+                  : 'bg-white text-gray-700 hover:bg-gray-50 border-2 border-gray-200 hover:border-blue-300'
               }`}
             >
-              <Package className="w-4 h-4" />
-              <span>Retur Admin</span>
+              <Package className="w-6 h-6" />
+              <span className="text-center">Retur Admin</span>
               {manualReturns.filter(r => r.source === 'ADMIN' || !r.source).length > 0 && (
-                <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
+                <span className={`px-3 py-1 rounded-full text-xs font-bold ${
                   viewType === 'admin' ? 'bg-white/20 text-white' : 'bg-blue-100 text-blue-700'
                 }`}>
                   {manualReturns.filter(r => r.source === 'ADMIN' || !r.source).length}
@@ -881,16 +882,16 @@ function ReturnsTab() {
             </button>
             <button
               onClick={() => setViewType('customer')}
-              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 shadow-sm ${
+              className={`flex flex-col items-center justify-center gap-2 p-4 rounded-xl text-sm font-semibold transition-all duration-200 shadow-sm ${
                 viewType === 'customer'
-                  ? 'bg-gradient-to-r from-purple-600 to-purple-500 text-white shadow-lg transform scale-105'
-                  : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-200 hover:border-purple-300'
+                  ? 'bg-gradient-to-br from-purple-600 to-purple-500 text-white shadow-lg ring-4 ring-purple-200'
+                  : 'bg-white text-gray-700 hover:bg-gray-50 border-2 border-gray-200 hover:border-purple-300'
               }`}
             >
-              <AlertTriangle className="w-4 h-4" />
-              <span>Retur Customer</span>
+              <AlertTriangle className="w-6 h-6" />
+              <span className="text-center">Retur Customer</span>
               {manualReturns.filter(r => r.source === 'CUSTOMER').length > 0 && (
-                <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
+                <span className={`px-3 py-1 rounded-full text-xs font-bold ${
                   viewType === 'customer' ? 'bg-white/20 text-white' : 'bg-purple-100 text-purple-700'
                 }`}>
                   {manualReturns.filter(r => r.source === 'CUSTOMER').length}
