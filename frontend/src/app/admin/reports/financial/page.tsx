@@ -625,6 +625,93 @@ export default function FinancialReport() {
               </div>
             </div>
 
+            {/* Bar Chart - Income vs Expense Comparison */}
+            <div className="bg-white rounded-lg shadow p-6">
+              <div className="flex items-center gap-2 mb-6">
+                <TrendingUp className="w-5 h-5 text-blue-600" />
+                <h2 className="text-lg font-semibold text-gray-900">Income vs Expense Comparison</h2>
+              </div>
+              {loading ? (
+                <p className="text-center text-gray-500 py-8">Loading...</p>
+              ) : (
+                <div className="space-y-4">
+                  {/* Platform Income Bar */}
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium text-gray-700">Pendapatan Platform</span>
+                      <span className="text-sm font-bold text-green-600">{formatCurrency(platformIncome)}</span>
+                    </div>
+                    <div className="relative bg-gray-200 rounded-full h-8 overflow-hidden">
+                      <div 
+                        className="absolute top-0 left-0 h-full bg-gradient-to-r from-green-500 to-green-600 flex items-center justify-end pr-3 transition-all duration-500"
+                        style={{ 
+                          width: platformIncome > 0 ? '100%' : '0%'
+                        }}
+                      >
+                        <span className="text-xs font-semibold text-white">100%</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Total Expenses Bar */}
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium text-gray-700">Total Pengeluaran</span>
+                      <span className="text-sm font-bold text-red-600">{formatCurrency(totalExpenses)}</span>
+                    </div>
+                    <div className="relative bg-gray-200 rounded-full h-8 overflow-hidden">
+                      <div 
+                        className="absolute top-0 left-0 h-full bg-gradient-to-r from-red-500 to-red-600 flex items-center justify-end pr-3 transition-all duration-500"
+                        style={{ 
+                          width: platformIncome > 0 ? `${Math.min((totalExpenses / platformIncome) * 100, 100)}%` : '0%'
+                        }}
+                      >
+                        <span className="text-xs font-semibold text-white">
+                          {platformIncome > 0 ? `${Math.round((totalExpenses / platformIncome) * 100)}%` : '0%'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Net Profit Bar */}
+                  <div className="pt-4 border-t-2 border-gray-300">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-bold text-gray-900">Laba Bersih (Net Profit)</span>
+                      <span className={`text-sm font-bold ${netProfit >= 0 ? 'text-blue-600' : 'text-red-600'}`}>
+                        {formatCurrency(netProfit)}
+                      </span>
+                    </div>
+                    <div className="relative bg-gray-200 rounded-full h-10 overflow-hidden">
+                      <div 
+                        className={`absolute top-0 left-0 h-full ${netProfit >= 0 ? 'bg-gradient-to-r from-blue-500 to-blue-600' : 'bg-gradient-to-r from-gray-400 to-gray-500'} flex items-center justify-end pr-3 transition-all duration-500`}
+                        style={{ 
+                          width: platformIncome > 0 ? `${Math.max((netProfit / platformIncome) * 100, 0)}%` : '0%'
+                        }}
+                      >
+                        <span className="text-sm font-bold text-white">
+                          {platformIncome > 0 ? `${Math.round((netProfit / platformIncome) * 100)}%` : '0%'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Summary Stats */}
+                  <div className="mt-6 grid grid-cols-2 gap-4 pt-4 border-t">
+                    <div className="text-center p-3 bg-green-50 rounded-lg">
+                      <p className="text-xs text-gray-600 mb-1">Profit Margin</p>
+                      <p className="text-xl font-bold text-green-600">{profitMargin.toFixed(1)}%</p>
+                    </div>
+                    <div className="text-center p-3 bg-orange-50 rounded-lg">
+                      <p className="text-xs text-gray-600 mb-1">Expense Ratio</p>
+                      <p className="text-xl font-bold text-orange-600">
+                        {platformIncome > 0 ? ((totalExpenses / platformIncome) * 100).toFixed(1) : 0}%
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
             {/* Net Profit Section */}
             <div className="bg-green-50 border-2 border-green-200 rounded-lg shadow p-6">
               <div className="flex items-center justify-between mb-4">
@@ -660,6 +747,112 @@ export default function FinancialReport() {
 
           {/* Quick Stats & Insights */}
           <div className="space-y-6">
+            {/* Donut Chart - Revenue Breakdown */}
+            <div className="bg-white rounded-lg shadow p-6">
+              <h3 className="font-semibold text-gray-900 mb-4">📊 Breakdown Pendapatan</h3>
+              {loading ? (
+                <p className="text-center text-gray-500 py-8">Loading...</p>
+              ) : totalSales > 0 ? (
+                <div className="relative">
+                  {/* Donut Chart SVG */}
+                  <svg viewBox="0 0 200 200" className="w-full max-w-[200px] mx-auto">
+                    {(() => {
+                      const centerX = 100
+                      const centerY = 100
+                      const radius = 80
+                      const innerRadius = 50
+                      
+                      const total = totalSales
+                      const platformPercent = (platformIncome / total) * 100
+                      const supplierPercent = (supplierPayables / total) * 100
+                      
+                      // Calculate angles (start from top, clockwise)
+                      const platformAngle = (platformPercent / 100) * 360
+                      const supplierAngle = (supplierPercent / 100) * 360
+                      
+                      // Helper function to create arc path
+                      const createArc = (startAngle: number, endAngle: number, outerR: number, innerR: number) => {
+                        const start = {
+                          x: centerX + outerR * Math.cos((startAngle - 90) * Math.PI / 180),
+                          y: centerY + outerR * Math.sin((startAngle - 90) * Math.PI / 180)
+                        }
+                        const end = {
+                          x: centerX + outerR * Math.cos((endAngle - 90) * Math.PI / 180),
+                          y: centerY + outerR * Math.sin((endAngle - 90) * Math.PI / 180)
+                        }
+                        const innerStart = {
+                          x: centerX + innerR * Math.cos((endAngle - 90) * Math.PI / 180),
+                          y: centerY + innerR * Math.sin((endAngle - 90) * Math.PI / 180)
+                        }
+                        const innerEnd = {
+                          x: centerX + innerR * Math.cos((startAngle - 90) * Math.PI / 180),
+                          y: centerY + innerR * Math.sin((startAngle - 90) * Math.PI / 180)
+                        }
+                        
+                        const largeArc = endAngle - startAngle > 180 ? 1 : 0
+                        
+                        return `M ${start.x} ${start.y}
+                                A ${outerR} ${outerR} 0 ${largeArc} 1 ${end.x} ${end.y}
+                                L ${innerStart.x} ${innerStart.y}
+                                A ${innerR} ${innerR} 0 ${largeArc} 0 ${innerEnd.x} ${innerEnd.y}
+                                Z`
+                      }
+                      
+                      return (
+                        <>
+                          {/* Platform Commission - Green */}
+                          <path
+                            d={createArc(0, platformAngle, radius, innerRadius)}
+                            fill="#10b981"
+                            className="hover:opacity-80 transition-opacity cursor-pointer"
+                          />
+                          {/* Supplier Revenue - Orange */}
+                          <path
+                            d={createArc(platformAngle, 360, radius, innerRadius)}
+                            fill="#f59e0b"
+                            className="hover:opacity-80 transition-opacity cursor-pointer"
+                          />
+                          {/* Center Text */}
+                          <text x={centerX} y={centerY - 10} textAnchor="middle" className="text-xs fill-gray-600 font-medium">
+                            Total Sales
+                          </text>
+                          <text x={centerX} y={centerY + 10} textAnchor="middle" className="text-sm fill-gray-900 font-bold">
+                            {Math.round(totalSales / 1000)}k
+                          </text>
+                        </>
+                      )
+                    })()}
+                  </svg>
+                  
+                  {/* Legend */}
+                  <div className="mt-4 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                        <span className="text-sm text-gray-700">Komisi Platform</span>
+                      </div>
+                      <span className="text-sm font-semibold text-gray-900">
+                        {((platformIncome / totalSales) * 100).toFixed(1)}%
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 bg-orange-500 rounded-full"></div>
+                        <span className="text-sm text-gray-700">Ke Supplier</span>
+                      </div>
+                      <span className="text-sm font-semibold text-gray-900">
+                        {((supplierPayables / totalSales) * 100).toFixed(1)}%
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <p className="text-gray-500 text-sm">Belum ada data penjualan</p>
+                </div>
+              )}
+            </div>
+            
             {/* Summary Cards */}
             <div className="bg-white rounded-lg shadow p-6">
               <h3 className="font-semibold text-gray-900 mb-4">Ringkasan Keuangan</h3>

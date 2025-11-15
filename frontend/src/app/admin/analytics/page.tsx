@@ -278,82 +278,217 @@ export default function Analytics() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Peak Hours Chart */}
+          {/* Peak Hours Chart - Bar Chart */}
           <div className="bg-white rounded-lg shadow">
             <div className="p-6 border-b">
               <div className="flex items-center gap-2">
                 <BarChart3 className="w-5 h-5 text-blue-600" />
-                <h2 className="text-lg font-semibold">Jam Pembelian Tersibuk</h2>
+                <h2 className="text-lg font-semibold">📊 Jam Pembelian Tersibuk</h2>
               </div>
-              <p className="text-sm text-gray-600 mt-1">Optimalkan promo di jam peak</p>
+              <p className="text-sm text-gray-600 mt-1">Optimalkan promo di jam peak - Data real-time dari transaksi</p>
             </div>
             <div className="p-6">
               {loading ? (
                 <p className="text-center text-gray-500">Loading...</p>
               ) : peakHours.length > 0 ? (
                 <div className="space-y-3">
-                  {peakHours.slice(0, 8).map((item) => (
-                    <div key={item.hour} className="flex items-center gap-3">
-                      <div className="w-16 text-sm font-medium text-gray-700">
-                        {formatHour(item.hour)}
-                      </div>
-                      <div className="flex-1">
-                        <div className="bg-gray-200 rounded-full h-8 relative overflow-hidden">
-                          <div 
-                            className="bg-blue-600 h-full rounded-full flex items-center justify-end pr-3"
-                            style={{ 
-                              width: `${(item.count / peakHours[0].count) * 100}%`,
-                              minWidth: '30px'
-                            }}
-                          >
-                            <span className="text-xs text-white font-semibold">
-                              {item.count}x
-                            </span>
+                  {peakHours.slice(0, 8).map((item, index) => {
+                    const maxCount = peakHours[0].count
+                    const percentage = (item.count / maxCount) * 100
+                    const isTopHour = index === 0
+                    
+                    return (
+                      <div key={item.hour} className="flex items-center gap-3">
+                        <div className="w-16 text-sm font-medium text-gray-700">
+                          {formatHour(item.hour)}
+                        </div>
+                        <div className="flex-1">
+                          <div className="bg-gray-200 rounded-full h-8 relative overflow-hidden">
+                            <div 
+                              className={`h-full rounded-full flex items-center justify-end pr-3 transition-all duration-500 ${
+                                isTopHour 
+                                  ? 'bg-gradient-to-r from-blue-600 to-blue-700' 
+                                  : 'bg-gradient-to-r from-blue-400 to-blue-500'
+                              }`}
+                              style={{ 
+                                width: `${percentage}%`,
+                                minWidth: '40px'
+                              }}
+                            >
+                              <span className="text-xs text-white font-semibold">
+                                {item.count}x
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="w-28 text-right">
+                          <div className="text-sm font-semibold text-gray-900">
+                            Rp {Math.round(item.total_sales / 1000)}k
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            {percentage.toFixed(0)}% peak
                           </div>
                         </div>
                       </div>
-                      <div className="w-24 text-right text-sm text-gray-600">
-                        Rp {Math.round(item.total_sales / 1000)}k
-                      </div>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
               ) : (
-                <p className="text-center text-gray-500">Belum ada data</p>
+                <div className="text-center py-8">
+                  <Clock className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                  <p className="text-gray-500">Belum ada data transaksi</p>
+                  <p className="text-xs text-gray-400 mt-1">Chart akan muncul setelah ada penjualan</p>
+                </div>
               )}
             </div>
           </div>
 
-          {/* Popular Products */}
+          {/* Popular Products - Donut Chart + List */}
           <div className="bg-white rounded-lg shadow">
             <div className="p-6 border-b">
               <div className="flex items-center gap-2">
                 <Zap className="w-5 h-5 text-yellow-600" />
-                <h2 className="text-lg font-semibold">Produk Terpopuler</h2>
+                <h2 className="text-lg font-semibold">🏆 Produk Terpopuler</h2>
               </div>
-              <p className="text-sm text-gray-600 mt-1">Fast-moving products</p>
+              <p className="text-sm text-gray-600 mt-1">Fast-moving products - Data dari transaksi</p>
             </div>
             <div className="p-6">
               {loading ? (
                 <p className="text-center text-gray-500">Loading...</p>
               ) : popularProducts.length > 0 ? (
-                <div className="space-y-4">
-                  {popularProducts.slice(0, 8).map((product, idx) => (
-                    <div key={product.product_id} className="flex items-center gap-3">
-                      <div className="flex items-center justify-center w-8 h-8 rounded-full bg-yellow-100 text-yellow-700 font-bold text-sm">
-                        {idx + 1}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-gray-900 truncate">{product.product_name}</p>
-                        <p className="text-xs text-gray-500">
-                          {product.purchase_count} terjual • Rp {Math.round(product.total_revenue / 1000)}k
-                        </p>
+                <div className="space-y-6">
+                  {/* Donut Chart - Top 5 Products */}
+                  {popularProducts.length >= 3 && (
+                    <div className="pb-6 border-b">
+                      <p className="text-xs font-semibold text-gray-600 mb-3 text-center">TOP 5 PRODUCTS SHARE</p>
+                      <svg viewBox="0 0 200 200" className="w-full max-w-[180px] mx-auto">
+                        {(() => {
+                          const centerX = 100
+                          const centerY = 100
+                          const radius = 75
+                          const innerRadius = 45
+                          
+                          const topProducts = popularProducts.slice(0, 5)
+                          const total = topProducts.reduce((sum, p) => sum + p.purchase_count, 0)
+                          
+                          const colors = ['#eab308', '#f97316', '#ef4444', '#ec4899', '#a855f7']
+                          
+                          let currentAngle = 0
+                          
+                          const createArc = (startAngle: number, endAngle: number, outerR: number, innerR: number) => {
+                            const start = {
+                              x: centerX + outerR * Math.cos((startAngle - 90) * Math.PI / 180),
+                              y: centerY + outerR * Math.sin((startAngle - 90) * Math.PI / 180)
+                            }
+                            const end = {
+                              x: centerX + outerR * Math.cos((endAngle - 90) * Math.PI / 180),
+                              y: centerY + outerR * Math.sin((endAngle - 90) * Math.PI / 180)
+                            }
+                            const innerStart = {
+                              x: centerX + innerR * Math.cos((endAngle - 90) * Math.PI / 180),
+                              y: centerY + innerR * Math.sin((endAngle - 90) * Math.PI / 180)
+                            }
+                            const innerEnd = {
+                              x: centerX + innerR * Math.cos((startAngle - 90) * Math.PI / 180),
+                              y: centerY + innerR * Math.sin((startAngle - 90) * Math.PI / 180)
+                            }
+                            
+                            const largeArc = endAngle - startAngle > 180 ? 1 : 0
+                            
+                            return `M ${start.x} ${start.y}
+                                    A ${outerR} ${outerR} 0 ${largeArc} 1 ${end.x} ${end.y}
+                                    L ${innerStart.x} ${innerStart.y}
+                                    A ${innerR} ${innerR} 0 ${largeArc} 0 ${innerEnd.x} ${innerEnd.y}
+                                    Z`
+                          }
+                          
+                          return (
+                            <>
+                              {topProducts.map((product, index) => {
+                                const percentage = (product.purchase_count / total) * 100
+                                const angle = (percentage / 100) * 360
+                                const startAngle = currentAngle
+                                const endAngle = currentAngle + angle
+                                currentAngle = endAngle
+                                
+                                return (
+                                  <path
+                                    key={product.product_id}
+                                    d={createArc(startAngle, endAngle, radius, innerRadius)}
+                                    fill={colors[index]}
+                                    className="hover:opacity-80 transition-opacity cursor-pointer"
+                                  />
+                                )
+                              })}
+                              <text x={centerX} y={centerY - 5} textAnchor="middle" className="text-xs fill-gray-600 font-medium">
+                                Total
+                              </text>
+                              <text x={centerX} y={centerY + 10} textAnchor="middle" className="text-sm fill-gray-900 font-bold">
+                                {total} sold
+                              </text>
+                            </>
+                          )
+                        })()}
+                      </svg>
+                      
+                      {/* Donut Legend */}
+                      <div className="mt-4 space-y-1">
+                        {popularProducts.slice(0, 5).map((product, index) => {
+                          const colors = ['bg-yellow-500', 'bg-orange-500', 'bg-red-500', 'bg-pink-500', 'bg-purple-500']
+                          const total = popularProducts.slice(0, 5).reduce((sum, p) => sum + p.purchase_count, 0)
+                          const percentage = (product.purchase_count / total) * 100
+                          
+                          return (
+                            <div key={product.product_id} className="flex items-center justify-between text-xs">
+                              <div className="flex items-center gap-2 flex-1 min-w-0">
+                                <div className={`w-2 h-2 ${colors[index]} rounded-full flex-shrink-0`}></div>
+                                <span className="text-gray-700 truncate">{product.product_name}</span>
+                              </div>
+                              <span className="font-semibold text-gray-900 ml-2">{percentage.toFixed(0)}%</span>
+                            </div>
+                          )
+                        })}
                       </div>
                     </div>
-                  ))}
+                  )}
+                  
+                  {/* Full Product List */}
+                  <div className="space-y-3">
+                    {popularProducts.slice(0, 8).map((product, idx) => {
+                      const maxRevenue = popularProducts[0].total_revenue
+                      const revenuePercentage = (product.total_revenue / maxRevenue) * 100
+                      
+                      return (
+                        <div key={product.product_id} className="space-y-1">
+                          <div className="flex items-center gap-3">
+                            <div className="flex items-center justify-center w-7 h-7 rounded-full bg-yellow-100 text-yellow-700 font-bold text-xs flex-shrink-0">
+                              {idx + 1}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium text-gray-900 truncate text-sm">{product.product_name}</p>
+                              <p className="text-xs text-gray-500">
+                                {product.purchase_count} terjual • Rp {Math.round(product.total_revenue / 1000)}k revenue
+                              </p>
+                            </div>
+                          </div>
+                          {/* Revenue Bar */}
+                          <div className="ml-10 bg-gray-200 rounded-full h-1.5 overflow-hidden">
+                            <div 
+                              className="h-full bg-gradient-to-r from-yellow-400 to-orange-500 transition-all duration-500"
+                              style={{ width: `${revenuePercentage}%` }}
+                            ></div>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
                 </div>
               ) : (
-                <p className="text-center text-gray-500">Belum ada data</p>
+                <div className="text-center py-8">
+                  <Package className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                  <p className="text-gray-500">Belum ada data penjualan</p>
+                  <p className="text-xs text-gray-400 mt-1">Chart akan muncul setelah produk terjual</p>
+                </div>
               )}
             </div>
           </div>
