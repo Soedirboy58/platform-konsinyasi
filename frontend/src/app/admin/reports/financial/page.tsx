@@ -464,29 +464,29 @@ export default function FinancialReport() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="bg-gradient-to-r from-green-600 via-emerald-600 to-teal-600 shadow-lg">
+      <header className="bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 py-6">
           <div className="flex flex-col lg:flex-row items-center justify-between gap-4">
             <div className="text-center lg:text-left w-full lg:w-auto">
               <div className="flex items-center justify-center lg:justify-start gap-3 mb-2">
-                <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center shadow-lg">
-                  <DollarSign className="w-6 h-6 text-white" />
+                <div className="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center">
+                  <DollarSign className="w-6 h-6 text-green-600" />
                 </div>
-                <h1 className="text-2xl lg:text-3xl font-bold text-white">Laporan Keuangan</h1>
+                <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">Laporan Keuangan</h1>
               </div>
-              <p className="text-green-100 text-sm lg:text-base">💰 Income statement & profit analysis</p>
+              <p className="text-gray-600 text-sm lg:text-base">💰 Income statement & profit analysis</p>
             </div>
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full lg:w-auto">
               <button
                 onClick={exportToCSV}
-                className="px-5 py-3 bg-gradient-to-r from-green-500 to-green-400 text-white rounded-xl hover:from-green-600 hover:to-green-500 flex items-center justify-center gap-2 shadow-lg font-semibold transition-all transform hover:scale-105"
+                className="px-5 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center justify-center gap-2 font-semibold transition-colors"
               >
                 <Download className="w-5 h-5" />
                 <span>Export CSV</span>
               </button>
               <button
                 onClick={exportToPDF}
-                className="px-5 py-3 bg-gradient-to-r from-red-600 to-red-500 text-white rounded-xl hover:from-red-700 hover:to-red-600 flex items-center justify-center gap-2 shadow-lg font-semibold transition-all transform hover:scale-105"
+                className="px-5 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 flex items-center justify-center gap-2 font-semibold transition-colors"
               >
                 <Download className="w-5 h-5" />
                 <span>Export PDF</span>
@@ -626,29 +626,31 @@ export default function FinancialReport() {
             </div>
 
             {/* Net Profit Section */}
-            <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg shadow text-white p-6">
+            <div className="bg-green-50 border-2 border-green-200 rounded-lg shadow p-6">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold">LABA BERSIH (Net Profit)</h2>
-                <DollarSign className="w-8 h-8" />
+                <h2 className="text-lg font-semibold text-gray-900">LABA BERSIH (Net Profit)</h2>
+                <div className="w-10 h-10 bg-green-600 rounded-lg flex items-center justify-center">
+                  <DollarSign className="w-6 h-6 text-white" />
+                </div>
               </div>
               <div className="space-y-3">
-                <div className="flex justify-between items-center text-blue-100">
+                <div className="flex justify-between items-center text-gray-700">
                   <span>Komisi Platform</span>
-                  <span>{loading ? '...' : formatCurrency(platformIncome)}</span>
+                  <span className="font-semibold">{loading ? '...' : formatCurrency(platformIncome)}</span>
                 </div>
-                <div className="flex justify-between items-center text-blue-100">
+                <div className="flex justify-between items-center text-gray-700">
                   <span>Dikurangi Pengeluaran</span>
-                  <span>- {loading ? '...' : formatCurrency(totalExpenses)}</span>
+                  <span className="font-semibold text-red-600">- {loading ? '...' : formatCurrency(totalExpenses)}</span>
                 </div>
-                <div className="pt-3 border-t border-blue-400 flex justify-between items-center">
-                  <span className="text-xl font-bold">Net Profit</span>
-                  <span className="text-3xl font-bold">
+                <div className="pt-3 border-t-2 border-green-300 flex justify-between items-center">
+                  <span className="text-xl font-bold text-gray-900">Net Profit</span>
+                  <span className="text-3xl font-bold text-green-600">
                     {loading ? '...' : formatCurrency(netProfit)}
                   </span>
                 </div>
-                <div className="flex items-center justify-between text-sm text-blue-100">
+                <div className="flex items-center justify-between text-sm text-gray-700">
                   <span>Profit Margin</span>
-                  <span className="text-lg font-semibold">
+                  <span className="text-lg font-semibold text-green-600">
                     {loading ? '...' : `${profitMargin.toFixed(2)}%`}
                   </span>
                 </div>

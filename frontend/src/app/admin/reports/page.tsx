@@ -150,23 +150,25 @@ export default function ReportsAnalytics() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="bg-gradient-to-r from-blue-600 to-purple-600 shadow-lg">
+      <header className="bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 py-6 sm:py-8">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div className="text-center sm:text-left">
-              <h1 className="text-2xl sm:text-3xl font-bold text-white flex items-center justify-center sm:justify-start gap-3">
-                <BarChart3 className="w-8 h-8" />
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 flex items-center justify-center sm:justify-start gap-3">
+                <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
+                  <BarChart3 className="w-6 h-6 text-blue-600" />
+                </div>
                 Laporan & Analytics
               </h1>
-              <p className="text-blue-100 mt-2 text-sm sm:text-base">
-                Analisis performa dan laporan platform secara real-time
+              <p className="text-gray-600 mt-2 text-sm sm:text-base">
+                📊 Analisis performa dan laporan platform secara real-time
               </p>
             </div>
             <div className="flex justify-center">
               <select
                 value={period}
                 onChange={(e) => setPeriod(e.target.value as any)}
-                className="px-4 py-3 bg-white border-2 border-blue-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-blue-300 focus:border-blue-400 font-semibold text-gray-700 shadow-lg hover:shadow-xl transition-all cursor-pointer min-w-[200px]"
+                className="px-4 py-3 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent font-medium text-gray-700 cursor-pointer min-w-[200px]"
               >
                 <option value="week">📅 7 Hari Terakhir</option>
                 <option value="month">📅 30 Hari Terakhir</option>

@@ -246,22 +246,22 @@ export default function SalesReport() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 shadow-lg">
+      <header className="bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 py-6">
           <div className="flex flex-col lg:flex-row items-center justify-between gap-4">
             <div className="text-center lg:text-left w-full lg:w-auto">
               <div className="flex items-center justify-center lg:justify-start gap-3 mb-2">
-                <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center shadow-lg">
-                  <FileText className="w-6 h-6 text-white" />
+                <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
+                  <FileText className="w-6 h-6 text-blue-600" />
                 </div>
-                <h1 className="text-2xl lg:text-3xl font-bold text-white">Laporan Penjualan</h1>
+                <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">Laporan Penjualan</h1>
               </div>
-              <p className="text-blue-100 text-sm lg:text-base">📈 Tracking & monitoring penjualan produk konsinyasi</p>
+              <p className="text-gray-600 text-sm lg:text-base">📈 Tracking & monitoring penjualan produk konsinyasi</p>
             </div>
             <button
               onClick={exportToCSV}
               disabled={filteredData.length === 0}
-              className="w-full lg:w-auto px-6 py-3 bg-gradient-to-r from-green-600 to-green-500 text-white rounded-xl hover:from-green-700 hover:to-green-600 disabled:from-gray-400 disabled:to-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg font-semibold transition-all transform hover:scale-105"
+              className="w-full lg:w-auto px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-2 font-semibold transition-colors"
             >
               <Download className="w-5 h-5" />
               <span>Export CSV</span>
