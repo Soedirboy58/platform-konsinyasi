@@ -4,8 +4,11 @@ import { useState, useEffect, useRef } from 'react'
 import { Save, Info, DollarSign, Calculator, User, Bell, Database, Eye, EyeOff, Lock, Mail, Camera, MapPin, QrCode, Plus, Trash2, Edit, Download, Printer } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
-import QRCodeLib from 'qrcode'
-import Barcode from 'react-barcode'
+import dynamic from 'next/dynamic'
+
+// Dynamic imports to avoid SSR issues
+const QRCodeLib = require('qrcode')
+const Barcode = dynamic(() => import('react-barcode'), { ssr: false })
 
 type Location = {
   id: string
