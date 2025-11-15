@@ -30,6 +30,41 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     checkAuth()
   }, [])
 
+  // Keep sidebar state consistent with viewport size.
+  // On desktop (>= 1024px) we want the sidebar open; on mobile closed.
+  // This prevents cases where a mobile-open state persists when switching back to desktop.
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    const mql = window.matchMedia('(min-width: 1024px)')
+
+    const handleChange = (e: MediaQueryListEvent | MediaQueryList) => {
+      try {
+        setSidebarOpen(Boolean((e as any).matches))
+      } catch (err) {
+        // fallback: do nothing
+      }
+    }
+
+    // initialize based on current viewport
+    setSidebarOpen(mql.matches)
+
+    // add listener (support older addListener API)
+    if (typeof mql.addEventListener === 'function') {
+      mql.addEventListener('change', handleChange)
+    } else if (typeof (mql as any).addListener === 'function') {
+      ;(mql as any).addListener(handleChange)
+    }
+
+    return () => {
+      if (typeof mql.removeEventListener === 'function') {
+        mql.removeEventListener('change', handleChange)
+      } else if (typeof (mql as any).removeListener === 'function') {
+        ;(mql as any).removeListener(handleChange)
+      }
+    }
+  }, [])
+
   async function checkAuth() {
     try {
       const supabase = createClient()
@@ -118,14 +153,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   ]
 
   return (
-    <div className="min-h-screen bg-gray-50 overflow-x-hidden">
-      {/* Topbar */}
-      <div className="fixed top-0 left-0 right-0 h-16 bg-white border-b border-gray-200 z-30 flex items-center justify-between px-4">
+    <div className="min-h-screen bg-gray-50">
+      {/* Topbar - Desktop: fixed with margin for sidebar, Mobile: full width */}
+      <div className="fixed top-0 right-0 h-16 bg-white border-b border-gray-200 z-30 flex items-center justify-between px-4 lg:left-64 left-0 transition-all duration-300">
         {/* Left: Hamburger + Title */}
         <div className="flex items-center gap-4">
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            className="p-2 hover:bg-gray-100 rounded-lg transition-colors lg:hidden"
           >
             {sidebarOpen ? (
               <X className="w-6 h-6 text-gray-600" />
@@ -146,7 +181,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
           {/* Avatar + Name */}
           <div className="flex items-center gap-3">
-            <div className="text-right">
+            <div className="text-right hidden sm:block">
               <p className="text-sm font-medium text-gray-900">{profile?.full_name || 'Admin'}</p>
               <p className="text-xs text-gray-500">Administrator</p>
             </div>
@@ -157,12 +192,17 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </div>
       </div>
 
-      {/* Sidebar */}
+      {/* Sidebar - Desktop: always visible, Mobile: toggle */}
       <aside
-        className={`fixed top-16 left-0 bottom-0 bg-white border-r border-gray-200 z-20 transition-all duration-300 ${
-          sidebarOpen ? 'w-64' : 'w-0'
-        } overflow-hidden lg:static lg:w-64`}
+        className={`fixed top-0 left-0 bottom-0 bg-white border-r border-gray-200 z-40 w-64 transition-transform duration-300 lg:translate-x-0 ${
+          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+        } overflow-y-auto`}
       >
+        {/* Logo/Brand Section */}
+        <div className="h-16 flex items-center px-6 border-b border-gray-200">
+          <h2 className="text-lg font-bold text-blue-600">Konsinyasi Admin</h2>
+        </div>
+
         <nav className="p-4 space-y-2">
           {menuItems.map((item, index) => (
             <div key={index}>
@@ -219,17 +259,17 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </nav>
       </aside>
 
-      {/* Main Content */}
-      <main
-        className={`pt-16 transition-all duration-300 lg:ml-64`}
-      >
-        {children}
+      {/* Main Content - Desktop: margin for sidebar, Mobile: full width */}
+      <main className="pt-16 lg:ml-64 min-h-screen">
+        <div className="w-full">
+          {children}
+        </div>
       </main>
 
       {/* Mobile Overlay - Close sidebar when clicking outside */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 bg-black bg-opacity-50 z-10 lg:hidden"
+          className="fixed inset-0 bg-black bg-opacity-50 z-30 lg:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       )}
