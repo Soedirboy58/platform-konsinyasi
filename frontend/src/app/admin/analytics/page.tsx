@@ -91,7 +91,6 @@ export default function Analytics() {
         `)
         .eq('sales_transactions.status', 'COMPLETED')
         .gte('sales_transactions.created_at', startDate.toISOString())
-        .order('sales_transactions.created_at', { ascending: false })
 
       if (salesError) {
         console.error('Error fetching sales:', salesError)
