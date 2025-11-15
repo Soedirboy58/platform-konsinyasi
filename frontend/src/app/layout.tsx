@@ -6,14 +6,17 @@ import { Toaster } from 'sonner'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'Platform Konsinyasi Terintegrasi',
-  description: 'Platform manajemen konsinyasi untuk supplier dan outlet',
+  title: 'Platform Konsinyasi Katalara',
+  description: 'Platform manajemen konsinyasi untuk supplier, admin toko, dan customer',
   manifest: '/manifest.json',
   themeColor: '#10b981',
   appleWebApp: {
     capable: true,
-    statusBarStyle: 'default',
-    title: 'Konsinyasi',
+    statusBarStyle: 'black-translucent',
+    title: 'Katalara',
+    startupImage: [
+      '/apple-icon.png',
+    ],
   },
   formatDetection: {
     telephone: false,
