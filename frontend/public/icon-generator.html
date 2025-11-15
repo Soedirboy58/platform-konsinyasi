@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PWA Icon Generator - Katalara</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #10b981;
+            margin-bottom: 10px;
+        }
+        .preview {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin: 30px 0;
+        }
+        .icon-preview {
+            text-align: center;
+            padding: 20px;
+            background: #f9fafb;
+            border-radius: 8px;
+        }
+        canvas {
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            max-width: 100%;
+            height: auto;
+        }
+        button {
+            background: #10b981;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            margin-right: 10px;
+            margin-top: 10px;
+        }
+        button:hover {
+            background: #059669;
+        }
+        .info {
+            background: #dbeafe;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border-left: 4px solid #3b82f6;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎨 PWA Icon Generator - Katalara</h1>
+        <p>Generate properly sized and padded PWA icons from store.png</p>
+
+        <div class="info">
+            <strong>📱 Best Practice:</strong> PWA icons should have padding for better visibility on different backgrounds.
+        </div>
+
+        <div class="preview">
+            <div class="icon-preview">
+                <h3>192x192</h3>
+                <canvas id="icon192" width="192" height="192"></canvas>
+                <button onclick="downloadIcon('icon192', 'icon-192.png')">Download</button>
+            </div>
+            <div class="icon-preview">
+                <h3>512x512</h3>
+                <canvas id="icon512" width="512" height="512"></canvas>
+                <button onclick="downloadIcon('icon512', 'icon-512.png')">Download</button>
+            </div>
+            <div class="icon-preview">
+                <h3>180x180 (Apple)</h3>
+                <canvas id="iconApple" width="180" height="180"></canvas>
+                <button onclick="downloadIcon('iconApple', 'apple-icon.png')">Download</button>
+            </div>
+        </div>
+
+        <button onclick="downloadAll()">📥 Download All Icons</button>
+    </div>
+
+    <script>
+        const imageUrl = 'https://rpzoacwlswlhfqaiicho.supabase.co/storage/v1/object/public/assets/store.png';
+        
+        function drawIcon(canvasId, size, padding) {
+            const canvas = document.getElementById(canvasId);
+            const ctx = canvas.getContext('2d');
+            
+            // Background gradient (Katalara brand color)
+            const gradient = ctx.createLinearGradient(0, 0, size, size);
+            gradient.addColorStop(0, '#10b981');
+            gradient.addColorStop(1, '#0d9488');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, size, size);
+            
+            // Load and draw image
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            img.onload = function() {
+                const iconSize = size - (padding * 2);
+                ctx.drawImage(img, padding, padding, iconSize, iconSize);
+            };
+            img.src = imageUrl;
+        }
+        
+        // Generate all icons
+        drawIcon('icon192', 192, 24);  // 12.5% padding
+        drawIcon('icon512', 512, 64);  // 12.5% padding
+        drawIcon('iconApple', 180, 22); // 12% padding
+        
+        function downloadIcon(canvasId, filename) {
+            const canvas = document.getElementById(canvasId);
+            const link = document.createElement('a');
+            link.download = filename;
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        }
+        
+        function downloadAll() {
+            setTimeout(() => downloadIcon('icon192', 'icon-192.png'), 100);
+            setTimeout(() => downloadIcon('icon512', 'icon-512.png'), 300);
+            setTimeout(() => downloadIcon('iconApple', 'apple-icon.png'), 500);
+        }
+    </script>
+</body>
+</html>
