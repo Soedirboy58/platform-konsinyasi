@@ -1,9 +1,11 @@
 ﻿'use client'
 
-import { useState, useEffect } from 'react'
-import { Save, Info, DollarSign, Calculator, User, Bell, Database, Eye, EyeOff, Lock, Mail, Camera, MapPin, QrCode, Plus, Trash2, Edit } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import { Save, Info, DollarSign, Calculator, User, Bell, Database, Eye, EyeOff, Lock, Mail, Camera, MapPin, QrCode, Plus, Trash2, Edit, Download, Printer } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
+import QRCodeLib from 'qrcode'
+import Barcode from 'react-barcode'
 
 type Location = {
   id: string
@@ -35,6 +37,9 @@ export default function Settings() {
     qris_code: '',
     qris_image_url: ''
   })
+  const [showBarcodeModal, setShowBarcodeModal] = useState(false)
+  const [selectedOutletForBarcode, setSelectedOutletForBarcode] = useState<Location | null>(null)
+  const qrCanvasRef = useRef<HTMLCanvasElement>(null)
   
   // Profile state
   const [profile, setProfile] = useState({
@@ -252,6 +257,46 @@ export default function Settings() {
       console.error('Error toggling outlet:', error)
       toast.error(error.message || 'Gagal mengubah status outlet')
     }
+  }
+
+  const handleShowBarcode = async (outlet: Location) => {
+    setSelectedOutletForBarcode(outlet)
+    setShowBarcodeModal(true)
+    
+    // Generate QR Code
+    setTimeout(async () => {
+      if (qrCanvasRef.current) {
+        const url = `${window.location.origin}/kantin/${outlet.qr_code}`
+        try {
+          await QRCodeLib.toCanvas(qrCanvasRef.current, url, {
+            width: 300,
+            margin: 2,
+            color: {
+              dark: '#000000',
+              light: '#FFFFFF'
+            }
+          })
+        } catch (error) {
+          console.error('Error generating QR code:', error)
+        }
+      }
+    }, 100)
+  }
+
+  const handleDownloadQR = () => {
+    if (qrCanvasRef.current) {
+      const url = qrCanvasRef.current.toDataURL('image/png')
+      const link = document.createElement('a')
+      link.download = `qr-${selectedOutletForBarcode?.qr_code}.png`
+      link.href = url
+      link.click()
+      toast.success('QR Code berhasil diunduh!')
+    }
+  }
+
+  const handlePrintBarcode = () => {
+    window.print()
+    toast.success('Membuka dialog print...')
   }
 
   const handleSaveProfile = async () => {
@@ -659,30 +704,42 @@ export default function Settings() {
                           )}
                         </div>
 
-                        <div className="flex gap-2 pt-3 border-t">
+                        <div className="space-y-2 pt-3 border-t">
+                          {/* Generate Barcode Button */}
                           <button
-                            onClick={() => handleEditOutlet(outlet)}
-                            className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm border border-gray-300 rounded hover:bg-gray-50"
+                            onClick={() => handleShowBarcode(outlet)}
+                            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 font-medium shadow-md hover:shadow-lg transition-all"
                           >
-                            <Edit className="w-4 h-4" />
-                            Edit
+                            <QrCode className="w-5 h-5" />
+                            Generate QR & Barcode
                           </button>
-                          <button
-                            onClick={() => handleToggleActive(outlet)}
-                            className={`flex-1 px-3 py-2 text-sm rounded ${
-                              outlet.is_active
-                                ? 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200'
-                                : 'bg-green-100 text-green-700 hover:bg-green-200'
-                            }`}
-                          >
-                            {outlet.is_active ? 'Nonaktifkan' : 'Aktifkan'}
-                          </button>
-                          <button
-                            onClick={() => handleDeleteOutlet(outlet.id)}
-                            className="px-3 py-2 text-sm bg-red-50 text-red-600 rounded hover:bg-red-100"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+
+                          {/* Action Buttons Row */}
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => handleEditOutlet(outlet)}
+                              className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm border border-gray-300 rounded hover:bg-gray-50"
+                            >
+                              <Edit className="w-4 h-4" />
+                              Edit
+                            </button>
+                            <button
+                              onClick={() => handleToggleActive(outlet)}
+                              className={`flex-1 px-3 py-2 text-sm rounded ${
+                                outlet.is_active
+                                  ? 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200'
+                                  : 'bg-green-100 text-green-700 hover:bg-green-200'
+                              }`}
+                            >
+                              {outlet.is_active ? 'Nonaktifkan' : 'Aktifkan'}
+                            </button>
+                            <button
+                              onClick={() => handleDeleteOutlet(outlet.id)}
+                              className="px-3 py-2 text-sm bg-red-50 text-red-600 rounded hover:bg-red-100"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
                         </div>
                       </div>
                     ))}
@@ -872,6 +929,111 @@ export default function Settings() {
           </div>
         )}
       </main>
+
+      {/* Barcode Modal */}
+      {showBarcodeModal && selectedOutletForBarcode && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-t-xl">
+              <h2 className="text-2xl font-bold">{selectedOutletForBarcode.name}</h2>
+              <p className="text-purple-100 text-sm mt-1">QR Code & Barcode untuk Checkout</p>
+            </div>
+
+            <div className="p-8 space-y-6">
+              {/* QR Code Section */}
+              <div className="text-center">
+                <div className="inline-block bg-gradient-to-br from-purple-50 to-blue-50 p-6 rounded-xl shadow-inner">
+                  <canvas ref={qrCanvasRef} className="mx-auto" />
+                </div>
+                <p className="text-sm text-gray-600 mt-4 font-mono bg-gray-100 px-4 py-2 rounded-lg inline-block">
+                  {window.location.origin}/kantin/{selectedOutletForBarcode.qr_code}
+                </p>
+              </div>
+
+              {/* 1D Barcode Section */}
+              <div className="border-t pt-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                  <QrCode className="w-5 h-5 text-purple-600" />
+                  Linear Barcode (Code 128)
+                </h3>
+                <div className="bg-white p-6 border-2 border-gray-200 rounded-xl">
+                  <Barcode 
+                    value={selectedOutletForBarcode.qr_code.toUpperCase()} 
+                    format="CODE128"
+                    width={2}
+                    height={80}
+                    displayValue={true}
+                    fontSize={16}
+                    background="#ffffff"
+                    lineColor="#000000"
+                  />
+                </div>
+                <p className="text-xs text-gray-500 mt-2 text-center">
+                  📱 Scan dengan barcode scanner untuk akses cepat
+                </p>
+              </div>
+
+              {/* Info Section */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <h4 className="font-semibold text-blue-900 mb-2">💡 Cara Penggunaan:</h4>
+                <ul className="text-sm text-blue-800 space-y-1">
+                  <li>• <strong>QR Code:</strong> Scan dengan smartphone untuk langsung buka halaman checkout</li>
+                  <li>• <strong>Barcode:</strong> Scan dengan barcode scanner untuk input cepat di POS system</li>
+                  <li>• <strong>Print:</strong> Cetak dan tempel di area outlet yang mudah terlihat customer</li>
+                  <li>• <strong>Download:</strong> Simpan sebagai gambar untuk digital signage atau screen</li>
+                </ul>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-3 pt-4">
+                <button
+                  onClick={handleDownloadQR}
+                  className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium"
+                >
+                  <Download className="w-5 h-5" />
+                  Download QR Code
+                </button>
+                <button
+                  onClick={handlePrintBarcode}
+                  className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+                >
+                  <Printer className="w-5 h-5" />
+                  Print Semua
+                </button>
+                <button
+                  onClick={() => {
+                    setShowBarcodeModal(false)
+                    setSelectedOutletForBarcode(null)
+                  }}
+                  className="px-6 py-3 border-2 border-gray-300 rounded-lg hover:bg-gray-50 font-medium"
+                >
+                  Tutup
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Print Styles */}
+      <style jsx global>{`
+        @media print {
+          body * {
+            visibility: hidden;
+          }
+          .fixed {
+            position: relative !important;
+          }
+          .fixed * {
+            visibility: visible;
+          }
+          .fixed {
+            position: absolute;
+            left: 0;
+            top: 0;
+          }
+        }
+      `}</style>
     </div>
   )
 }
