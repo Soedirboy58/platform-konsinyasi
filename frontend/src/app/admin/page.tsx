@@ -275,7 +275,7 @@ export default function AdminDashboard() {
             </div>
             <p className="text-sm text-gray-600 mb-1">Produk di Etalase</p>
             <p className="text-2xl font-bold text-indigo-600 mb-1">{stats.productsDisplayed}</p>
-            <a href="/kantin/outlet-1" target="_blank" rel="noopener noreferrer" className="text-xs text-indigo-600 hover:underline flex items-center gap-1">
+            <a href="/kantin/outlet_lobby_a" target="_blank" rel="noopener noreferrer" className="text-xs text-indigo-600 hover:underline flex items-center gap-1">
               Lihat etalase 🔗
             </a>
           </div>
