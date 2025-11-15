@@ -71,15 +71,8 @@ export default function AdminDashboard() {
       // Count unique products with stock (for "Produk di Etalase" - yang tampil di customer view)
       const uniqueProductsInStock = new Set(inventoryLevels?.map(inv => inv.product_id) || []).size
       
-      // Get shipments data to count products that have been sent by suppliers
-      const { data: shipments } = await supabase
-        .from('stock_movements')
-        .select('product_id, quantity')
-        .eq('movement_type', 'IN')
-        .eq('source_type', 'SUPPLIER')
-      
-      // Count unique products that have been shipped by suppliers (for "Produk Stok Tersedia")
-      const productsShippedBySuppliers = new Set(shipments?.map(s => s.product_id) || []).size
+      // Calculate TOTAL quantity across all products (for "Produk Stok Tersedia" - real-time monitoring)
+      const totalStockQuantity = inventoryLevels?.reduce((sum, inv) => sum + (inv.quantity || 0), 0) || 0
       
       // Get today's sales data
       const today = new Date()
@@ -127,8 +120,8 @@ export default function AdminDashboard() {
         pendingSuppliers: suppliers?.filter(s => s.status === 'PENDING').length || 0,
         approvedProducts: products?.filter(p => p.status === 'APPROVED').length || 0,
         pendingProducts: products?.filter(p => p.status === 'PENDING').length || 0,
-        productsInStock: productsShippedBySuppliers, // Produk yang dikirim supplier
-        productsDisplayed: uniqueProductsInStock, // Produk yang ready dijual (ada stok)
+        productsInStock: totalStockQuantity, // TOTAL quantity ready untuk dijual (real-time monitoring)
+        productsDisplayed: uniqueProductsInStock, // Jumlah produk unik yang ready dijual
         expiredProducts: expiredCount,
         dailyRevenue: dailyRevenue,
         dailySales: todaySales?.length || 0,
@@ -295,10 +288,10 @@ export default function AdminDashboard() {
               </div>
             </div>
             <p className="text-sm text-gray-600 mb-1">Produk Stok Tersedia</p>
-            <p className="text-2xl font-bold text-teal-600 mb-1">{stats.productsInStock}</p>
-            <Link href="/admin/suppliers/shipments" className="text-xs text-teal-600 hover:underline">
-              Lihat pengiriman →
-            </Link>
+            <p className="text-2xl font-bold text-teal-600 mb-1">{stats.productsInStock} <span className="text-sm text-gray-600">pcs</span></p>
+            <a href="/kantin/outlet_lobby_a" target="_blank" rel="noopener noreferrer" className="text-xs text-teal-600 hover:underline">
+              Monitor katalog 🔗
+            </a>
           </div>
 
           {/* Expired/Stale Products */}
