@@ -842,36 +842,60 @@ function ReturnsTab() {
           </div>
           
           {/* Sub-tabs */}
-          <div className="mt-4 flex gap-2">
+          <div className="mt-4 flex flex-wrap gap-3">
             <button
               onClick={() => setViewType('rejected')}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 shadow-sm ${
                 viewType === 'rejected'
-                  ? 'bg-blue-100 text-blue-700'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  ? 'bg-gradient-to-r from-red-600 to-red-500 text-white shadow-lg transform scale-105'
+                  : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-200 hover:border-red-300'
               }`}
             >
-              Pengiriman Ditolak ({rejectedShipments.length})
+              <RotateCcw className="w-4 h-4" />
+              <span>Pengiriman Ditolak</span>
+              {rejectedShipments.length > 0 && (
+                <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
+                  viewType === 'rejected' ? 'bg-white/20 text-white' : 'bg-red-100 text-red-700'
+                }`}>
+                  {rejectedShipments.length}
+                </span>
+              )}
             </button>
             <button
               onClick={() => setViewType('admin')}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 shadow-sm ${
                 viewType === 'admin'
-                  ? 'bg-blue-100 text-blue-700'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-lg transform scale-105'
+                  : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-200 hover:border-blue-300'
               }`}
             >
-              📋 Retur Admin ({manualReturns.filter(r => r.source === 'ADMIN' || !r.source).length})
+              <Package className="w-4 h-4" />
+              <span>Retur Admin</span>
+              {manualReturns.filter(r => r.source === 'ADMIN' || !r.source).length > 0 && (
+                <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
+                  viewType === 'admin' ? 'bg-white/20 text-white' : 'bg-blue-100 text-blue-700'
+                }`}>
+                  {manualReturns.filter(r => r.source === 'ADMIN' || !r.source).length}
+                </span>
+              )}
             </button>
             <button
               onClick={() => setViewType('customer')}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 shadow-sm ${
                 viewType === 'customer'
-                  ? 'bg-blue-100 text-blue-700'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  ? 'bg-gradient-to-r from-purple-600 to-purple-500 text-white shadow-lg transform scale-105'
+                  : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-200 hover:border-purple-300'
               }`}
             >
-              👥 Retur Customer ({manualReturns.filter(r => r.source === 'CUSTOMER').length})
+              <AlertTriangle className="w-4 h-4" />
+              <span>Retur Customer</span>
+              {manualReturns.filter(r => r.source === 'CUSTOMER').length > 0 && (
+                <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
+                  viewType === 'customer' ? 'bg-white/20 text-white' : 'bg-purple-100 text-purple-700'
+                }`}>
+                  {manualReturns.filter(r => r.source === 'CUSTOMER').length}
+                </span>
+              )}
             </button>
           </div>
         </div>
