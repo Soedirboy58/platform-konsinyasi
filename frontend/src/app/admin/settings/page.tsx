@@ -682,24 +682,38 @@ export default function Settings() {
                           </div>
                         </div>
 
-                        <div className="space-y-2 mb-4">
+                        <div className="space-y-3 mb-4">
+                          {/* QR Slug Info */}
                           <div className="flex items-center gap-2 text-sm">
                             <QrCode className="w-4 h-4 text-gray-400" />
                             <span className="text-gray-600">QR Slug:</span>
-                            <code className="bg-gray-100 px-2 py-0.5 rounded text-xs font-mono">{outlet.qr_code}</code>
+                            <code className="bg-gray-100 px-2 py-0.5 rounded text-xs font-mono font-semibold text-purple-700">
+                              {outlet.qr_code}
+                            </code>
+                            <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded-full font-medium">
+                              FIXED
+                            </span>
                           </div>
+
+                          {/* URL Checkout */}
                           <div className="text-sm text-gray-600">
                             <span className="font-medium">URL Checkout:</span>
-                            <div className="bg-blue-50 px-3 py-2 rounded mt-1 break-all">
+                            <div className="bg-blue-50 px-3 py-2 rounded mt-1 break-all border border-blue-100">
                               <a
                                 href={`/kantin/${outlet.qr_code}`}
                                 target="_blank"
-                                className="text-blue-600 hover:underline text-xs"
+                                className="text-blue-600 hover:underline text-xs font-mono"
                               >
                                 {typeof window !== 'undefined' ? window.location.origin : ''}/kantin/{outlet.qr_code}
                               </a>
                             </div>
                           </div>
+
+                          {/* Important Note */}
+                          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-2 text-xs text-yellow-800">
+                            <span className="font-semibold">💡 Note:</span> QR code untuk outlet ini <strong>selalu sama</strong> dan sudah tersimpan di database. Cetak sekali saja untuk ditempel permanen!
+                          </div>
+
                           {outlet.qris_image_url && (
                             <div className="text-sm text-gray-600">
                               <span className="font-medium">QRIS:</span> <span className="text-green-600">✓ Configured</span>
@@ -940,7 +954,14 @@ export default function Settings() {
             {/* Header */}
             <div className="p-4 sm:p-6 border-b bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-t-xl sticky top-0 z-10">
               <h2 className="text-lg sm:text-2xl font-bold">{selectedOutletForBarcode.name}</h2>
-              <p className="text-purple-100 text-xs sm:text-sm mt-1">QR Code & Barcode untuk Checkout</p>
+              <p className="text-purple-100 text-xs sm:text-sm mt-1">
+                QR Code & Barcode <strong>PERMANEN</strong> untuk Outlet Ini
+              </p>
+              <div className="mt-2 bg-white/20 rounded-lg px-3 py-2">
+                <p className="text-xs text-white">
+                  🔒 QR Slug: <code className="bg-black/30 px-2 py-1 rounded font-mono font-bold">{selectedOutletForBarcode.qr_code}</code>
+                </p>
+              </div>
             </div>
 
             <div className="p-4 sm:p-8 space-y-4 sm:space-y-6">
@@ -981,7 +1002,23 @@ export default function Settings() {
                 </p>
               </div>
 
-              {/* Info Section */}
+              {/* Important Info - QR is Permanent */}
+              <div className="bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-300 rounded-lg p-3 sm:p-4">
+                <h4 className="font-bold text-green-900 mb-2 text-sm sm:text-base flex items-center gap-2">
+                  <span className="text-lg">🔒</span> QR Code INI PERMANEN & UNIK
+                </h4>
+                <ul className="text-xs sm:text-sm text-green-800 space-y-1.5 mb-3">
+                  <li>✅ QR code ini <strong>tidak akan berubah</strong> selamanya untuk outlet ini</li>
+                  <li>✅ Cetak <strong>1 kali saja</strong>, tempel permanen di outlet</li>
+                  <li>✅ Boleh di-generate berkali-kali, hasilnya <strong>selalu sama</strong></li>
+                  <li>✅ Aman untuk dibagikan ke customer atau media sosial</li>
+                </ul>
+                <div className="bg-white/70 rounded px-3 py-2 text-xs text-green-900">
+                  <strong>ID Unik:</strong> <code className="bg-green-200 px-2 py-1 rounded font-mono font-bold">{selectedOutletForBarcode.qr_code}</code>
+                </div>
+              </div>
+
+              {/* Usage Instructions */}
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 sm:p-4">
                 <h4 className="font-semibold text-blue-900 mb-2 text-sm sm:text-base">💡 Cara Penggunaan:</h4>
                 <ul className="text-xs sm:text-sm text-blue-800 space-y-1">
