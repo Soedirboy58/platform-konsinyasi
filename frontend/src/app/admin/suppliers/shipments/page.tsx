@@ -886,8 +886,80 @@ function ReturnsTab() {
                 <p className="text-gray-600">Semua pengiriman sudah disetujui atau sudah diretur</p>
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
+              <>
+                {/* Mobile Card View */}
+                <div className="block lg:hidden p-4 space-y-4">
+                  {rejectedShipments.map((shipment) => {
+                    const totalQty = shipment.stock_movement_items?.reduce(
+                      (sum, item) => sum + item.quantity, 0
+                    ) || 0
+                    const productCount = shipment.stock_movement_items?.length || 0
+
+                    return (
+                      <div key={shipment.id} className="bg-white border rounded-lg p-4 shadow-sm">
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="flex-1">
+                            <h3 className="text-sm font-semibold text-gray-900">
+                              {shipment.supplier?.business_name}
+                            </h3>
+                            <p className="text-xs text-gray-500">
+                              {shipment.supplier?.profile?.full_name}
+                            </p>
+                          </div>
+                          <span className="px-2 py-1 text-xs font-medium bg-red-100 text-red-800 rounded">
+                            Ditolak
+                          </span>
+                        </div>
+                        
+                        <div className="space-y-2 text-xs mb-3">
+                          <div className="flex items-center gap-2 text-gray-600">
+                            <Building className="w-3 h-3" />
+                            <span>{shipment.location?.name}</span>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <span className="text-gray-500">Produk:</span>
+                              <span className="ml-1 font-medium">{productCount} item</span>
+                            </div>
+                            <div>
+                              <span className="text-gray-500">Total:</span>
+                              <span className="ml-1 font-medium">{totalQty} unit</span>
+                            </div>
+                          </div>
+                          {shipment.rejection_reason && (
+                            <div className="bg-red-50 p-2 rounded">
+                              <p className="text-red-700 text-xs">{shipment.rejection_reason}</p>
+                            </div>
+                          )}
+                        </div>
+                        
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => {
+                              setSelectedShipment(shipment)
+                              setShowDetailModal(true)
+                            }}
+                            className="flex-1 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-xs flex items-center justify-center gap-1"
+                          >
+                            <Eye className="w-3 h-3" />
+                            Detail
+                          </button>
+                          <button
+                            onClick={() => handleMarkAsReturned(shipment.id)}
+                            className="flex-1 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-xs flex items-center justify-center gap-1"
+                          >
+                            <Check className="w-3 h-3" />
+                            Sudah Diretur
+                          </button>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+
+                {/* Desktop Table View */}
+                <div className="hidden lg:block overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
@@ -979,7 +1051,8 @@ function ReturnsTab() {
                     })}
                   </tbody>
                 </table>
-              </div>
+                </div>
+              </>
             )}
           </>
         )}
@@ -994,8 +1067,84 @@ function ReturnsTab() {
                 <p className="text-gray-600">Belum ada pengajuan retur produk rusak/cacat oleh admin</p>
               </div>
             ) : (
-              <div>
-                <table className="w-full divide-y divide-gray-200">
+              <>
+                {/* Mobile Card View */}
+                <div className="block lg:hidden p-3 space-y-3">
+                  {manualReturns.filter(r => r.source === 'ADMIN' || !r.source).map((returnItem) => {
+                    const statusConfig: Record<string, { color: string; label: string }> = {
+                      PENDING: { color: 'bg-yellow-500', label: 'Menunggu Review' },
+                      APPROVED: { color: 'bg-green-500', label: 'Disetujui' },
+                      REJECTED: { color: 'bg-red-500', label: 'Ditolak' },
+                      COMPLETED: { color: 'bg-blue-500', label: 'Selesai' }
+                    }
+                    const status = statusConfig[returnItem.status] || statusConfig.PENDING
+                    
+                    return (
+                      <div key={returnItem.id} className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+                        <div className={`h-1 ${status.color}`}></div>
+                        
+                        <div className="p-3">
+                          <div className="flex gap-2 mb-2">
+                            {returnItem.product?.photo_url && (
+                              <img 
+                                src={returnItem.product.photo_url} 
+                                alt={returnItem.product?.name}
+                                className="w-12 h-12 rounded object-cover flex-shrink-0"
+                              />
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <h3 className="text-sm font-semibold text-gray-900 line-clamp-2 mb-1">
+                                {returnItem.product?.name || 'Produk tidak diketahui'}
+                              </h3>
+                              <div className="flex items-center gap-2">
+                                <span className="inline-flex items-center px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded font-medium">
+                                  📋 ADMIN
+                                </span>
+                                <span className="text-xs font-semibold text-gray-900">
+                                  {returnItem.quantity} pcs
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          <div className="space-y-1.5 mb-2 text-xs">
+                            <div className="flex items-center gap-1">
+                              <Building className="w-3 h-3 text-gray-400" />
+                              <span className="text-gray-600">{returnItem.supplier?.business_name || '-'}</span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <span className="text-gray-500">Lokasi:</span>
+                              <span className="text-gray-700">{returnItem.location?.name || '-'}</span>
+                            </div>
+                            <div className="bg-red-50 p-1.5 rounded text-xs">
+                              <p className="text-red-700 line-clamp-2">{returnItem.reason}</p>
+                            </div>
+                          </div>
+                          
+                          <div className="flex items-center justify-between">
+                            <span className={`px-2 py-1 ${status.color} text-white text-xs rounded-full font-medium`}>
+                              {status.label}
+                            </span>
+                            <button
+                              onClick={() => {
+                                setSelectedReturn(returnItem)
+                                setShowReturnDetailModal(true)
+                              }}
+                              className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-medium flex items-center gap-1"
+                            >
+                              <Eye className="w-3 h-3" />
+                              Detail
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+
+                {/* Desktop Table View */}
+                <div className="hidden lg:block">
+                  <table className="w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
@@ -1104,7 +1253,8 @@ function ReturnsTab() {
                     })}
                   </tbody>
                 </table>
-              </div>
+                </div>
+              </>
             )}
           </>
         )}
@@ -1119,8 +1269,97 @@ function ReturnsTab() {
                 <p className="text-gray-600">Belum ada customer yang melaporkan produk bermasalah</p>
               </div>
             ) : (
-              <div>
-                <table className="w-full divide-y divide-gray-200">
+              <>
+                {/* Mobile Card View */}
+                <div className="block lg:hidden p-3 space-y-3">
+                  {manualReturns.filter(r => r.source === 'CUSTOMER').map((returnItem) => {
+                    const severityConfig: Record<string, { color: string; label: string; icon: string }> = {
+                      LOW: { color: 'bg-gray-500', label: 'Ringan', icon: '🔵' },
+                      MEDIUM: { color: 'bg-yellow-500', label: 'Sedang', icon: '🟡' },
+                      HIGH: { color: 'bg-orange-500', label: 'Berat', icon: '🟠' },
+                      CRITICAL: { color: 'bg-red-500', label: 'Kritis', icon: '🔴' }
+                    }
+                    const severity = severityConfig[returnItem.severity || 'LOW'] || severityConfig.LOW
+                    
+                    const statusConfig: Record<string, { color: string; label: string }> = {
+                      PENDING: { color: 'bg-yellow-500', label: 'Menunggu Review' },
+                      APPROVED: { color: 'bg-green-500', label: 'Disetujui' },
+                      REJECTED: { color: 'bg-red-500', label: 'Ditolak' },
+                      COMPLETED: { color: 'bg-blue-500', label: 'Selesai' }
+                    }
+                    const status = statusConfig[returnItem.status] || statusConfig.PENDING
+                    
+                    return (
+                      <div key={returnItem.id} className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+                        <div className={`h-1 ${severity.color}`}></div>
+                        
+                        <div className="p-3">
+                          <div className="flex gap-2 mb-2">
+                            {returnItem.product?.photo_url && (
+                              <img 
+                                src={returnItem.product.photo_url} 
+                                alt={returnItem.product?.name}
+                                className="w-12 h-12 rounded object-cover flex-shrink-0"
+                              />
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <h3 className="text-sm font-semibold text-gray-900 line-clamp-2 mb-1">
+                                {returnItem.product?.name || 'Produk tidak diketahui'}
+                              </h3>
+                              <div className="flex items-center gap-2">
+                                <span className="inline-flex items-center px-2 py-0.5 bg-purple-100 text-purple-700 text-xs rounded font-medium">
+                                  👥 CUSTOMER
+                                </span>
+                                <span className="text-xs font-semibold text-gray-900">
+                                  {returnItem.quantity} pcs
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          <div className="space-y-1.5 mb-2 text-xs">
+                            <div className="flex items-center gap-1">
+                              <span className="text-gray-500">Customer:</span>
+                              <span className="text-gray-700 font-medium">{returnItem.customer_name || 'Anonim'}</span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <Building className="w-3 h-3 text-gray-400" />
+                              <span className="text-gray-600">{returnItem.supplier?.business_name || '-'}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className={`px-1.5 py-0.5 ${severity.color} text-white text-xs rounded font-medium`}>
+                                {severity.icon} {severity.label}
+                              </span>
+                            </div>
+                            <div className="bg-purple-50 p-1.5 rounded text-xs">
+                              <p className="text-purple-900 line-clamp-2">{returnItem.reason}</p>
+                            </div>
+                          </div>
+                          
+                          <div className="flex items-center justify-between">
+                            <span className={`px-2 py-1 ${status.color} text-white text-xs rounded-full font-medium`}>
+                              {status.label}
+                            </span>
+                            <button
+                              onClick={() => {
+                                setSelectedReturn(returnItem)
+                                setShowReturnDetailModal(true)
+                              }}
+                              className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded text-xs font-medium flex items-center gap-1"
+                            >
+                              <Eye className="w-3 h-3" />
+                              Detail
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+
+                {/* Desktop Table View */}
+                <div className="hidden lg:block">
+                  <table className="w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
@@ -1252,7 +1491,8 @@ function ReturnsTab() {
                     })}
                   </tbody>
                 </table>
-              </div>
+                </div>
+              </>
             )}
           </>
         )}
