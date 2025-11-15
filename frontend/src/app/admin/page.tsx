@@ -275,9 +275,9 @@ export default function AdminDashboard() {
             </div>
             <p className="text-sm text-gray-600 mb-1">Produk di Etalase</p>
             <p className="text-2xl font-bold text-indigo-600 mb-1">{stats.productsDisplayed}</p>
-            <Link href="/admin/suppliers/products?status=APPROVED" className="text-xs text-indigo-600 hover:underline">
-              Lihat etalase →
-            </Link>
+            <a href="/kantin/outlet-1" target="_blank" rel="noopener noreferrer" className="text-xs text-indigo-600 hover:underline flex items-center gap-1">
+              Lihat etalase 🔗
+            </a>
           </div>
 
           {/* Products In Stock */}
@@ -289,8 +289,8 @@ export default function AdminDashboard() {
             </div>
             <p className="text-sm text-gray-600 mb-1">Produk Stok Tersedia</p>
             <p className="text-2xl font-bold text-teal-600 mb-1">{stats.productsInStock}</p>
-            <Link href="/admin/inventory" className="text-xs text-teal-600 hover:underline">
-              Kelola stok →
+            <Link href="/admin/suppliers/products" className="text-xs text-teal-600 hover:underline">
+              Lihat detail →
             </Link>
           </div>
 
