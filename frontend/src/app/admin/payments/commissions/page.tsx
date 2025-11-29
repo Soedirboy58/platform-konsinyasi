@@ -358,7 +358,7 @@ export default function CommissionsPage() {
           wallet_id: wallet?.id || null,
           amount: selectedCommission.commission_amount,
           payment_reference: paymentReference,
-          payment_date: paymentDate,
+          payment_date: new Date(paymentDate + 'T00:00:00+07:00'). toISOString(),
           payment_method: 'BANK_TRANSFER',
           bank_name: selectedCommission.bank_name,
           bank_account_number: selectedCommission.bank_account,
@@ -387,7 +387,7 @@ export default function CommissionsPage() {
           const filePath = `payment-proofs/${fileName}`
 
           const { data: uploadData, error: uploadError } = await supabase.storage
-            .from('documents')
+            . from('payment_proofs')  // ✅ UBAH DARI 'documents'
             .upload(filePath, paymentProof, {
               cacheControl: '3600',
               upsert: false
@@ -399,7 +399,7 @@ export default function CommissionsPage() {
           } else {
             // Get public URL
             const { data } = supabase.storage
-              .from('documents')
+              .from('payment_proofs')  // ✅ UBAH DARI 'documents'
               .getPublicUrl(filePath)
 
             proofUrl = data.publicUrl
