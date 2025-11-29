@@ -510,7 +510,53 @@ export default function CommissionsPage() {
                 <p className="text-sm text-green-700 mb-4">
                   Komisi supplier ini sudah mencapai minimum threshold. Segera transfer untuk menjaga kepuasan supplier.
                 </p>
-                
+                  {/* TAMBAHKAN INI - Alert untuk Pending Threshold Suppliers */}
+{pendingThresholdSuppliers.length > 0 && (
+  <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6">
+    <div className="flex">
+      <div className="flex-shrink-0">
+        <Clock className="h-5 w-5 text-yellow-400" />
+      </div>
+      <div className="ml-3 flex-1">
+        <h3 className="text-sm font-medium text-yellow-800 flex items-center gap-2">
+          ⏳ {pendingThresholdSuppliers.length} supplier BELUM mencapai minimum threshold
+          <span className="px-3 py-1 bg-yellow-200 text-yellow-800 text-xs rounded-full font-bold">
+            &lt; Rp {minThreshold. toLocaleString('id-ID')}
+          </span>
+        </h3>
+        <p className="text-sm text-yellow-700 mb-4 mt-2">
+          Supplier ini punya komisi aktif tapi belum mencapai minimum Rp {minThreshold.toLocaleString('id-ID')}.  
+          Mereka akan otomatis masuk daftar "Ready to Pay" setelah threshold tercapai.
+        </p>
+        
+        {/* Supplier List Preview */}
+        <div className="bg-white rounded-lg p-4 mb-4 space-y-2 max-h-48 overflow-y-auto">
+          {pendingThresholdSuppliers.slice(0, 10).map(s => (
+            <div key={s.supplier_id} className="flex justify-between items-center text-sm border-b pb-2 last:border-0">
+              <div>
+                <span className="font-semibold text-gray-900">{s.supplier_name}</span>
+                <span className="text-gray-500 text-xs ml-2">({s.transactions} transaksi)</span>
+              </div>
+              <div className="text-right">
+                <span className="font-bold text-yellow-600">Rp {s.commission_amount.toLocaleString('id-ID')}</span>
+                <p className="text-xs text-gray-500">
+                  Kurang Rp {(minThreshold - s.commission_amount).toLocaleString('id-ID')}
+                </p>
+              </div>
+            </div>
+          ))}
+        </div>
+        
+        <button
+          onClick={() => setStatusFilter('UNPAID')} 
+          className="text-sm text-yellow-700 hover:text-yellow-900 font-medium underline"
+        >
+          Lihat semua supplier pending →
+        </button>
+      </div>
+    </div>
+  </div>
+)}
                 {/* Supplier List Preview */}
                 <div className="bg-white rounded-lg p-4 mb-4 space-y-2 max-h-48 overflow-y-auto">
                   {readyToPaySuppliers.slice(0, 5).map(s => (
