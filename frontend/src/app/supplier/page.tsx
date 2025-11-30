@@ -107,12 +107,12 @@ export default function SupplierDashboard() {
         return
       }
 
-      // Get pending shipments - Check ALL statuses first to debug
+      // ✅ FIX: Use movement_type 'IN' (not 'SHIPMENT')
       const { data: allShipments, error: allShipmentsError } = await supabase
         .from('stock_movements')
         .select('id, status, movement_type')
         .eq('supplier_id', supplier.id)
-        .eq('movement_type', 'SHIPMENT')
+        .eq('movement_type', 'IN')  // ✅ FIXED: Changed from SHIPMENT to IN
 
       console.log('🔍 ALL Shipments for debugging:', {
         allShipments,
@@ -180,7 +180,7 @@ export default function SupplierDashboard() {
         .from('stock_movements')
         .select('id, status')
         .eq('supplier_id', supplier.id)
-        .eq('movement_type', 'SHIPMENT')
+        .eq('movement_type', 'IN')  // ✅ FIXED: Changed from SHIPMENT to IN
 
       console.log('🚚 DEBUG All Shipments:', {
         allShipments: allCompletedShipments,
