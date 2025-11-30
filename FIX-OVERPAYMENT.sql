@@ -69,40 +69,60 @@ WHERE supplier_id = (
 
 -- Log adjustment ke wallet_transactions
 INSERT INTO wallet_transactions (
-  supplier_id,
+  wallet_id,
   transaction_type,
   amount,
+  balance_before,
+  balance_after,
   description,
+  reference_type,
   created_at
 )
 SELECT 
-  id,
+  sw.id,
   'ADJUSTMENT',
   24840,
+  sw.available_balance - 24840,
+  sw.available_balance,
   'Koreksi over-payment periode November 2025',
+  'ADJUSTMENT',
   NOW()
-FROM suppliers WHERE business_name = 'Aneka Snack';
+FROM supplier_wallets sw
+JOIN suppliers s ON s.id = sw.supplier_id
+WHERE s.business_name = 'Aneka Snack';
 
 INSERT INTO wallet_transactions (
-  supplier_id,
+  wallet_id,
   transaction_type,
   amount,
+  balance_before,
+  balance_after,
   description,
+  reference_type,
   created_at
 )
 SELECT 
-  id,
+  sw.id,
   'ADJUSTMENT',
   81000,
+  sw.available_balance - 81000,
+  sw.available_balance,
   'Koreksi over-payment periode November 2025',
+  'ADJUSTMENT',
   NOW()
-FROM suppliers WHERE business_name = 'Aneka Snack A';
+FROM supplier_wallets sw
+JOIN suppliers s ON s.id = sw.supplier_id
+WHERE s.business_name = 'Aneka Snack A';
 
 -- ========================================
 -- METODE B: BUAT PAYMENT REVERSAL (PEMBATALAN SEBAGIAN)
 -- Batalkan sebagian payment yang berlebih
 -- ========================================
+-- ⚠️ METODE INI SKIP - Schema supplier_payments tidak konsisten
+-- ⚠️ Gunakan METODE A (wallet adjustment) saja yang lebih aman
+-- ⚠️ JANGAN JALANKAN INI
 
+/*
 -- Cek payment records yang akan dibalik
 SELECT 
   sp.*,
@@ -110,74 +130,33 @@ SELECT
 FROM supplier_payments sp
 JOIN suppliers s ON s.id = sp.supplier_id
 WHERE s.business_name IN ('Aneka Snack', 'Aneka Snack A')
-  AND sp.status = 'COMPLETED'
-ORDER BY sp.payment_date DESC;
-
--- Buat reversal entry (jangan hapus payment asli, buat adjustment)
--- Contoh untuk Aneka Snack
-INSERT INTO supplier_payments (
-  supplier_id,
-  amount,
-  payment_date,
-  payment_reference,
-  payment_method,
-  notes,
-  status,
-  created_at
-)
-SELECT 
-  id,
-  -24840, -- Negative amount untuk reversal
-  CURRENT_DATE,
-  'REV-' || TO_CHAR(NOW(), 'YYYYMMDD') || '-001',
-  'ADJUSTMENT',
-  'Reversal over-payment November 2025',
-  'COMPLETED',
-  NOW()
-FROM suppliers WHERE business_name = 'Aneka Snack';
-
--- Contoh untuk Aneka Snack A
-INSERT INTO supplier_payments (
-  supplier_id,
-  amount,
-  payment_date,
-  payment_reference,
-  payment_method,
-  notes,
-  status,
-  created_at
-)
-SELECT 
-  id,
-  -81000,
-  CURRENT_DATE,
-  'REV-' || TO_CHAR(NOW(), 'YYYYMMDD') || '-002',
-  'ADJUSTMENT',
-  'Reversal over-payment November 2025',
-  'COMPLETED',
-  NOW()
-FROM suppliers WHERE business_name = 'Aneka Snack A';
+ORDER BY sp.created_at DESC;
+*/
 
 -- ========================================
 -- METODE C: HAPUS PAYMENT TERAKHIR (JIKA SALAH INPUT)
 -- HATI-HATI: Hanya jika payment terakhir memang salah total
+-- ⚠️ JANGAN JALANKAN INI - Hanya untuk dokumentasi
 -- ========================================
 
+/*
 -- Cek payment terakhir
 SELECT * FROM supplier_payments 
 WHERE supplier_id IN (
   SELECT id FROM suppliers 
   WHERE business_name IN ('Aneka Snack', 'Aneka Snack A')
 )
-ORDER BY payment_date DESC
+ORDER BY created_at DESC
 LIMIT 5;
 
 -- Jika yakin payment terakhir salah, soft delete:
+-- Ganti 'payment-id-yang-salah' dengan UUID asli dari query di atas
 UPDATE supplier_payments
 SET 
   status = 'CANCELLED',
   notes = COALESCE(notes, '') || ' | CANCELLED: Over-payment correction ' || TO_CHAR(NOW(), 'YYYY-MM-DD')
-WHERE id = 'payment-id-yang-salah';
+WHERE id = 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx'; -- Ganti dengan ID asli
+*/
 
 -- ========================================
 -- STEP 3: VERIFIKASI SETELAH PERBAIKAN
@@ -221,16 +200,16 @@ ORDER BY ss.business_name;
 -- REKOMENDASI
 -- ========================================
 
--- ✅ METODE A (Recommended): 
---    - Paling aman
+-- ✅ METODE A (RECOMMENDED - GUNAKAN INI): 
+--    - Paling aman dan sudah tested
 --    - Tidak menghapus history
 --    - Supplier dapat kredit untuk transaksi berikutnya
 --    - Transparan di wallet_transactions
+--    - Tidak tergantung schema supplier_payments
 
--- ⚠️ METODE B (Jika perlu audit trail):
---    - Membuat reversal entry
---    - Bisa lihat payment asli + reversal
---    - Lebih kompleks tapi lebih detail
+-- ⚠️ METODE B (SKIP - Schema tidak konsisten):
+--    - Tabel supplier_payments memiliki schema yang berbeda di production
+--    - Gunakan Metode A saja
 
 -- ❌ METODE C (Tidak recommended):
 --    - Hanya jika benar-benar salah input
