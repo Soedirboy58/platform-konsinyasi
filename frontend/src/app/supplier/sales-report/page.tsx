@@ -178,17 +178,18 @@ export default function SalesReportPage() {
         })
       }
 
-      // Transform data - USE EXISTING supplier_revenue (already calculated correctly!)
+      // Transform data with CORRECT net profit calculation
       const transformed = (data || []).map((item: any) => {
         const quantity = item.quantity || 0
         const sellingPrice = item.price || 0
         const supplierRevenue = item.supplier_revenue || 0  // Already 90% of subtotal
         const commissionAmount = item.commission_amount || 0  // Already 10% of subtotal
         const subtotal = item.subtotal || (sellingPrice * quantity)
+        const hppPerUnit = item.products?.hpp || 0
+        const totalHPP = hppPerUnit * quantity  // ✅ Total HPP for this transaction
         
-        // These are ALREADY correct from database!
-        // supplierRevenue = what supplier receives (90%)
-        // commissionAmount = what platform takes (10%)
+        // ✅ CORRECT NET PROFIT = Supplier Revenue - Total HPP
+        const netProfit = supplierRevenue - totalHPP
         
         return {
           id: item.id,
@@ -196,10 +197,10 @@ export default function SalesReportPage() {
           product_name: item.products?.name || 'Unknown',
           quantity: quantity,
           selling_price: sellingPrice,
-          hpp: item.products?.hpp || 0,  // ✅ FIX: Ambil dari database products.hpp
+          hpp: hppPerUnit,  // ✅ HPP per unit (from products table)
           commission_amount: commissionAmount,
           gross_profit: subtotal,  // Total sales before commission
-          net_profit: supplierRevenue,  // What supplier actually gets
+          net_profit: netProfit,  // ✅ FIXED: Revenue - HPP (actual supplier profit)
           sale_date: item.sales_transactions?.created_at || item.created_at,
           location_name: locationMap.get(item.sales_transactions?.location_id) || 'Unknown'
         }
@@ -207,16 +208,16 @@ export default function SalesReportPage() {
 
       setSalesData(transformed)
 
-      // Calculate stats - Net Profit is what supplier actually receives
+      // Calculate stats - Net Profit is ACTUAL profit after HPP deduction
       const totalSales = transformed.reduce((sum: number, item) => sum + item.quantity, 0)
       const totalGrossProfit = transformed.reduce((sum: number, item) => sum + item.gross_profit, 0)
       const totalCommission = transformed.reduce((sum: number, item) => sum + item.commission_amount, 0)
-      const totalNetProfit = transformed.reduce((sum: number, item) => sum + item.net_profit, 0)
+      const totalNetProfit = transformed.reduce((sum: number, item) => sum + item.net_profit, 0)  // ✅ Sum of actual net profit
       const uniqueProducts = new Set(transformed.map((item) => item.product_id))
 
       setStats({
         totalSales,
-        totalRevenue: totalNetProfit, // What supplier receives after commission
+        totalRevenue: totalNetProfit,  // ✅ CHANGED: Actual net profit (after HPP & commission)
         totalCommission,
         productsSold: uniqueProducts.size
       })
@@ -391,7 +392,7 @@ export default function SalesReportPage() {
           <p className="text-xl sm:text-2xl font-bold text-green-700">
             Rp {stats.totalRevenue.toLocaleString('id-ID')}
           </p>
-          <p className="text-xs text-gray-500 mt-1">Setelah dikurangi komisi platform</p>
+          <p className="text-xs text-gray-500 mt-1">Setelah dikurangi HPP dan komisi platform</p>
         </div>
 
         <div className="bg-white rounded-lg shadow p-4 sm:p-6">

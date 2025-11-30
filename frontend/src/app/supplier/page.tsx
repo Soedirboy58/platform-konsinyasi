@@ -108,15 +108,36 @@ export default function SupplierDashboard() {
       const { count: pendingShipmentsCount } = await supabase
         .from('stock_movements')
         .select('*', { count: 'exact', head: true })
-        .in('product_id', productIds)
+        .eq('supplier_id', supplier.id)  // ✅ FIX: Query by supplier directly
         .eq('movement_type', 'SHIPMENT')
         .eq('status', 'PENDING')
 
+      // Get wallet data
       const { data: wallet } = await supabase
         .from('supplier_wallets')
-        .select('available_balance')
+        .select('*')
         .eq('supplier_id', supplier.id)
         .single()
+
+      // Calculate REAL available balance (consistent with wallet page)
+      let realAvailableBalance = 0
+      if (productIds.length > 0) {
+        const { data: allSalesData } = await supabase
+          .from('sales_transaction_items')
+          .select('supplier_revenue, sales_transactions!inner(status)')
+          .in('product_id', productIds)
+          .eq('sales_transactions.status', 'COMPLETED')
+
+        const realTotalEarned = allSalesData?.reduce((sum, item) => 
+          sum + (item.supplier_revenue || 0), 0
+        ) || 0
+
+        const totalWithdrawn = wallet?.total_withdrawn || 0
+        const pendingBalance = wallet?.pending_balance || 0
+        realAvailableBalance = realTotalEarned - totalWithdrawn - pendingBalance
+      }
+
+      // Continue with existing actualRevenue calculation
 
       const { data: salesData } = await supabase
         .from('sales_transaction_items')
@@ -247,7 +268,7 @@ export default function SupplierDashboard() {
         stockAtOutlets,
         totalShipped,
         totalReturns,
-        walletBalance: wallet?.available_balance || 0,
+        walletBalance: realAvailableBalance,  // ✅ CHANGED from wallet?.available_balance
         pendingShipments: pendingShipmentsCount || 0
       })
 
