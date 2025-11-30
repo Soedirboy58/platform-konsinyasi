@@ -74,7 +74,7 @@ BEGIN
     EXCEPTION
         WHEN undefined_table OR undefined_column THEN
             v_commission_rate := 10.0;
-            RAISE NOTICE 'Using default commission rate: 10%%';
+            RAISE NOTICE 'Using default commission rate: 10 percent';
     END;
     
     -- Update existing sales_transaction_items that have NULL or 0 commission
@@ -86,8 +86,7 @@ BEGIN
     
     GET DIAGNOSTICS v_updated_count = ROW_COUNT;
     
-    RAISE NOTICE 'Updated % existing records with commission calculations. Rate: %%', 
-        v_updated_count, v_commission_rate;
+    RAISE NOTICE 'Updated % existing records with commission rate %', v_updated_count, v_commission_rate;
 END $$;
 
 -- Verify results
