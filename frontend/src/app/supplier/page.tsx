@@ -48,7 +48,8 @@ export default function SupplierDashboard() {
     totalShipped: 0,
     totalReturns: 0,
     walletBalance: 0,
-    pendingShipments: 0
+    pendingShipments: 0,
+    pendingBalance: 0  // ✅ CRITICAL: Prevent TypeScript error
   })
   const [topProducts, setTopProducts] = useState<TopProduct[]>([])
   const [salesNotifications, setSalesNotifications] = useState<SalesNotification[]>([])
@@ -97,7 +98,8 @@ export default function SupplierDashboard() {
           totalShipped: 0,
           totalReturns: 0,
           walletBalance: 0,
-          pendingShipments: 0
+          pendingShipments: 0,
+          pendingBalance: 0  // ✅ CRITICAL: Prevent TypeScript error
         })
         setTopProducts([])
         setSalesNotifications([])
