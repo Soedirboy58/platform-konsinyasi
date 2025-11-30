@@ -369,12 +369,11 @@ export default function WalletPage() {
         return
       }
       
-      // Get all active admins
+      // Get all admins (filter active in JavaScript for robustness)
       const { data: admins, error: adminsError } = await supabase
         .from('profiles')
-        .select('id')
+        .select('id, is_active')
         .eq('role', 'ADMIN')
-        .eq('is_active', true)
       
       if (adminsError) {
         console.error('Error fetching admins:', adminsError)
@@ -382,13 +381,18 @@ export default function WalletPage() {
         return
       }
       
-      if (!admins || admins.length === 0) {
+      // Filter active admins in JavaScript (treats NULL as active)
+      const activeAdmins = admins?.filter(admin => 
+        admin.is_active !== false
+      ) || []
+      
+      if (activeAdmins.length === 0) {
         toast.error('Tidak ada admin aktif yang dapat menerima permintaan')
         return
       }
       
-      // Create notifications for all admins
-      const notifications = admins.map(admin => ({
+      // Create notifications for active admins only
+      const notifications = activeAdmins.map(admin => ({
         user_id: admin.id,
         type: 'WITHDRAWAL_REQUEST',
         title: '💰 Permintaan Pencairan Saldo',
