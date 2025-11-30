@@ -505,7 +505,7 @@ export default function WalletPage() {
           {/* ✅ NEW: Ajukan Pencairan Button */}
           <button
             onClick={handleRequestWithdrawalApproval}
-            disabled={wallet.pending_balance < 50000 || isSubmittingRequest || (lastRequestTime && (Date.now() - lastRequestTime.getTime()) / (1000 * 60 * 60) < 24)}
+            disabled={wallet.pending_balance < 50000 || isSubmittingRequest || Boolean(lastRequestTime && (Date.now() - lastRequestTime.getTime()) / (1000 * 60 * 60) < 24)}
             className="w-full bg-yellow-600 text-white px-3 sm:px-4 py-2 rounded-lg text-sm font-semibold hover:bg-yellow-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
             title={
               wallet.pending_balance < 50000 
