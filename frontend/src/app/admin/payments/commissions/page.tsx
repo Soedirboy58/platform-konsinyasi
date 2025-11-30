@@ -235,35 +235,34 @@ export default function CommissionsPage() {
           ? payments.sort((a, b) => new Date(b.payment_date).getTime() - new Date(a.payment_date).getTime())[0]
           : null
 
-        // Status logic - UPDATED to check payment records
-        let status: 'UNPAID' | 'PAID' | 'PENDING' = 'UNPAID'
         const unpaidAmount = totalRevenue - totalPaid
-        
-        // 1. Jika ada sisa yang belum dibayar (prioritas tertinggi)
-        if (unpaidAmount > 0) {
+
+        let status: 'UNPAID' | 'PAID' | 'PENDING' = 'UNPAID'
+
+        if (unpaidAmount > 0.01) {
           status = 'UNPAID'
         }
-        // 2.  Jika pending withdrawal
+        else if (unpaidAmount < -0.01) {
+          status = 'PAID'
+          console.warn(`⚠️ Over-payment for ${supplier.business_name}:`, {
+            totalRevenue,
+            totalPaid,
+            overpayment: Math.abs(unpaidAmount)
+          })
+        }
         else if (pendingBalance > 0) {
           status = 'PENDING'
         }
-        // 3. Jika fully paid
-        else if (totalPaid >= totalRevenue && unpaidAmount <= 0) {
+        else {
           status = 'PAID'
         }
 
-        // Debug logging
-        if (supplier.business_name.includes('Aneka') || supplier.business_name.includes('Dapur')) {
-          console.log(`💰 ${supplier.business_name}:`, {
-            totalRevenue,
-            totalPaid,
-            unpaidAmount,
-            walletBalance,
-            pendingBalance,
-            status,
-            payments: payments.length
-          })
-        }
+        console.log(`📊 ${supplier.business_name}:`, {
+          totalRevenue,
+          totalPaid,
+          unpaidAmount,
+          status
+        })
 
         commissionsData.push({
           supplier_id: supplierId,
@@ -271,7 +270,7 @@ export default function CommissionsPage() {
           total_sales: totalSales,
           commission_rate: totalSales > 0 ? totalCommission / totalSales : 0.10,
           commission_amount: totalRevenue,
-          unpaid_amount: Math.max(0, unpaidAmount),
+          unpaid_amount: unpaidAmount,
           products_sold: productsSold,
           transactions: uniqueTransactions,
           status: status,
@@ -283,10 +282,11 @@ export default function CommissionsPage() {
         })
       }
 
-      console.log('📊 Commissions Data:', {
-        totalSuppliers: commissionsData.length,
-        loadTime: 'Optimized with single query',
-        sampleData: commissionsData.slice(0, 2)
+      console.log('✅ Commissions calculated:', {
+        total: commissionsData.length,
+        unpaid: commissionsData.filter(c => c.status === 'UNPAID').length,
+        paid: commissionsData.filter(c => c.status === 'PAID').length,
+        overPaymentCount: commissionsData.filter(c => c.unpaid_amount < 0).length
       })
 
       setCommissions(commissionsData)
@@ -786,9 +786,24 @@ export default function CommissionsPage() {
                         Rp {commission.commission_amount.toLocaleString('id-ID')}
                       </span>
                     </div>
-                    <p className="text-xs text-green-600 mt-1">
-                      Fee platform: {(commission.commission_rate * 100).toFixed(0)}%
-                    </p>
+                    
+                    {commission.unpaid_amount < -0.01 && (
+                      <p className="text-xs text-red-600 mt-1 font-semibold">
+                        ⚠️ Over-payment: Rp {Math.abs(commission.unpaid_amount).toLocaleString('id-ID')}
+                      </p>
+                    )}
+                    
+                    {commission.unpaid_amount > 0.01 && (
+                      <p className="text-xs text-orange-600 mt-1 font-semibold">
+                        ⚠️ Belum dibayar: Rp {commission.unpaid_amount.toLocaleString('id-ID')}
+                      </p>
+                    )}
+                    
+                    {Math.abs(commission.unpaid_amount) <= 0.01 && (
+                      <p className="text-xs text-green-600 mt-1">
+                        Fee platform: {(commission.commission_rate * 100).toFixed(0)}%
+                      </p>
+                    )}
                   </div>
                 </div>
                 
@@ -868,11 +883,28 @@ export default function CommissionsPage() {
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <div className="text-sm font-bold text-green-600">
-                        Rp {commission.commission_amount.toLocaleString('id-ID')}
-                      </div>
-                      <div className="text-xs text-gray-500">
-                        Sudah dipotong fee {(commission.commission_rate * 100).toFixed(0)}%
+                      <div>
+                        <div className="text-sm font-bold text-green-600">
+                          Rp {commission.commission_amount.toLocaleString('id-ID')}
+                        </div>
+                        
+                        {commission.unpaid_amount < -0.01 && (
+                          <div className="text-xs text-red-600 font-semibold mt-1">
+                            ⚠️ Over-payment: Rp {Math.abs(commission.unpaid_amount).toLocaleString('id-ID')}
+                          </div>
+                        )}
+                        
+                        {commission.unpaid_amount > 0.01 && (
+                          <div className="text-xs text-orange-600 font-semibold mt-1">
+                            ⚠️ Belum dibayar: Rp {commission.unpaid_amount.toLocaleString('id-ID')}
+                          </div>
+                        )}
+                        
+                        {Math.abs(commission.unpaid_amount) <= 0.01 && (
+                          <div className="text-xs text-gray-500">
+                            Sudah dipotong fee {(commission.commission_rate * 100).toFixed(0)}%
+                          </div>
+                        )}
                       </div>
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-900">
