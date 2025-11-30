@@ -352,6 +352,29 @@ export default function CommissionsPage() {
       return
     }
 
+    // ⚠️ VALIDATION: Cek over-payment
+    if (selectedCommission.unpaid_amount < -0.01) {
+      const confirmOverpay = confirm(
+        `⚠️ WARNING: Supplier ini sudah OVER-PAYMENT sebesar Rp ${Math.abs(selectedCommission.unpaid_amount).toLocaleString('id-ID')}!\n\n` +
+        `Seharusnya terima: Rp ${selectedCommission.commission_amount.toLocaleString('id-ID')}\n` +
+        `Sudah dibayar sebelumnya: Rp ${(selectedCommission.commission_amount - selectedCommission.unpaid_amount).toLocaleString('id-ID')}\n\n` +
+        `Apakah Anda yakin ingin membayar LAGI?\n\n` +
+        `Ini akan menambah over-payment menjadi Rp ${(Math.abs(selectedCommission.unpaid_amount) + selectedCommission.commission_amount).toLocaleString('id-ID')}`
+      )
+      if (!confirmOverpay) return
+    }
+
+    // ⚠️ VALIDATION: Cek jika sudah fully paid
+    if (Math.abs(selectedCommission.unpaid_amount) <= 0.01) {
+      const confirmFullyPaid = confirm(
+        `ℹ️ INFO: Supplier ini sudah FULLY PAID untuk periode ini.\n\n` +
+        `Transfer amount: Rp ${selectedCommission.commission_amount.toLocaleString('id-ID')}\n` +
+        `Unpaid balance: Rp ${selectedCommission.unpaid_amount.toLocaleString('id-ID')}\n\n` +
+        `Lanjutkan pembayaran? (akan menjadi over-payment)`
+      )
+      if (!confirmFullyPaid) return
+    }
+
     try {
       const supabase = createClient()
 
@@ -976,6 +999,43 @@ export default function CommissionsPage() {
             </div>
 
             <div className="p-6 space-y-4">
+              {/* Over-payment Warning */}
+              {selectedCommission.unpaid_amount < -0.01 && (
+                <div className="bg-red-50 border-2 border-red-300 p-4 rounded-lg">
+                  <div className="flex items-start gap-3">
+                    <div className="text-red-600 text-2xl">⚠️</div>
+                    <div className="flex-1">
+                      <h4 className="font-bold text-red-800 mb-2">PERINGATAN: OVER-PAYMENT TERDETEKSI!</h4>
+                      <div className="text-sm text-red-700 space-y-1">
+                        <p>Supplier ini sudah <strong>dibayar lebih</strong> dari yang seharusnya:</p>
+                        <div className="bg-red-100 p-2 rounded mt-2 font-mono text-xs">
+                          <div>Seharusnya terima: Rp {selectedCommission.commission_amount.toLocaleString('id-ID')}</div>
+                          <div>Sudah dibayar: Rp {(selectedCommission.commission_amount - selectedCommission.unpaid_amount).toLocaleString('id-ID')}</div>
+                          <div className="font-bold mt-1 text-red-800">Over-payment: Rp {Math.abs(selectedCommission.unpaid_amount).toLocaleString('id-ID')}</div>
+                        </div>
+                        <p className="mt-2 font-semibold">⛔ Sebaiknya JANGAN bayar lagi sampai over-payment dikoreksi!</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Fully Paid Warning */}
+              {Math.abs(selectedCommission.unpaid_amount) <= 0.01 && selectedCommission.status === 'PAID' && (
+                <div className="bg-yellow-50 border-2 border-yellow-300 p-4 rounded-lg">
+                  <div className="flex items-start gap-3">
+                    <div className="text-yellow-600 text-2xl">ℹ️</div>
+                    <div className="flex-1">
+                      <h4 className="font-bold text-yellow-800 mb-1">Supplier Sudah Fully Paid</h4>
+                      <p className="text-sm text-yellow-700">
+                        Supplier ini sudah menerima pembayaran penuh untuk periode ini. 
+                        Pembayaran tambahan akan menyebabkan over-payment.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Supplier Info */}
               <div className="bg-blue-50 p-4 rounded-lg">
                 <h3 className="font-semibold text-gray-900 mb-2">{selectedCommission.supplier_name}</h3>
@@ -997,6 +1057,11 @@ export default function CommissionsPage() {
                   <div className="text-lg font-bold text-blue-600">
                     Jumlah Transfer: Rp {selectedCommission.commission_amount.toLocaleString('id-ID')}
                   </div>
+                  {selectedCommission.unpaid_amount > 0.01 && (
+                    <div className="text-sm text-orange-600 mt-1">
+                      Belum dibayar: Rp {selectedCommission.unpaid_amount.toLocaleString('id-ID')}
+                    </div>
+                  )}
                 </div>
               </div>
 
