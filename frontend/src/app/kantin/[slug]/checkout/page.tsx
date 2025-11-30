@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import { ArrowLeft, Check, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import Image from 'next/image'
+import ConfirmDialog from '@/components/ui/ConfirmDialog'
 
 type CartItem = {
   product_id: string
@@ -36,6 +37,7 @@ export default function CheckoutPage() {
   const [processing, setProcessing] = useState(false)
   const [checkoutResult, setCheckoutResult] = useState<CheckoutResult | null>(null)
   const [confirming, setConfirming] = useState(false)
+  const [showCashConfirm, setShowCashConfirm] = useState(false)
 
   useEffect(() => {
     loadCart()
@@ -263,11 +265,7 @@ export default function CheckoutPage() {
         <div className="space-y-3">
           {/* Cash Payment Button */}
           <button
-            onClick={() => {
-              if (confirm('Yakin bayar tunai? Serahkan uang ke kasir sekarang dan klik OK.')) {
-                confirmPayment('CASH')
-              }
-            }}
+            onClick={() => setShowCashConfirm(true)}
             disabled={confirming}
             className="w-full bg-orange-600 text-white py-4 rounded-lg font-semibold hover:bg-orange-700 transition disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
@@ -310,6 +308,19 @@ export default function CheckoutPage() {
         <p className="text-xs text-gray-500 text-center mt-4">
           Klik verifikasi hanya setelah pembayaran berhasil. Admin akan mengecek transaksi.
         </p>
+
+        {/* Cash Payment Confirmation Dialog */}
+        <ConfirmDialog
+          isOpen={showCashConfirm}
+          onClose={() => setShowCashConfirm(false)}
+          onConfirm={() => confirmPayment('CASH')}
+          title="Konfirmasi Pembayaran Tunai"
+          message="Pastikan Anda sudah menyerahkan uang tunai ke kasir dengan jumlah yang sesuai. Setelah klik konfirmasi, transaksi akan diproses."
+          icon="cash"
+          confirmText="💵 Ya, Sudah Bayar"
+          cancelText="Belum"
+          variant="warning"
+        />
       </div>
     )
   }

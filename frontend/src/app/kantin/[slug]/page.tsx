@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import { ShoppingCart, Scan, Plus, Minus, Search, Filter, X, AlertTriangle } from 'lucide-react'
 import { toast } from 'sonner'
 import ReportProductModal from '@/components/ReportProductModal'
+import ConfirmDialog from '@/components/ui/ConfirmDialog'
 
 type Product = {
   product_id: string
@@ -49,6 +50,7 @@ export default function KantinPage() {
   const [showCart, setShowCart] = useState(false)
   const [isReportModalOpen, setIsReportModalOpen] = useState(false)
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
+  const [showClearCartConfirm, setShowClearCartConfirm] = useState(false)
 
   useEffect(() => {
     loadProducts()
@@ -541,11 +543,7 @@ export default function KantinPage() {
                 <div className="flex items-center gap-2">
                   {cart.length > 0 && (
                     <button
-                      onClick={() => {
-                        if (confirm('Kosongkan semua keranjang?')) {
-                          clearCart()
-                        }
-                      }}
+                      onClick={() => setShowClearCartConfirm(true)}
                       className="text-xs text-red-500 hover:text-red-700 px-2 py-1 border border-red-300 rounded"
                     >
                       Kosongkan
@@ -640,6 +638,22 @@ export default function KantinPage() {
           locationId={locationId}
         />
       )}
+
+      {/* Clear Cart Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={showClearCartConfirm}
+        onClose={() => setShowClearCartConfirm(false)}
+        onConfirm={() => {
+          clearCart()
+          setShowClearCartConfirm(false)
+        }}
+        title="Kosongkan Keranjang?"
+        message="Semua produk di keranjang belanja akan dihapus. Tindakan ini tidak dapat dibatalkan."
+        icon="trash"
+        confirmText="Ya, Kosongkan"
+        cancelText="Batal"
+        variant="danger"
+      />
     </div>
   )
 }
