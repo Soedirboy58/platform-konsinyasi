@@ -69,6 +69,8 @@ export default function WalletPage() {
   const [withdrawalRequests, setWithdrawalRequests] = useState<WithdrawalRequest[]>([])
   const [showWithdrawModal, setShowWithdrawModal] = useState(false)
   const [selectedPaymentProof, setSelectedPaymentProof] = useState<string | null>(null)
+  const [isSubmittingRequest, setIsSubmittingRequest] = useState(false)
+  const [lastRequestTime, setLastRequestTime] = useState<Date | null>(null)
   
   // Pagination for sales payments
   const [currentPage, setCurrentPage] = useState(1)
@@ -162,6 +164,11 @@ export default function WalletPage() {
       }
 
       setWallet(walletData)
+
+      // Get last withdrawal request time
+      if (walletData && (walletData as any).last_withdrawal_request_at) {
+        setLastRequestTime(new Date((walletData as any).last_withdrawal_request_at))
+      }
 
       // Get sales payments (penerimaan uang dari penjualan produk)
       if (productIds.length > 0) {
@@ -321,6 +328,119 @@ export default function WalletPage() {
     }
   }
 
+  async function handleRequestWithdrawalApproval() {
+    if (!wallet) return
+    
+    // Validation: Minimum balance
+    if (wallet.pending_balance < 50000) {
+      toast.error('Saldo pending minimum Rp 50.000 untuk pengajuan pencairan')
+      return
+    }
+    
+    // Validation: Cooldown (prevent spam - max 1 request per 24 hours)
+    if (lastRequestTime) {
+      const hoursSinceLastRequest = (Date.now() - lastRequestTime.getTime()) / (1000 * 60 * 60)
+      if (hoursSinceLastRequest < 24) {
+        const hoursLeft = Math.ceil(24 - hoursSinceLastRequest)
+        toast.error(`⏳ Mohon tunggu ${hoursLeft} jam lagi untuk mengajukan pencairan berikutnya`)
+        return
+      }
+    }
+    
+    try {
+      setIsSubmittingRequest(true)
+      const supabase = createClient()
+      
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        toast.error('Sesi berakhir. Silakan login kembali.')
+        return
+      }
+      
+      // Get supplier info
+      const { data: supplier, error: supplierError } = await supabase
+        .from('suppliers')
+        .select('id, business_name')
+        .eq('profile_id', user.id)
+        .single()
+      
+      if (supplierError || !supplier) {
+        toast.error('Data supplier tidak ditemukan')
+        return
+      }
+      
+      // Get all active admins
+      const { data: admins, error: adminsError } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('role', 'ADMIN')
+        .eq('is_active', true)
+      
+      if (adminsError) {
+        console.error('Error fetching admins:', adminsError)
+        toast.error('Gagal mengirim notifikasi ke admin')
+        return
+      }
+      
+      if (!admins || admins.length === 0) {
+        toast.error('Tidak ada admin aktif yang dapat menerima permintaan')
+        return
+      }
+      
+      // Create notifications for all admins
+      const notifications = admins.map(admin => ({
+        user_id: admin.id,
+        type: 'WITHDRAWAL_REQUEST',
+        title: '💰 Permintaan Pencairan Saldo',
+        message: `${supplier.business_name} mengajukan pencairan saldo pending Rp ${wallet.pending_balance.toLocaleString('id-ID')}`,
+        link: '/admin/payments/commissions',
+        metadata: {
+          supplier_id: supplier.id,
+          supplier_name: supplier.business_name,
+          amount: wallet.pending_balance,
+          requested_at: new Date().toISOString()
+        }
+      }))
+      
+      const { error: notifError } = await supabase
+        .from('notifications')
+        .insert(notifications)
+      
+      if (notifError) {
+        console.error('Error creating notifications:', notifError)
+        toast.error('Gagal mengirim notifikasi')
+        return
+      }
+      
+      // Update last_withdrawal_request_at in supplier_wallets
+      const { error: updateError } = await supabase
+        .from('supplier_wallets')
+        .update({ 
+          last_withdrawal_request_at: new Date().toISOString() 
+        })
+        .eq('supplier_id', supplier.id)
+      
+      if (updateError) {
+        console.error('Error updating wallet:', updateError)
+        // Don't fail the request, notification already sent
+      }
+      
+      toast.success('✅ Permintaan pencairan berhasil dikirim ke admin!')
+      toast.info('📧 Admin akan menghubungi Anda untuk proses pencairan')
+      
+      // Update local state
+      setLastRequestTime(new Date())
+      
+      // Reload wallet data
+      await loadWalletData()
+    } catch (error) {
+      console.error('Error requesting withdrawal approval:', error)
+      toast.error('Terjadi kesalahan. Silakan coba lagi.')
+    } finally {
+      setIsSubmittingRequest(false)
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -376,7 +496,36 @@ export default function WalletPage() {
           <p className="text-xl sm:text-2xl font-bold text-gray-900">
             Rp {wallet.pending_balance.toLocaleString('id-ID')}
           </p>
-          <p className="text-xs text-gray-500 mt-2">Menunggu approval admin</p>
+          <p className="text-xs text-gray-500 mt-1 mb-3">Menunggu approval admin untuk pencairan</p>
+          
+          {/* ✅ NEW: Ajukan Pencairan Button */}
+          <button
+            onClick={handleRequestWithdrawalApproval}
+            disabled={wallet.pending_balance < 50000 || isSubmittingRequest || (lastRequestTime && (Date.now() - lastRequestTime.getTime()) / (1000 * 60 * 60) < 24)}
+            className="w-full bg-yellow-600 text-white px-3 sm:px-4 py-2 rounded-lg text-sm font-semibold hover:bg-yellow-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+            title={
+              wallet.pending_balance < 50000 
+                ? 'Saldo pending minimum Rp 50.000' 
+                : lastRequestTime && (Date.now() - lastRequestTime.getTime()) / (1000 * 60 * 60) < 24
+                ? 'Mohon tunggu 24 jam dari permintaan terakhir'
+                : 'Ajukan pencairan saldo pending ke admin'
+            }
+          >
+            <Send className="w-4 h-4" />
+            {isSubmittingRequest ? 'Mengajukan...' : 'Ajukan Pencairan'}
+          </button>
+          
+          {/* Cooldown indicator */}
+          {lastRequestTime && (Date.now() - lastRequestTime.getTime()) / (1000 * 60 * 60) < 24 && (
+            <p className="text-xs text-yellow-600 mt-2 text-center">
+              ⏳ Permintaan terakhir: {new Date(lastRequestTime).toLocaleString('id-ID', {
+                day: '2-digit',
+                month: 'short',
+                hour: '2-digit',
+                minute: '2-digit'
+              })}
+            </p>
+          )}
         </div>
 
         <div className="bg-white rounded-lg shadow p-4 sm:p-6">

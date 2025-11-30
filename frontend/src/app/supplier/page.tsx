@@ -16,6 +16,7 @@ interface SupplierStats {
   totalReturns: number
   walletBalance: number
   pendingShipments: number // produk sedang dikirim menunggu approved admin
+  pendingBalance: number  // ✅ ADD: Real pending balance
 }
 
 interface TopProduct {
@@ -260,6 +261,24 @@ export default function SupplierDashboard() {
 
       console.log('🔔 Final sales notifications:', salesNotifs)
 
+      // Calculate real pending balance (revenue not yet paid out)
+      let realPendingBalance = 0
+      if (productIds.length > 0) {
+        // Get total payments received (already cashed out)
+        const { data: payments } = await supabase
+          .from('supplier_payments')
+          .select('net_payment, amount')
+          .eq('supplier_id', supplier.id)
+          .eq('status', 'COMPLETED')
+        
+        const totalPaid = payments?.reduce((sum, p) => 
+          sum + (p.net_payment || p.amount || 0), 0
+        ) || 0
+        
+        // Pending = Total Revenue - Already Paid
+        realPendingBalance = Math.max(actualRevenue - totalPaid, 0)
+      }
+
       setStats({
         totalProducts: approvedCount, // ONLY approved products
         approvedProducts: approvedCount,
@@ -269,7 +288,8 @@ export default function SupplierDashboard() {
         totalShipped,
         totalReturns,
         walletBalance: realAvailableBalance,  // ✅ CHANGED from wallet?.available_balance
-        pendingShipments: pendingShipmentsCount || 0
+        pendingShipments: pendingShipmentsCount || 0,
+        pendingBalance: realPendingBalance  // ✅ NEW: Real pending balance
       })
 
       setTopProducts(topProductsList)
@@ -373,7 +393,7 @@ export default function SupplierDashboard() {
           icon={<Wallet className="w-5 h-5" />}
           title="Saldo Wallet"
           value={formatRupiah(stats.walletBalance)}
-          subtitle="Saldo tersedia"
+          subtitle={`Pending: ${formatRupiah(stats.pendingBalance)}`}
           color="bg-emerald-600"
           link="/supplier/wallet"
         />
