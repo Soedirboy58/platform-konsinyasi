@@ -194,7 +194,8 @@ export default function CommissionsPage() {
 
       // Calculate commissions for each supplier
       const commissionsData: Commission[] = []
-
+      const supplierEntries = Array.from(supplierSalesMap.entries())
+      
       // Convert Map to Array to avoid downlevelIteration issue
       const supplierEntries = Array.from(supplierSalesMap.entries())
       
@@ -854,10 +855,11 @@ export default function CommissionsPage() {
                         <div className="text-xs text-orange-600 font-semibold mt-1">
                           ⚠️ Ada revenue baru: Rp {commission.unpaid_amount.toLocaleString('id-ID')}
                         </div>
-                        ) : (
-                      <div className="text-xs text-gray-500">
-                        Sudah dipotong fee {(commission.commission_rate * 100).toFixed(0)}%
-                      </div>
+                      ) : (
+                        <div className="text-xs text-gray-500">
+                          Sudah dipotong fee {(commission.commission_rate * 100).toFixed(0)}%
+                        </div>
+                      )}
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-900">
                       {commission.transactions} transaksi
