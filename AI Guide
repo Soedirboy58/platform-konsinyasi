@@ -1,0 +1,1107 @@
+# 📋 AI AGENT GUIDE - Platform Konsinyasi Katalara v2.1.0
+
+## 🎯 SYSTEM OVERVIEW
+
+**Platform Konsinyasi Katalara** adalah sistem manajemen bisnis konsinyasi full-stack yang menghubungkan **Supplier** (pemasok barang), **Admin Toko** (pengelola outlet), dan **Customer** (pembeli) dalam satu ekosistem digital terintegrasi.
+
+**Repository:** `Soedirboy58/platform-konsinyasi`  
+**Status:** ✅ Production Ready  
+**Version:** 2.1.0 (Updated: 30 November 2025)  
+**Major Updates:** Custom Dialog System, Payment Fixes, KPI Corrections
+
+---
+
+## 🏗️ ARSITEKTUR TEKNOLOGI
+
+### Tech Stack
+```
+Frontend:  Next.js 14 + React 18 + TypeScript 5.3 + Tailwind CSS
+Backend:   Supabase (PostgreSQL 15, Auth, Storage, Realtime)
+Deployment: Vercel (Frontend) + Supabase Cloud (Backend)
+PWA:       Service Worker + Manifest. json
+```
+
+### Struktur Project
+```
+platform-konsinyasi/
+├── frontend/              # Next.js App (3 interfaces)
+│   ├── src/
+│   │   ├── app/
+│   │   │   ├── admin/        # Dashboard Admin (6 pages)
+│   │   │   ├── supplier/     # Portal Supplier (5 pages)
+│   │   │   └── kantin/       # Self-checkout (PWA)
+│   │   └── components/
+│   │       ├── ui/           # Kantin UI components
+│   │       ├── admin/        # Admin components
+│   │       └── supplier/     # Supplier components
+│   ├── public/           # Static assets + PWA files
+│   └── . env.local        # Environment variables
+├── database/             # SQL migrations (100+ files)
+├── MASTER-BACKUP/        # Structured backup system
+└── docs/                 # Documentation (including this file)
+```
+
+---
+
+## 🎨 UI/UX COMPONENTS SYSTEM
+
+### Custom Dialog Components
+
+Platform menggunakan **custom modal dialogs** menggantikan native browser dialogs untuk UX yang lebih baik dan consistent branding.
+
+#### Component Architecture
+```
+frontend/src/components/
+├── ui/                          # Kantin/Customer Interface
+│   ├── ConfirmDialog.tsx       # Confirm actions
+│   └── AlertDialog.tsx          # Notifications
+├── admin/                       # Admin Panel
+│   ├── ConfirmDialog.tsx       # Admin confirms
+│   └── AlertDialog. tsx          # Admin alerts
+└── supplier/                    # Supplier Dashboard
+    └── ConfirmDialog.tsx       # Supplier confirms
+```
+
+#### Design Specifications by Interface
+
+| Interface | Primary Color | Style | Animation | Use Cases |
+|-----------|--------------|-------|-----------|-----------|
+| **Kantin** | Red-Orange Gradient (#DC2626 → #EA580C) | Bold, vibrant | Scale + bounce | Cart clear, cash payment |
+| **Admin** | Blue (#2563EB) | Professional, clean | Fade + scale | Approvals, deletions, bulk ops |
+| **Supplier** | Soft Blue (#3B82F6) | Friendly, modern | Slide-up | Product management, returns |
+
+#### Usage Patterns
+
+**Pattern 1: Confirm Before Action**
+```typescript
+import ConfirmDialog from '@/components/[interface]/ConfirmDialog'
+
+const [confirmDialog, setConfirmDialog] = useState({
+  isOpen: false,
+  title: '',
+  message: '',
+  onConfirm: () => {}
+})
+
+function handleDelete(id: string) {
+  setConfirmDialog({
+    isOpen: true,
+    title: 'Hapus Data',
+    message: 'Apakah Anda yakin?  Tindakan ini tidak dapat dibatalkan.',
+    variant: 'danger',
+    icon: 'danger',
+    onConfirm: async () => {
+      await deleteItem(id)
+      toast. success('Berhasil dihapus')
+    }
+  })
+}
+
+<ConfirmDialog
+  isOpen={confirmDialog.isOpen}
+  onClose={() => setConfirmDialog({...confirmDialog, isOpen: false})}
+  onConfirm={confirmDialog.onConfirm}
+  title={confirmDialog. title}
+  message={confirmDialog.message}
+  variant={confirmDialog.variant}
+  icon={confirmDialog.icon}
+/>
+```
+
+**Pattern 2: Success/Error Feedback**
+```typescript
+import AlertDialog from '@/components/[interface]/AlertDialog'
+
+const [alertDialog, setAlertDialog] = useState({
+  isOpen: false,
+  title: '',
+  message: '',
+  type: 'info'
+})
+
+// Success
+setAlertDialog({
+  isOpen: true,
+  title: 'Berhasil',
+  message: 'Data berhasil disimpan',
+  type: 'success'
+})
+
+// Error
+setAlertDialog({
+  isOpen: true,
+  title: 'Gagal',
+  message: 'Terjadi kesalahan: ' + error.message,
+  type: 'error'
+})
+```
+
+#### Replaced Native Dialogs
+Total: **40 instances** across platform
+- Kantin: 2 dialogs (cart, payment)
+- Admin: 34 dialogs (shipments, products, returns, payments)
+- Supplier: 4 dialogs (products, returns)
+
+---
+
+## 👥 SISTEM ROLE & AKUN
+
+### 3 Role Utama
+
+| Role | Akses | Fungsi Utama |
+|------|-------|--------------|
+| **ADMIN** | Dashboard Admin (`/admin/*`) | Approve supplier, moderate products, manage locations, process payments, view analytics |
+| **SUPPLIER** | Portal Supplier (`/supplier/*`) | Register products, track inventory, monitor sales, manage shipments, view earnings |
+| **BUYER/CUSTOMER** | Self-checkout (`/kantin/*`) | Scan products, self-checkout, upload payment proof |
+
+### Sinkronisasi Akun
+
+**Tabel Kunci:**
+1. **`auth.users`** - Supabase authentication (email/password)
+2. **`profiles`** - User metadata & role mapping
+3. **`suppliers`** - Business info (jika role = SUPPLIER)
+
+**Flow Registrasi:**
+```
+1. User register → Supabase Auth creates auth. users entry
+2.  Trigger auto-create profiles entry (role = SUPPLIER default)
+3. For suppliers → Create suppliers entry (linked via profile_id)
+4. Email verification sent
+5. After verify → User can login
+```
+
+**Set Admin Manually:**
+```sql
+UPDATE profiles 
+SET role = 'ADMIN' 
+WHERE email = 'admin@example.com';
+```
+
+---
+
+## 🗄️ DATABASE SCHEMA
+
+### 17 Tabel Utama
+
+| # | Tabel | Fungsi | Relasi Kunci |
+|---|-------|--------|--------------|
+| 1 | `profiles` | User profiles & roles | → `auth.users. id` |
+| 2 | `suppliers` | Supplier business info | → `profiles.id` |
+| 3 | `locations` | Outlets/warehouses | QR code enabled |
+| 4 | `products` | Product catalog | → `suppliers.id` |
+| 5 | `inventory_levels` | Stock per location | → `products.id`, `locations.id` |
+| 6 | `stock_movements` | Shipment header (IN/OUT) | → `suppliers.id`, `locations.id` |
+| 7 | `stock_movement_items` | Shipment detail (items) | → `stock_movements.id`, `products.id` |
+| 8 | `sales_transactions` | Sales header | → `locations.id` |
+| 9 | `sales_transaction_items` | Sales detail | → `sales_transactions.id`, `products.id` |
+| 10 | `supplier_payments` | Payment to suppliers | → `suppliers.id` |
+| 11 | `shipment_returns` | Return management | → `stock_movements.id` |
+| 12 | `notifications` | Real-time notifications | → `profiles.id` |
+| 13 | `wallet_transactions` | Supplier wallet log | → `suppliers.id` |
+| 14 | `payment_settings` | Platform payment config | QRIS, bank accounts |
+| 15 | `platform_settings` | Global settings | Commission rate, etc |
+| 16 | `commissions` | Commission tracking | → `sales_transactions.id` |
+| 17 | `customer_reports` | Customer issue reports | → `products.id` |
+
+### Relasi Penting
+```
+profiles (1) ↔ (1) suppliers
+suppliers (1) → (∞) products
+products (1) → (∞) inventory_levels (per location)
+stock_movements (1) → (∞) stock_movement_items
+sales_transactions (1) → (∞) sales_transaction_items
+```
+
+---
+
+## 🎨 FITUR UTAMA SISTEM
+
+### 1. Admin Dashboard (`/admin/*`)
+
+**Pages:**
+- `/admin` - Dashboard overview (stats, charts, quick actions)
+- `/admin/login` - Authentication (role check: ADMIN only)
+- `/admin/suppliers` - Approve/reject supplier registrations
+- `/admin/products` - Moderate products (PENDING → APPROVED/REJECTED)
+- `/admin/shipments` - Approve incoming shipments
+- `/admin/locations` - CRUD outlets/warehouses
+- `/admin/payments` - Process supplier payments
+- `/admin/reports` - Sales analytics, financial reports
+- `/admin/settings` - Platform configuration
+
+**Key Features:**
+- ✅ Multi-KPI dashboard (total suppliers, products, sales, revenue)
+- ✅ Approval workflows (suppliers, products, shipments)
+- ✅ Inventory management across locations
+- ✅ Payment processing dengan bukti transfer
+- ✅ Analytics charts (sales trends, top products)
+- ✅ CSV export reports
+- ✅ Real-time notifications
+
+**Recent Updates (30 Nov 2025):**
+- ✅ Custom dialog system implemented (34 instances)
+- ✅ Payment history amount fix (shows net_payment correctly)
+- ✅ KPI stats calculation fix (accurate totals)
+- ✅ All approve/reject flows use branded modals
+- ✅ Bulk operations with custom confirms
+
+### 2. Supplier Portal (`/supplier/*`)
+
+**Pages:**
+- `/supplier` - Dashboard (stats, pending approvals, alerts)
+- `/supplier/login` - Auth + registration dengan email verification
+- `/supplier/products` - Product CRUD (add/edit/delete)
+- `/supplier/inventory` - Stock levels per location
+- `/supplier/shipments` - Create & track shipments
+- `/supplier/sales` - Sales report (per product, per location)
+- `/supplier/wallet` - Earnings, pending balance, withdrawal requests
+- `/supplier/returns` - Handle product returns
+- `/supplier/settings` - Business profile, bank account
+
+**Key Features:**
+- ✅ Email verification (Katalara branding)
+- ✅ Product management dengan foto
+- ✅ Shipment creation
+- ✅ Real-time stock tracking
+- ✅ Komisi otomatis calculation
+- ✅ Payment threshold system
+- ✅ Return management dengan proof photos
+- ✅ Notification system
+
+### 3. Self-Checkout Kantin (`/kantin/*`)
+
+**Pages:**
+- `/kantin/[slug]` - PWA self-checkout interface per location
+- QR scanner integration
+- Shopping cart with real-time stock validation
+- Payment methods (cash/transfer/QRIS)
+- Payment proof upload
+
+**Key Features:**
+- ✅ Progressive Web App
+- ✅ Scan barcode produk
+- ✅ Cart dengan validasi stok real-time
+- ✅ Multiple payment methods
+- ✅ Upload bukti pembayaran
+- ✅ Email konfirmasi otomatis
+- ✅ Offline-capable
+
+**Recent Updates (30 Nov 2025):**
+- ✅ Custom confirm dialogs (cart clear, payment)
+- ✅ Delivery/send order icon placeholder added
+- ✅ Toast notification for "coming soon" features
+- ✅ Improved mobile responsiveness
+
+---
+
+## 🔄 ALUR BISNIS UTAMA
+
+### Flow 1: Supplier Onboarding
+```
+1.  Supplier register di /supplier/login
+2. Email verification sent
+3. Click link → account activated
+4. Admin review di /admin/suppliers
+5. Admin approve/reject
+6. Notification sent to supplier
+7. Supplier can start adding products
+```
+
+### Flow 2: Product Management
+```
+1.  Supplier add product
+   - Upload foto, set price, description, barcode
+2. Product status = PENDING
+3. Admin review di /admin/products
+4.  Admin approve → status = APPROVED → visible to customers
+5. Admin reject → notification to supplier
+```
+
+### Flow 3: Shipment & Inventory
+```
+1. Supplier create shipment
+   - Select products, quantities, destination
+2. Shipment status = PENDING
+3. Admin receive notification
+4. Admin review di /admin/shipments
+5. Admin approve:
+   - Inventory auto-updated (+quantity)
+   - status = APPROVED
+   - Notification to supplier
+6. Admin reject:
+   - No inventory change
+   - status = REJECTED
+   - Notification dengan reason
+```
+
+### Flow 4: Sales & Commission
+```
+1. Customer checkout
+2. Sales transaction created
+3.  Inventory auto-decreased
+4. Commission calculated:
+   commission = selling_price × 10%
+   supplier_earning = selling_price - commission
+5.  Supplier wallet auto-updated
+6. When balance > threshold:
+   - Notification to admin
+   - Admin process payment
+7. Admin confirm payment:
+   - Upload bukti transfer
+   - Balance updated
+   - Notification to supplier
+```
+
+### Flow 5: Returns
+```
+1. Customer report issue
+2. Admin review → approve return
+3. shipment_returns entry created
+4.  Supplier notified
+5. Supplier receive goods
+6. Supplier confirm return
+   - Upload proof photos
+7. Admin verify
+8.  Inventory adjusted
+9. Commission reversed
+```
+
+---
+
+## 💰 PAYMENT SYSTEM DETAILS
+
+### Payment Flow Architecture
+
+```
+Sales → Commission Calculation → Supplier Wallet → Payment Processing → History
+```
+
+### Database Schema for Payments
+
+**Key Tables:**
+```sql
+-- Payment records
+supplier_payments (
+  id UUID PRIMARY KEY,
+  supplier_id UUID REFERENCES suppliers(id),
+  
+  -- NEW COLUMNS (accurate amounts)
+  net_payment DECIMAL(15,2),        -- Actual amount transferred
+  gross_sales DECIMAL(15,2),        -- Total sales before commission
+  commission_amount DECIMAL(15,2),  -- Platform's 10% fee
+  
+  -- LEGACY COLUMN (backward compatibility)
+  amount DECIMAL(15,2),             -- Old column (use net_payment instead)
+  
+  payment_date DATE,
+  payment_reference VARCHAR(100),
+  payment_method VARCHAR(50),
+  status VARCHAR(20),
+  created_at TIMESTAMPTZ,
+  created_by UUID REFERENCES profiles(id)
+)
+
+-- Wallet tracking
+supplier_wallets (
+  supplier_id UUID PRIMARY KEY,
+  available_balance DECIMAL(15,2),
+  pending_balance DECIMAL(15,2),
+  total_earned DECIMAL(15,2),
+  total_withdrawn DECIMAL(15,2)
+)
+```
+
+### Commission Calculation
+
+**Formula:**
+```typescript
+// For each sale:
+selling_price = product. price
+platform_commission = selling_price × 0.10  // 10%
+supplier_revenue = selling_price - platform_commission  // 90%
+
+// Example:
+// Product sold: Rp 100,000
+// Platform gets: Rp 10,000 (10%)
+// Supplier gets: Rp 90,000 (90%)
+```
+
+**Implementation:**
+```typescript
+// File: frontend/src/app/admin/payments/commissions/page.tsx
+
+// Calculate per supplier
+const totalSales = sales.reduce((sum, item) => sum + item.subtotal, 0)
+const totalCommission = totalSales × (commissionRate / 100)
+const totalRevenue = totalSales - totalCommission
+
+// Track payments
+const payments = paymentMap.get(supplierId) || []
+const totalPaid = payments.reduce((sum, p) => sum + (p.net_payment || p.amount || 0), 0)
+const unpaidAmount = totalRevenue - totalPaid
+
+// Determine status
+let status: 'UNPAID' | 'PAID' | 'PENDING' = 'UNPAID'
+if (unpaidAmount > 0. 01) status = 'UNPAID'
+else if (unpaidAmount < -0.01) status = 'PAID'  // Over-payment
+else status = 'PAID'
+```
+
+### Payment KPI Cards
+
+**Correct Calculation (Fixed 30 Nov 2025):**
+```typescript
+const stats = {
+  // Total yang BELUM BAYAR
+  totalUnpaid: filteredCommissions
+    .filter(c => c. status === 'UNPAID')
+    .reduce((sum, c) => sum + c.unpaid_amount, 0),  // ✅ Use unpaid_amount
+  
+  // Total yang SUDAH BAYAR (all suppliers)
+  totalPaid: filteredCommissions
+    .reduce((sum, c) => sum + (c.commission_amount - c.unpaid_amount), 0),  // ✅ Calculate paid
+  
+  // Total PENDING verifikasi
+  totalPending: filteredCommissions
+    .filter(c => c.status === 'PENDING')
+    .reduce((sum, c) => sum + c.unpaid_amount, 0)
+}
+```
+
+**Example Data:**
+| Supplier | Total Revenue | Already Paid | Unpaid | Status |
+|----------|--------------|--------------|--------|--------|
+| Aneka Snack | Rp 402,300 | Rp 402,300 | Rp 0 | PAID ✅ |
+| Dapur bunnara | Rp 180,000 | Rp 162,000 | Rp 18,000 | UNPAID |
+| Aneka Snack A | Rp 735,000 | Rp 661,500 | Rp 73,500 | UNPAID |
+
+**KPI Totals:**
+- Total Belum Bayar: Rp 18,000 + Rp 73,500 = **Rp 91,500**
+- Total Sudah Bayar: Rp 402,300 + Rp 162,000 + Rp 661,500 = **Rp 1,225,800**
+
+### Payment History Display
+
+**Issue Fixed (30 Nov 2025):**
+```typescript
+// BEFORE (WRONG)
+const { data } = await supabase
+  . from('supplier_payments')
+  .select('amount, .. .')  // Legacy column
+
+amount: p.amount  // Shows wrong historical data
+
+// AFTER (FIXED)
+const { data } = await supabase
+  .from('supplier_payments')
+  .select('net_payment, amount, ...')  // Query both
+
+amount: p.net_payment || p.amount || 0  // Use new column first
+```
+
+**Result:**
+- Shows actual transferred amount (net_payment)
+- Matches bank transfer records
+- Accurate financial reporting
+
+---
+
+## 🔐 SECURITY & RLS POLICIES
+
+### Row Level Security (RLS) Enabled
+
+**Policies per Role:**
+
+| Tabel | ADMIN | SUPPLIER | CUSTOMER |
+|-------|-------|----------|----------|
+| profiles | ✅ All | ✅ Own | ✅ Own |
+| suppliers | ✅ All | ✅ Own data | ❌ |
+| products | ✅ All | ✅ Own | ✅ Read (APPROVED) |
+| inventory_levels | ✅ All | ✅ Read | ✅ Read (APPROVED) |
+| stock_movements | ✅ All | ✅ Own | ❌ |
+| sales_transactions | ✅ All | ✅ Read (own) | ❌ |
+| supplier_payments | ✅ All | ✅ Read (own) | ❌ |
+| notifications | ✅ All | ✅ Own | ✅ Own |
+
+**Helper Function:**
+```sql
+CREATE FUNCTION is_admin() RETURNS BOOLEAN AS $$
+BEGIN
+    RETURN EXISTS (
+        SELECT 1 FROM profiles 
+        WHERE id = auth.uid() AND role = 'ADMIN'
+    );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+```
+
+---
+
+## 🔧 DATABASE FUNCTIONS & TRIGGERS
+
+### Key Functions
+
+| Function | Purpose | Trigger |
+|----------|---------|---------|
+| `approve_stock_movement()` | Approve shipment, update inventory | Manual |
+| `reject_stock_movement()` | Reject shipment with reason | Manual |
+| `update_inventory_on_sale()` | Decrease stock on sale | AUTO |
+| `calculate_commission()` | Auto-calculate commission | AUTO |
+| `notify_admins_on_shipment()` | Send notification to admins | AUTO |
+| `notify_supplier_on_decision()` | Notify supplier | AUTO |
+| `update_wallet_balance()` | Update supplier wallet | AUTO |
+
+### Triggers
+```sql
+-- Auto-notify admins on new shipment
+CREATE TRIGGER trg_notify_shipment
+AFTER INSERT ON stock_movements
+FOR EACH ROW
+EXECUTE FUNCTION notify_admins_on_shipment();
+
+-- Auto-update inventory on sale
+CREATE TRIGGER trg_update_inventory_sale
+AFTER INSERT ON sales_transaction_items
+FOR EACH ROW
+EXECUTE FUNCTION update_inventory_on_sale();
+
+-- Auto-calculate commission
+CREATE TRIGGER trg_calculate_commission
+AFTER INSERT ON sales_transactions
+FOR EACH ROW
+EXECUTE FUNCTION calculate_commission();
+```
+
+---
+
+## 📧 EMAIL & NOTIFICATIONS
+
+### Email Verification
+
+**Template:** `supabase/email-template-confirm-signup.html`
+
+**Configuration:**
+```
+Site URL: https://platform-konsinyasi.vercel.app
+Redirect URLs:
+  - /auth/callback
+  - /supplier/login
+  - /admin/login
+```
+
+### Notification Types
+
+| Type | Recipient | Trigger |
+|------|-----------|---------|
+| `SHIPMENT_SUBMITTED` | All admins | Supplier creates shipment |
+| `SHIPMENT_APPROVED` | Supplier | Admin approves |
+| `SHIPMENT_REJECTED` | Supplier | Admin rejects |
+| `PRODUCT_APPROVED` | Supplier | Admin approves |
+| `PRODUCT_REJECTED` | Supplier | Admin rejects |
+| `PAYMENT_DUE` | Admin | Balance > threshold |
+| `PAYMENT_PROCESSED` | Supplier | Admin confirms payment |
+| `RETURN_REQUEST` | Supplier | Customer reports |
+
+---
+
+## 🐛 KNOWN ISSUES & FIXES
+
+### Fixed Issues (30 Nov 2025)
+
+#### Issue #1: Payment History Shows Wrong Amount
+**Severity:** High  
+**Status:** ✅ FIXED  
+**Date:** 30 Nov 2025
+
+**Problem:**
+Payment history displayed legacy `amount` column values instead of accurate `net_payment` values. 
+
+**Example:**
+```
+Supplier: Aneka Snack
+Total Revenue: Rp 272,970
+Already Paid: Rp 236,970
+Unpaid: Rp 36,000
+
+History showed: Rp 213,273 ❌ (incorrect legacy data)
+Should show: Rp 36,000 ✅ (actual transferred)
+```
+
+**Root Cause:**
+```typescript
+// Query only selected old column
+amount: p.amount  // Contains old incorrect values
+```
+
+**Solution:**
+```typescript
+// Query both columns, prioritize new one
+. select('net_payment, amount, ...')
+amount: p.net_payment || p.amount || 0
+```
+
+**Files Modified:**
+- `frontend/src/app/admin/payments/history/page.tsx` (line 86)
+- `frontend/src/app/admin/payments/commissions/page.tsx` (line 508)
+
+---
+
+#### Issue #2: KPI Stats Wrong Calculation
+**Severity:** High  
+**Status:** ✅ FIXED  
+**Date:** 30 Nov 2025
+
+**Problem:**
+KPI cards calculated totals using `commission_amount` (total revenue) instead of `unpaid_amount` (actual unpaid).
+
+**Example:**
+```
+Suppliers:
+1. Dapur bunnara: Revenue 180k, Unpaid 18k
+2. Aneka Snack A: Revenue 735k, Unpaid 73. 5k
+
+KPI showed:
+- Total Belum Bayar: Rp 915,000 ❌ (180k + 735k - wrong!)
+- Total Sudah Bayar: Rp 362,070 ❌ (incomplete)
+
+Should show:
+- Total Belum Bayar: Rp 91,500 ✅ (18k + 73.5k)
+- Total Sudah Bayar: Rp 1,225,800 ✅ (sum of all paid)
+```
+
+**Root Cause:**
+```typescript
+totalUnpaid: commissions
+  .filter(c => c. status === 'UNPAID')
+  .reduce((sum, c) => sum + c.commission_amount, 0)  // ❌ Wrong field
+```
+
+**Solution:**
+```typescript
+totalUnpaid: commissions
+  .filter(c => c.status === 'UNPAID')
+  .reduce((sum, c) => sum + c. unpaid_amount, 0)  // ✅ Correct field
+
+totalPaid: commissions
+  . reduce((sum, c) => sum + (c.commission_amount - c.unpaid_amount), 0)  // ✅ Calculate actual paid
+```
+
+**Files Modified:**
+- `frontend/src/app/admin/payments/commissions/page.tsx` (line 616-625)
+
+---
+
+#### Issue #3: Native Browser Dialogs
+**Severity:** Medium (UX issue)  
+**Status:** ✅ FIXED  
+**Date:** 30 Nov 2025
+
+**Problem:**
+Platform used native `confirm()` and `alert()` dialogs:
+- Can't be styled
+- Shows domain name ("platform-konsinyasi.vercel.app says")
+- Doesn't match app branding
+- Poor mobile UX
+- Blocking UI
+
+**Solution:**
+Created custom dialog components:
+- Professional branded modals
+- Match interface themes
+- Smooth animations
+- Mobile responsive
+- Non-blocking (backdrop)
+
+**Total Replaced:**
+- 40 instances across 3 interfaces
+- Kantin: 2 dialogs
+- Admin: 34 dialogs
+- Supplier: 4 dialogs
+
+**Components Created:**
+```
+frontend/src/components/
+├── ui/ConfirmDialog.tsx
+├── ui/AlertDialog.tsx
+├── admin/ConfirmDialog.tsx
+├── admin/AlertDialog.tsx
+└── supplier/ConfirmDialog. tsx
+```
+
+**Files Modified:** 12 files across admin, supplier, kantin interfaces
+
+---
+
+### Active Issues
+
+#### Issue #4: Delivery Feature Not Implemented
+**Severity:** Low (placeholder exists)  
+**Status:** 🟡 PLANNED  
+**Target:** Q1 2026
+
+**Current State:**
+- Delivery icon added to kantin header
+- "SOON" badge visible
+- Toast notification on click
+- No actual functionality yet
+
+**Planned Implementation:**
+1. Order form modal (customer info, address, delivery time)
+2. Delivery fee calculation
+3. Minimum order amount check
+4. Order type selection (arisan/katering/event)
+5. Admin panel for delivery orders
+6. Supplier notification for bulk orders
+7. Optional: Logistics API integration
+
+**Files Ready:**
+- `frontend/src/app/kantin/[slug]/page.tsx` (icon + toast implemented)
+
+---
+
+### Testing Checklist for Fixes
+
+**Payment History:**
+- [ ] Shows correct net_payment values
+- [ ] Matches bank transfer records
+- [ ] No legacy amount displayed
+- [ ] Export CSV shows correct data
+
+**KPI Cards:**
+- [ ] Total Belum Bayar = sum of unpaid_amount
+- [ ] Total Sudah Bayar = sum of (revenue - unpaid)
+- [ ] Numbers match manual calculation
+- [ ] Updates after payment processed
+
+**Custom Dialogs:**
+- [ ] All 40 dialogs replaced
+- [ ] Animations smooth
+- [ ] Mobile responsive
+- [ ] ESC key closes
+- [ ] Click outside closes
+- [ ] Loading states work
+- [ ] Icons match context
+
+---
+
+## 🐛 TROUBLESHOOTING
+
+### Common Issues Post-Update (30 Nov 2025)
+
+| Issue | Cause | Solution |
+|-------|-------|----------|
+| Payment history shows old amounts | Using legacy `amount` column | Use `net_payment || amount` |
+| KPI totals incorrect | Using `commission_amount` for unpaid | Use `unpaid_amount` field |
+| Dialog not styled | Still using native confirm() | Import custom ConfirmDialog |
+| Dialog not closing | Missing onClose handler | Add state update in onClose |
+| Loading state not showing | confirmLoading not passed | Pass loading state to dialog |
+
+### General Troubleshooting
+
+| Issue | Solution |
+|-------|----------|
+| RLS blocks query | Check policies, verify role, use service_role for testing |
+| Email not sent | Check Site URL config, verify email provider |
+| Inventory not updating | Check triggers enabled, verify function execution |
+| Build error Vercel | Verify env vars, check TypeScript errors |
+| Admin can't see data | Run `UPDATE profiles SET role='ADMIN' WHERE email='.. .'` |
+
+---
+
+## 🚀 DEPLOYMENT
+
+### Frontend (Vercel)
+```bash
+# Environment Variables
+NEXT_PUBLIC_SUPABASE_URL=https://xxx.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJxxx... 
+NEXT_PUBLIC_APP_URL=https://platform-konsinyasi.vercel.app
+
+# Deploy
+cd frontend
+vercel --prod
+```
+
+### Database (Supabase)
+
+**Migration Order:**
+```
+1. Run MASTER-BACKUP/02-MIGRATIONS/*. sql (01 → 17)
+2. Run 04-FUNCTIONS/*.sql
+3. Run 05-RLS-POLICIES/*.sql
+4. Run 06-SEEDS/seed-admin-user.sql
+```
+
+---
+
+## 🚀 RECENT UPDATES LOG
+
+### Version 2.1.0 - 30 November 2025
+
+#### Major Changes
+
+**1. Custom Dialog System Implementation**
+- ✅ Created 5 new dialog components
+- ✅ Replaced 40 native browser dialogs
+- ✅ Implemented 3 theme variants (Kantin, Admin, Supplier)
+- ✅ Added smooth animations and transitions
+- ✅ Mobile-responsive design
+
+**Impact:** Improved UX, consistent branding, professional appearance
+
+**2. Payment System Fixes**
+- ✅ Fixed payment history display (net_payment vs amount)
+- ✅ Fixed KPI calculation (unpaid_amount vs commission_amount)
+- ✅ Accurate financial reporting
+
+**Impact:** Correct payment tracking, accurate totals, trustworthy data
+
+**3.  Delivery Feature Placeholder**
+- ✅ Added delivery icon to kantin header
+- ✅ "SOON" badge for upcoming feature
+- ✅ Toast notification with feature description
+
+**Impact:** User awareness of upcoming features, reduced support questions
+
+#### Files Modified (30 Nov 2025)
+```
+NEW FILES (5):
+├── frontend/src/components/ui/ConfirmDialog.tsx
+├── frontend/src/components/ui/AlertDialog.tsx
+├── frontend/src/components/admin/ConfirmDialog.tsx
+├── frontend/src/components/admin/AlertDialog.tsx
+└── frontend/src/components/supplier/ConfirmDialog.tsx
+
+UPDATED FILES (12):
+├── frontend/src/app/kantin/[slug]/page.tsx
+├── frontend/src/app/admin/payments/commissions/page.tsx
+├── frontend/src/app/admin/payments/history/page.tsx
+├── frontend/src/app/admin/suppliers/shipments/page.tsx
+├── frontend/src/app/admin/suppliers/products/page.tsx
+├── frontend/src/app/admin/returns/create/page.tsx
+├── frontend/src/app/admin/returns/list/page.tsx
+├── frontend/src/app/supplier/products/page.tsx
+├── frontend/src/app/supplier/shipments/ReturnTab.tsx
+└── ...  (3 more files)
+```
+
+#### Deployment Checklist
+- [x] Build succeeds without errors
+- [x] TypeScript checks pass
+- [x] All dialogs functional
+- [x] Payment calculations correct
+- [x] Mobile responsive verified
+- [x] Cross-browser tested
+- [x] Vercel production deployed
+
+#### Breaking Changes
+None.  All changes backward compatible.
+
+#### Migration Notes
+**For developers:**
+1. Replace any remaining `confirm()` with `<ConfirmDialog />`
+2. Replace `alert()` with `<AlertDialog />` or `toast()`
+3. Use `net_payment` for payment amounts, not `amount`
+4. Update KPI calculations to use `unpaid_amount`
+
+**For database:**
+No migration needed. Schema additions are additive only.
+
+---
+
+### Version 2.0.0 - November 2024
+(Previous stable release)
+- Initial production release
+- Full CRUD for suppliers, products, inventory
+- Shipment management system
+- Sales & commission tracking
+- Payment processing
+- Return management
+- Real-time notifications
+
+---
+
+## 📝 INSTRUKSI UNTUK AI AGENT
+
+### Task Categories
+
+#### 1. Feature Development
+```
+Context: Next.js 14, TypeScript, Supabase
+Files: frontend/src/app/**/*.tsx
+Patterns:
+- Use createClient() from @/lib/supabase/client
+- Check user role before rendering
+- Use React hooks (useState, useEffect)
+- Apply Tailwind CSS
+- Handle loading & error states
+- Use custom dialogs (ConfirmDialog/AlertDialog) not native confirm/alert
+```
+
+#### 2. Database Operations
+```
+Context: PostgreSQL 15, Supabase
+Files: database/*. sql
+Patterns:
+- Use RLS-friendly queries
+- Create policies for new tables
+- Add indexes for foreign keys
+- Use SECURITY DEFINER
+- Include rollback SQL
+```
+
+#### 3. API/Backend Logic
+```
+Context: Supabase RPC, Edge Functions
+Files: database/functions. sql
+Patterns:
+- Use plpgsql for complex logic
+- Return JSON for API responses
+- Handle errors gracefully
+- Log important actions
+- Use transactions
+```
+
+### Common AI Tasks
+
+**Create New Feature:**
+```
+1. Check affected tables → database/schema.sql
+2. Check RLS policies → database/*-rls.sql
+3. Create component → frontend/src/app/[role]/[feature]/page.tsx
+4. Use Supabase client
+5. Use custom dialogs for confirmations
+6. Test with different roles
+```
+
+**Fix Bug:**
+```
+1. Check Supabase logs
+2. Check browser console
+3.  Verify RLS policies
+4. Check user role
+5. Test query in SQL Editor
+```
+
+**Add Database Table:**
+```
+1. Create migration: database/XXX_add_table.sql
+2. Define schema with foreign keys
+3. Add RLS policies
+4. Add to MASTER-BACKUP/02-MIGRATIONS/
+5. Update database/README.md
+```
+
+### Code Snippets
+
+**Fetch Data:**
+```typescript
+const supabase = createClient()
+const { data, error } = await supabase
+  .from('products')
+  .select('*, suppliers(*)')
+  .eq('status', 'APPROVED')
+```
+
+**Insert with Auth:**
+```typescript
+const { data: { user } } = await supabase.auth.getUser()
+const { data, error } = await supabase
+  .from('products')
+  .insert({ name: 'Product A', supplier_id: user.id })
+```
+
+**Call RPC:**
+```typescript
+const { data, error } = await supabase
+  .rpc('approve_stock_movement', {
+    movement_id: 'uuid-here',
+    admin_id: user.id
+  })
+```
+
+**Check Role:**
+```typescript
+const { data: profile } = await supabase
+  .from('profiles')
+  . select('role')
+  .eq('id', user.id)
+  .single()
+
+if (profile.role !== 'ADMIN') {
+  router.push('/')
+}
+```
+
+**Use Custom Dialog:**
+```typescript
+import ConfirmDialog from '@/components/admin/ConfirmDialog'
+
+const [confirmDialog, setConfirmDialog] = useState({
+  isOpen: false,
+  title: '',
+  message: '',
+  onConfirm: () => {}
+})
+
+// Trigger
+setConfirmDialog({
+  isOpen: true,
+  title: 'Konfirmasi',
+  message: 'Yakin ingin melanjutkan?',
+  variant: 'primary',
+  icon: 'warning',
+  onConfirm: async () => {
+    // Your action here
+  }
+})
+
+// Render
+<ConfirmDialog {... confirmDialog} onClose={() => setConfirmDialog({...confirmDialog, isOpen: false})} />
+```
+
+---
+
+## 📚 DOCUMENTATION FILES
+
+| File | Purpose |
+|------|---------|
+| `README.md` | Quick start guide |
+| `PANDUAN-LENGKAP.md` | Complete setup tutorial |
+| `MASTER-BACKUP/README.md` | Backup system guide |
+| `database/README.md` | Database documentation |
+| `docs/AI Agent Guid.md` | This file - technical guide (v2.1.0) |
+
+---
+
+## ✅ CHECKLIST
+
+Sebelum mulai task:
+
+- [ ] Baca alur bisnis terkait
+- [ ] Check database schema
+- [ ] Check RLS policies
+- [ ] Tau role yang affected
+- [ ] Tau files yang perlu diubah
+- [ ] Siapkan query test
+- [ ] Siapkan rollback plan
+
+Sebelum deploy changes:
+
+- [ ] Run build: `npm run build` (no errors)
+- [ ] Test all custom dialogs (40 instances)
+- [ ] Verify payment amounts correct
+- [ ] Check KPI totals accurate
+- [ ] Test mobile responsiveness
+- [ ] Verify animations smooth
+- [ ] Check loading states
+- [ ] Test ESC key closes dialogs
+- [ ] Verify click outside closes
+- [ ] Check console for errors
+
+---
+
+**© 2024 Katalara - Platform Konsinyasi Terintegrasi**  
+**Documentation Version:** 2.1.0  
+**Last Updated:** 30 November 2025  
+**Session Updates:** Custom Dialogs, Payment Fixes, KPI Corrections  
+**For AI Agent Use**
