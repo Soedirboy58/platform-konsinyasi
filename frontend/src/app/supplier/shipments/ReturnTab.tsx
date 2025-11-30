@@ -278,10 +278,14 @@ export default function ReturnTab() {
         ? { p_return_id: selectedReturn.id, p_review_notes: reviewNotes || null }
         : { p_return_id: selectedReturn.id, p_review_notes: reviewNotes }
 
-      const { error } = await supabase.rpc(rpcFunction, params)
+      const { data, error } = await supabase.rpc(rpcFunction, params)
 
-      if (error) throw error
+      if (error) {
+        console.error('RPC Error:', error)
+        throw error
+      }
 
+      console.log('RPC Success:', data)
       toast.success(reviewAction === 'approve' ? 'Retur disetujui' : 'Retur ditolak')
       setShowReviewModal(false)
       setSelectedReturn(null)
