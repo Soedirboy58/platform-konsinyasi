@@ -10,6 +10,7 @@ interface Commission {
   total_sales: number
   commission_rate: number
   commission_amount: number
+  unpaid_amount: number
   products_sold: number
   transactions: number
   status: 'UNPAID' | 'PAID' | 'PENDING'
@@ -228,18 +229,19 @@ export default function CommissionsPage() {
 
         // Status logic - UPDATED to check payment records
         let status: 'UNPAID' | 'PAID' | 'PENDING' = 'UNPAID'
+        const unpaidAmount = totalRevenue - totalPaid
         
-        // 1. Check if manual payment exists for this period
-        if (totalPaid >= totalRevenue) {
-          status = 'PAID'
+        // 1. Jika ada sisa yang belum dibayar (prioritas tertinggi)
+        if (unpaidAmount > 0) {
+        status = 'UNPAID'
         }
-        // 2. Check if pending withdrawal request
+        // 2.  Jika pending withdrawal
         else if (pendingBalance > 0) {
           status = 'PENDING'
         }
-        // 3. Otherwise unpaid
-        else {
-          status = 'UNPAID'
+        // 3. Jika fully paid
+        else if (totalPaid >= totalRevenue && unpaidAmount <= 0) {
+          status = 'PAID'
         }
 
         commissionsData.push({
@@ -248,6 +250,7 @@ export default function CommissionsPage() {
           total_sales: totalSales,
           commission_rate: totalSales > 0 ? totalCommission / totalSales : 0.10,
           commission_amount: totalRevenue,
+          unpaid_amount: Math.max(0, unpaidAmount),
           products_sold: productsSold,
           transactions: uniqueTransactions,
           status: status,
