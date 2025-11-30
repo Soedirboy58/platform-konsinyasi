@@ -132,7 +132,7 @@ export default function SalesReportPage() {
           commission_amount,
           supplier_revenue,
           created_at,
-          products!inner(id, name, supplier_id),
+          products!inner(id, name, supplier_id, hpp),
           sales_transactions!inner(id, transaction_code, status, created_at, location_id)
         `)
         .eq('products.supplier_id', supplier.id)
@@ -196,7 +196,7 @@ export default function SalesReportPage() {
           product_name: item.products?.name || 'Unknown',
           quantity: quantity,
           selling_price: sellingPrice,
-          hpp: 0,  // Not needed - we use supplier_revenue
+          hpp: item.products?.hpp || 0,  // ✅ FIX: Ambil dari database products.hpp
           commission_amount: commissionAmount,
           gross_profit: subtotal,  // Total sales before commission
           net_profit: supplierRevenue,  // What supplier actually gets
