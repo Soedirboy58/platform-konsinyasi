@@ -108,12 +108,18 @@ export default function SupplierDashboard() {
       }
 
       // Get pending shipments (status PENDING menunggu approved admin)
-      const { count: pendingShipmentsCount } = await supabase
+      const { count: pendingShipmentsCount, error: pendingError } = await supabase
         .from('stock_movements')
         .select('*', { count: 'exact', head: true })
         .eq('supplier_id', supplier.id)  // ✅ FIX: Query by supplier directly
         .eq('movement_type', 'SHIPMENT')
         .eq('status', 'PENDING')
+
+      console.log('📦 DEBUG Pending Shipments:', {
+        count: pendingShipmentsCount,
+        error: pendingError,
+        supplierId: supplier.id
+      })
 
       // Get wallet data
       const { data: wallet } = await supabase
@@ -161,24 +167,38 @@ export default function SupplierDashboard() {
       const stockAtOutlets = inventoryData?.reduce((sum, inv) => sum + inv.quantity, 0) || 0
 
       // ✅ FIX: Get shipment IDs first, then sum quantities from stock_movement_items
-      const { data: completedShipments } = await supabase
+      const { data: completedShipments, error: shipmentError } = await supabase
         .from('stock_movements')
-        .select('id')
+        .select('id, status')
         .eq('supplier_id', supplier.id)  // ✅ Use supplier_id
         .eq('movement_type', 'SHIPMENT')
         .in('status', ['APPROVED', 'COMPLETED'])  // ✅ Accept both statuses
+
+      console.log('🚚 DEBUG Total Terkirim:', {
+        shipments: completedShipments,
+        error: shipmentError,
+        supplierId: supplier.id
+      })
 
       const shipmentIds = completedShipments?.map(s => s.id) || []
 
       let totalShipped = 0
       if (shipmentIds.length > 0) {
-        const { data: itemsData } = await supabase
+        const { data: itemsData, error: itemsError } = await supabase
           .from('stock_movement_items')
           .select('quantity')
           .in('movement_id', shipmentIds)
         
+        console.log('📦 DEBUG Items Data:', {
+          items: itemsData,
+          error: itemsError,
+          shipmentIds
+        })
+        
         totalShipped = itemsData?.reduce((sum, item) => sum + item.quantity, 0) || 0
       }
+
+      console.log('✅ FINAL Total Shipped:', totalShipped)
 
       // Get returns count (from new shipment_returns table)
       const { data: returnData } = await supabase
