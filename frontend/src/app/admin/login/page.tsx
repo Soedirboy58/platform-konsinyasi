@@ -45,8 +45,9 @@ export default function AdminLogin() {
       // Wait a bit for session to be stored, then redirect
       await new Promise(resolve => setTimeout(resolve, 100))
       window.location.href = '/admin'
-    } catch (error: any) {
-      toast.error(error.message || 'Login gagal')
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Login gagal'
+      toast.error(errorMessage)
       setLoading(false)
     }
   }

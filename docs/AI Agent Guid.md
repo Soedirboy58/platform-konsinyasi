@@ -1,0 +1,537 @@
+# 📋 AI AGENT GUIDE - Platform Konsinyasi Katalara v2. 0
+
+## 🎯 SYSTEM OVERVIEW
+
+**Platform Konsinyasi Katalara** adalah sistem manajemen bisnis konsinyasi full-stack yang menghubungkan **Supplier** (pemasok barang), **Admin Toko** (pengelola outlet), dan **Customer** (pembeli) dalam satu ekosistem digital terintegrasi.
+
+**Repository:** `Soedirboy58/platform-konsinyasi`  
+**Status:** ✅ Production Ready  
+**Version:** 2.0.0  
+**Last Update:** November 2024
+
+---
+
+## 🏗️ ARSITEKTUR TEKNOLOGI
+
+### Tech Stack
+```
+Frontend:  Next.js 14 + React 18 + TypeScript 5.3 + Tailwind CSS
+Backend:   Supabase (PostgreSQL 15, Auth, Storage, Realtime)
+Deployment: Vercel (Frontend) + Supabase Cloud (Backend)
+PWA:       Service Worker + Manifest. json
+```
+
+### Struktur Project
+```
+platform-konsinyasi/
+├── frontend/              # Next.js App (3 interfaces)
+│   ├── src/app/
+│   │   ├── admin/        # Dashboard Admin (6 pages)
+│   │   ├── supplier/     # Portal Supplier (5 pages)
+│   │   └── customer/     # Self-checkout (PWA)
+│   ├── public/           # Static assets + PWA files
+│   └── . env.local        # Environment variables
+├── database/             # SQL migrations (100+ files)
+├── MASTER-BACKUP/        # Structured backup system
+│   ├── 01-CORE-SCHEMA/
+│   ├── 02-MIGRATIONS/    # 17 migration files
+│   ├── 03-PATCHES/
+│   ├── 04-FUNCTIONS/     # Database functions
+│   ├── 05-RLS-POLICIES/  # Security policies
+│   ├── 06-SEEDS/
+│   └── 07-DOCUMENTATION/
+├── scripts/              # Automation scripts
+└── supabase/             # Email templates
+```
+
+---
+
+## 👥 SISTEM ROLE & AKUN
+
+### 3 Role Utama
+
+| Role | Akses | Fungsi Utama |
+|------|-------|--------------|
+| **ADMIN** | Dashboard Admin (`/admin/*`) | Approve supplier, moderate products, manage locations, process payments, view analytics |
+| **SUPPLIER** | Portal Supplier (`/supplier/*`) | Register products, track inventory, monitor sales, manage shipments, view earnings |
+| **BUYER/CUSTOMER** | Self-checkout (`/customer/*`) | Scan products, self-checkout, upload payment proof |
+
+### Sinkronisasi Akun
+
+**Tabel Kunci:**
+1. **`auth.users`** - Supabase authentication (email/password)
+2. **`profiles`** - User metadata & role mapping
+3. **`suppliers`** - Business info (jika role = SUPPLIER)
+
+**Flow Registrasi:**
+```
+1. User register → Supabase Auth creates auth.users entry
+2.  Trigger auto-create profiles entry (role = SUPPLIER default)
+3. For suppliers → Create suppliers entry (linked via profile_id)
+4. Email verification sent
+5. After verify → User can login
+```
+
+**Set Admin Manually:**
+```sql
+UPDATE profiles 
+SET role = 'ADMIN' 
+WHERE email = 'admin@example.com';
+```
+
+---
+
+## 🗄️ DATABASE SCHEMA
+
+### 17 Tabel Utama
+
+| # | Tabel | Fungsi | Relasi Kunci |
+|---|-------|--------|--------------|
+| 1 | `profiles` | User profiles & roles | → `auth.users. id` |
+| 2 | `suppliers` | Supplier business info | → `profiles.id` |
+| 3 | `locations` | Outlets/warehouses | QR code enabled |
+| 4 | `products` | Product catalog | → `suppliers.id` |
+| 5 | `inventory_levels` | Stock per location | → `products.id`, `locations.id` |
+| 6 | `stock_movements` | Shipment header (IN/OUT) | → `suppliers.id`, `locations.id` |
+| 7 | `stock_movement_items` | Shipment detail (items) | → `stock_movements. id`, `products.id` |
+| 8 | `sales_transactions` | Sales header | → `locations.id` |
+| 9 | `sales_transaction_items` | Sales detail | → `sales_transactions.id`, `products.id` |
+| 10 | `supplier_payments` | Payment to suppliers | → `suppliers.id` |
+| 11 | `shipment_returns` | Return management | → `stock_movements.id` |
+| 12 | `notifications` | Real-time notifications | → `profiles.id` |
+| 13 | `wallet_transactions` | Supplier wallet log | → `suppliers.id` |
+| 14 | `payment_settings` | Platform payment config | QRIS, bank accounts |
+| 15 | `platform_settings` | Global settings | Commission rate, etc |
+| 16 | `commissions` | Commission tracking | → `sales_transactions.id` |
+| 17 | `customer_reports` | Customer issue reports | → `products.id` |
+
+### Relasi Penting
+```
+profiles (1) ↔ (1) suppliers
+suppliers (1) → (∞) products
+products (1) → (∞) inventory_levels (per location)
+stock_movements (1) → (∞) stock_movement_items
+sales_transactions (1) → (∞) sales_transaction_items
+```
+
+---
+
+## 🎨 FITUR UTAMA SISTEM
+
+### 1. Admin Dashboard (`/admin/*`)
+
+**Pages:**
+- `/admin` - Dashboard overview (stats, charts, quick actions)
+- `/admin/login` - Authentication (role check: ADMIN only)
+- `/admin/suppliers` - Approve/reject supplier registrations
+- `/admin/products` - Moderate products (PENDING → APPROVED/REJECTED)
+- `/admin/shipments` - Approve incoming shipments
+- `/admin/locations` - CRUD outlets/warehouses
+- `/admin/payments` - Process supplier payments
+- `/admin/reports` - Sales analytics, financial reports
+- `/admin/settings` - Platform configuration
+
+**Key Features:**
+- ✅ Multi-KPI dashboard (total suppliers, products, sales, revenue)
+- ✅ Approval workflows (suppliers, products, shipments)
+- ✅ Inventory management across locations
+- ✅ Payment processing dengan bukti transfer
+- ✅ Analytics charts (sales trends, top products)
+- ✅ CSV export reports
+- ✅ Real-time notifications
+
+### 2.  Supplier Portal (`/supplier/*`)
+
+**Pages:**
+- `/supplier` - Dashboard (stats, pending approvals, alerts)
+- `/supplier/login` - Auth + registration dengan email verification
+- `/supplier/products` - Product CRUD (add/edit/delete)
+- `/supplier/inventory` - Stock levels per location
+- `/supplier/shipments` - Create & track shipments
+- `/supplier/sales` - Sales report (per product, per location)
+- `/supplier/wallet` - Earnings, pending balance, withdrawal requests
+- `/supplier/returns` - Handle product returns
+- `/supplier/settings` - Business profile, bank account
+
+**Key Features:**
+- ✅ Email verification (Katalara branding)
+- ✅ Product management dengan foto
+- ✅ Shipment creation
+- ✅ Real-time stock tracking
+- ✅ Komisi otomatis calculation
+- ✅ Payment threshold system
+- ✅ Return management dengan proof photos
+- ✅ Notification system
+
+### 3. Self-Checkout Customer (`/customer/*`)
+
+**Pages:**
+- `/customer/checkout` - PWA self-checkout interface
+- `/customer/scan` - Barcode/QR scanner
+- `/customer/cart` - Shopping cart
+- `/customer/payment` - Payment methods
+- `/customer/success` - Confirmation page
+
+**Key Features:**
+- ✅ Progressive Web App
+- ✅ Scan barcode produk
+- ✅ Cart dengan validasi stok real-time
+- ✅ Multiple payment methods
+- ✅ Upload bukti pembayaran
+- ✅ Email konfirmasi otomatis
+- ✅ Offline-capable
+
+---
+
+## 🔄 ALUR BISNIS UTAMA
+
+### Flow 1: Supplier Onboarding
+```
+1.  Supplier register di /supplier/login
+2. Email verification sent
+3. Click link → account activated
+4. Admin review di /admin/suppliers
+5.  Admin approve/reject
+6. Notification sent to supplier
+7. Supplier can start adding products
+```
+
+### Flow 2: Product Management
+```
+1.  Supplier add product
+   - Upload foto, set price, description, barcode
+2. Product status = PENDING
+3. Admin review di /admin/products
+4.  Admin approve → status = APPROVED → visible to customers
+5. Admin reject → notification to supplier
+```
+
+### Flow 3: Shipment & Inventory
+```
+1. Supplier create shipment
+   - Select products, quantities, destination
+2.  Shipment status = PENDING
+3. Admin receive notification
+4. Admin review di /admin/shipments
+5. Admin approve:
+   - Inventory auto-updated (+quantity)
+   - status = APPROVED
+   - Notification to supplier
+6. Admin reject:
+   - No inventory change
+   - status = REJECTED
+   - Notification dengan reason
+```
+
+### Flow 4: Sales & Commission
+```
+1. Customer checkout
+2. Sales transaction created
+3.  Inventory auto-decreased
+4. Commission calculated:
+   commission = selling_price × 30%
+   supplier_earning = selling_price - commission
+5.  Supplier wallet auto-updated
+6. When balance > threshold:
+   - Notification to admin
+   - Admin process payment
+7. Admin confirm payment:
+   - Upload bukti transfer
+   - Balance updated
+   - Notification to supplier
+```
+
+### Flow 5: Returns
+```
+1. Customer report issue
+2. Admin review → approve return
+3. shipment_returns entry created
+4. Supplier notified
+5.  Supplier receive goods
+6. Supplier confirm return
+   - Upload proof photos
+7. Admin verify
+8.  Inventory adjusted
+9. Commission reversed
+```
+
+---
+
+## 🔐 SECURITY & RLS POLICIES
+
+### Row Level Security (RLS) Enabled
+
+**Policies per Role:**
+
+| Tabel | ADMIN | SUPPLIER | CUSTOMER |
+|-------|-------|----------|----------|
+| profiles | ✅ All | ✅ Own | ✅ Own |
+| suppliers | ✅ All | ✅ Own data | ❌ |
+| products | ✅ All | ✅ Own | ✅ Read (APPROVED) |
+| inventory_levels | ✅ All | ✅ Read | ✅ Read (APPROVED) |
+| stock_movements | ✅ All | ✅ Own | ❌ |
+| sales_transactions | ✅ All | ✅ Read (own) | ❌ |
+| supplier_payments | ✅ All | ✅ Read (own) | ❌ |
+| notifications | ✅ All | ✅ Own | ✅ Own |
+
+**Helper Function:**
+```sql
+CREATE FUNCTION is_admin() RETURNS BOOLEAN AS $$
+BEGIN
+    RETURN EXISTS (
+        SELECT 1 FROM profiles 
+        WHERE id = auth.uid() AND role = 'ADMIN'
+    );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+```
+
+---
+
+## 🔧 DATABASE FUNCTIONS & TRIGGERS
+
+### Key Functions
+
+| Function | Purpose | Trigger |
+|----------|---------|---------|
+| `approve_stock_movement()` | Approve shipment, update inventory | Manual |
+| `reject_stock_movement()` | Reject shipment with reason | Manual |
+| `update_inventory_on_sale()` | Decrease stock on sale | AUTO |
+| `calculate_commission()` | Auto-calculate commission | AUTO |
+| `notify_admins_on_shipment()` | Send notification to admins | AUTO |
+| `notify_supplier_on_decision()` | Notify supplier | AUTO |
+| `update_wallet_balance()` | Update supplier wallet | AUTO |
+
+### Triggers
+```sql
+-- Auto-notify admins on new shipment
+CREATE TRIGGER trg_notify_shipment
+AFTER INSERT ON stock_movements
+FOR EACH ROW
+EXECUTE FUNCTION notify_admins_on_shipment();
+
+-- Auto-update inventory on sale
+CREATE TRIGGER trg_update_inventory_sale
+AFTER INSERT ON sales_transaction_items
+FOR EACH ROW
+EXECUTE FUNCTION update_inventory_on_sale();
+
+-- Auto-calculate commission
+CREATE TRIGGER trg_calculate_commission
+AFTER INSERT ON sales_transactions
+FOR EACH ROW
+EXECUTE FUNCTION calculate_commission();
+```
+
+---
+
+## 📧 EMAIL & NOTIFICATIONS
+
+### Email Verification
+
+**Template:** `supabase/email-template-confirm-signup. html`
+
+**Configuration:**
+```
+Site URL: https://platform-konsinyasi.vercel.app
+Redirect URLs:
+  - /auth/callback
+  - /supplier/login
+  - /admin/login
+```
+
+### Notification Types
+
+| Type | Recipient | Trigger |
+|------|-----------|---------|
+| `SHIPMENT_SUBMITTED` | All admins | Supplier creates shipment |
+| `SHIPMENT_APPROVED` | Supplier | Admin approves |
+| `SHIPMENT_REJECTED` | Supplier | Admin rejects |
+| `PRODUCT_APPROVED` | Supplier | Admin approves |
+| `PRODUCT_REJECTED` | Supplier | Admin rejects |
+| `PAYMENT_DUE` | Admin | Balance > threshold |
+| `PAYMENT_PROCESSED` | Supplier | Admin confirms payment |
+| `RETURN_REQUEST` | Supplier | Customer reports |
+
+---
+
+## 🚀 DEPLOYMENT
+
+### Frontend (Vercel)
+```bash
+# Environment Variables
+NEXT_PUBLIC_SUPABASE_URL=https://xxx.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJxxx... 
+NEXT_PUBLIC_APP_URL=https://platform-konsinyasi.vercel.app
+
+# Deploy
+cd frontend
+vercel --prod
+```
+
+### Database (Supabase)
+
+**Migration Order:**
+```
+1. Run MASTER-BACKUP/02-MIGRATIONS/*. sql (01 → 17)
+2. Run 04-FUNCTIONS/*. sql
+3. Run 05-RLS-POLICIES/*.sql
+4. Run 06-SEEDS/seed-admin-user.sql
+```
+
+---
+
+## 📝 INSTRUKSI UNTUK AI AGENT
+
+### Task Categories
+
+#### 1. Feature Development
+```
+Context: Next.js 14, TypeScript, Supabase
+Files: frontend/src/app/**/*.tsx
+Patterns:
+- Use createClient() from @/lib/supabase/client
+- Check user role before rendering
+- Use React hooks (useState, useEffect)
+- Apply Tailwind CSS
+- Handle loading & error states
+```
+
+#### 2. Database Operations
+```
+Context: PostgreSQL 15, Supabase
+Files: database/*.sql
+Patterns:
+- Use RLS-friendly queries
+- Create policies for new tables
+- Add indexes for foreign keys
+- Use SECURITY DEFINER
+- Include rollback SQL
+```
+
+#### 3. API/Backend Logic
+```
+Context: Supabase RPC, Edge Functions
+Files: database/functions. sql
+Patterns:
+- Use plpgsql for complex logic
+- Return JSON for API responses
+- Handle errors gracefully
+- Log important actions
+- Use transactions
+```
+
+### Common AI Tasks
+
+**Create New Feature:**
+```
+1. Check affected tables → database/schema.sql
+2. Check RLS policies → database/*-rls.sql
+3.  Create component → frontend/src/app/[role]/[feature]/page.tsx
+4. Use Supabase client
+5. Test with different roles
+```
+
+**Fix Bug:**
+```
+1. Check Supabase logs
+2. Check browser console
+3.  Verify RLS policies
+4. Check user role
+5. Test query in SQL Editor
+```
+
+**Add Database Table:**
+```
+1. Create migration: database/XXX_add_table.sql
+2. Define schema with foreign keys
+3. Add RLS policies
+4. Add to MASTER-BACKUP/02-MIGRATIONS/
+5. Update database/README.md
+```
+
+### Code Snippets
+
+**Fetch Data:**
+```typescript
+const supabase = createClient()
+const { data, error } = await supabase
+  .from('products')
+  .select('*, suppliers(*)')
+  .eq('status', 'APPROVED')
+```
+
+**Insert with Auth:**
+```typescript
+const { data: { user } } = await supabase.auth.getUser()
+const { data, error } = await supabase
+  .from('products')
+  .insert({ name: 'Product A', supplier_id: user.id })
+```
+
+**Call RPC:**
+```typescript
+const { data, error } = await supabase
+  .rpc('approve_stock_movement', {
+    movement_id: 'uuid-here',
+    admin_id: user.id
+  })
+```
+
+**Check Role:**
+```typescript
+const { data: profile } = await supabase
+  .from('profiles')
+  .select('role')
+  . eq('id', user.id)
+  .single()
+
+if (profile.role !== 'ADMIN') {
+  router.push('/')
+}
+```
+
+---
+
+## 🐛 TROUBLESHOOTING
+
+| Issue | Solution |
+|-------|----------|
+| RLS blocks query | Check policies, verify role, use service_role for testing |
+| Email not sent | Check Site URL config, verify email provider |
+| Inventory not updating | Check triggers enabled, verify function execution |
+| Build error Vercel | Verify env vars, check TypeScript errors |
+| Admin can't see data | Run `UPDATE profiles SET role='ADMIN' WHERE email='.. .'` |
+
+---
+
+## 📚 DOCUMENTATION FILES
+
+| File | Purpose |
+|------|---------|
+| `README.md` | Quick start guide |
+| `PANDUAN-LENGKAP.md` | Complete setup tutorial |
+| `MASTER-BACKUP/README.md` | Backup system guide |
+| `database/README.md` | Database documentation |
+| `AI-AGENT-GUIDE.md` | This file - technical guide |
+
+---
+
+## ✅ CHECKLIST
+
+Sebelum mulai task:
+
+- [ ] Baca alur bisnis terkait
+- [ ] Check database schema
+- [ ] Check RLS policies
+- [ ] Tau role yang affected
+- [ ] Tau files yang perlu diubah
+- [ ] Siapkan query test
+- [ ] Siapkan rollback plan
+
+---
+
+**© 2024 Katalara - Platform Konsinyasi Terintegrasi**  
+**Documentation Version:** 1.0  
+**Last Updated:** 29 November 2025  
+**For AI Agent Use**

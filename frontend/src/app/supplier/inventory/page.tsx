@@ -86,8 +86,8 @@ export default function SupplierInventory() {
         loadLocations()
       ])
       setLoading(false)
-    } catch (error) {
-      console.error('Auth error:', error)
+    } catch (error: unknown) {
+      console.error('Auth error:', error instanceof Error ? error.message : 'Unknown error')
       router.push('/supplier/login')
     }
   }
@@ -156,8 +156,9 @@ export default function SupplierInventory() {
       if (error) throw error
 
       setLocations(data || [])
-    } catch (error) {
-      console.error('Error loading locations:', error)
+    } catch (error: unknown) {
+      console.error('Error loading locations:', error instanceof Error ? error.message : 'Unknown error')
+      toast.error('Gagal memuat data lokasi')
     }
   }
 
@@ -165,7 +166,7 @@ export default function SupplierInventory() {
     e.preventDefault()
 
     if (formData.quantity <= 0) {
-      toast.error('Quantity must be greater than 0')
+      toast.error('Jumlah harus lebih dari 0')
       return
     }
 
@@ -195,9 +196,10 @@ export default function SupplierInventory() {
         quantity: 0,
         reason: '',
       })
-    } catch (error: any) {
-      console.error('Error submitting adjustment:', error)
-      toast.error(error.message || 'Failed to submit adjustment')
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Gagal mengirim permintaan penyesuaian'
+      console.error('Error submitting adjustment:', errorMessage)
+      toast.error(errorMessage)
     }
   }
 
@@ -412,11 +414,15 @@ export default function SupplierInventory() {
                 <input
                   type="number"
                   value={formData.quantity}
-                  onChange={(e) => setFormData({ ...formData, quantity: parseInt(e.target.value) || 0 })}
+                  onChange={(e) => {
+                    const value = e.target.value
+                    const parsed = parseInt(value, 10)
+                    setFormData({ ...formData, quantity: isNaN(parsed) ? 0 : parsed })
+                  }}
                   required
                   min="1"
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
-                  placeholder="Enter quantity"
+                  placeholder="Masukkan jumlah"
                 />
               </div>
 

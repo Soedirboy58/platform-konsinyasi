@@ -196,9 +196,6 @@ export default function CommissionsPage() {
       const commissionsData: Commission[] = []
       const supplierEntries = Array.from(supplierSalesMap.entries())
       
-      // Convert Map to Array to avoid downlevelIteration issue
-      const supplierEntries = Array.from(supplierSalesMap.entries())
-      
       for (const [supplierId, sales] of supplierEntries) {
         const supplier = sales[0].supplier
         
@@ -851,10 +848,9 @@ export default function CommissionsPage() {
                       <div className="text-sm font-bold text-green-600">
                         Rp {commission.commission_amount.toLocaleString('id-ID')}
                       </div>
-                        <div className="text-xs text-gray-500">
-                          Sudah dipotong fee {(commission.commission_rate * 100).toFixed(0)}%
-                        </div>
-                      )}
+                      <div className="text-xs text-gray-500">
+                        Sudah dipotong fee {(commission.commission_rate * 100).toFixed(0)}%
+                      </div>
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-900">
                       {commission.transactions} transaksi

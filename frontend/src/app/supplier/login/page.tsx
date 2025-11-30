@@ -128,9 +128,9 @@ export default function SupplierLogin() {
           window.location.href = '/supplier'
         }
       }
-    } catch (error: any) {
-      console.error('Auth error:', error)
-      toast.error(error.message || 'Terjadi kesalahan')
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Terjadi kesalahan tidak dikenal'
+      toast.error(errorMessage)
       setLoading(false)
     }
   }

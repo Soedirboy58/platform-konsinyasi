@@ -200,29 +200,6 @@ export default function SupplierDashboard() {
         sold_at: item.sales_transactions?.created_at || new Date().toISOString()
       })) || []
 
-      console.log('📊 Sales Notifications Debug:')
-      console.log('  - Product IDs count:', productIds.length)
-      console.log('  - Recent sales count:', recentSales?.length || 0)
-      console.log('  - Sales notifs count:', salesNotifs.length)
-      console.log('  - Sample recent sales:', recentSales?.slice(0, 2))
-      console.log('  - Sample notifs:', salesNotifs.slice(0, 2))
-
-      if (salesNotifs.length === 0 && productIds.length > 0) {
-        console.warn('⚠️ No sales notifications despite having products. Checking...')
-        
-        // Debug query: check if ANY sales exist for this supplier
-        const { data: debugSales, error: debugError } = await supabase
-          .from('sales_transaction_items')
-          .select('id, product_id, sales_transactions!inner(status)')
-          .in('product_id', productIds)
-          .limit(5)
-        
-        console.log('🔍 Debug raw sales data:')
-        console.log('  - Count:', debugSales?.length || 0)
-        console.log('  - Data:', debugSales)
-        console.log('  - Error:', debugError)
-      }
-
       setStats({
         totalProducts: approvedCount, // ONLY approved products
         approvedProducts: approvedCount,
@@ -237,9 +214,10 @@ export default function SupplierDashboard() {
 
       setTopProducts(topProductsList)
       setSalesNotifications(salesNotifs)
-    } catch (error) {
-      console.error('Failed to load stats:', error)
-      toast.error('Gagal memuat statistik')
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Terjadi kesalahan tidak dikenal'
+      console.error('Failed to load stats:', errorMessage)
+      toast.error('Gagal memuat statistik. Silakan coba lagi.')
     } finally {
       setLoading(false)
     }

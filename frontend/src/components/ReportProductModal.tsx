@@ -115,17 +115,13 @@ export default function ReportProductModal({ isOpen, onClose, product, locationI
 
       if (returnError) throw returnError
 
-      console.log('✅ Return created successfully:', returnData)
-      console.log('📸 Uploaded photo URLs:', photoUrls)
-      console.log('📸 Stored proof_photos:', returnData.proof_photos)
-
       // Send notification to admin (non-blocking)
       supabase.rpc('notify_admin_customer_report', {
         p_return_id: returnData.id,
         p_product_name: product.name,
         p_severity: formData.severity
       }).then(({ error: notifError }) => {
-        if (notifError) console.warn('Admin notification failed:', notifError)
+        if (notifError) console.error('Admin notification failed:', notifError)
       })
 
       // Send notification to supplier (non-blocking)
@@ -135,7 +131,7 @@ export default function ReportProductModal({ isOpen, onClose, product, locationI
           p_supplier_id: product.supplier_id,
           p_product_name: product.name
         }).then(({ error: notifError }) => {
-          if (notifError) console.warn('Supplier notification failed:', notifError)
+          if (notifError) console.error('Supplier notification failed:', notifError)
         })
       }
 

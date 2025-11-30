@@ -126,16 +126,31 @@ export default function NewProductPage() {
     try {
       const supabase = createClient()
 
+      const price = parseFloat(formData.price)
+      const commissionRateValue = parseFloat(commissionRate)
+      const expiryDays = parseInt(formData.expiryDurationDays, 10)
+
+      // Validate parsed values
+      if (isNaN(price) || price <= 0) {
+        throw new Error('Harga produk tidak valid')
+      }
+      if (isNaN(commissionRateValue) || commissionRateValue < 0) {
+        throw new Error('Tingkat komisi tidak valid')
+      }
+      if (isNaN(expiryDays) || expiryDays < 1) {
+        throw new Error('Durasi kadaluarsa tidak valid')
+      }
+
       const { data, error } = await supabase
         .from('products')
         .insert({
           supplier_id: supplierId,
           name: formData.name,
           description: formData.description || null,
-          price: parseFloat(formData.price),
-          commission_rate: parseFloat(commissionRate), // From platform settings
+          price,
+          commission_rate: commissionRateValue,
           barcode: formData.barcode || null,
-          expiry_duration_days: parseInt(formData.expiryDurationDays),
+          expiry_duration_days: expiryDays,
           status: 'PENDING',
         })
         .select()
@@ -156,9 +171,10 @@ export default function NewProductPage() {
 
       toast.success('Produk berhasil ditambahkan! Menunggu approval admin.')
       router.push('/supplier/products')
-    } catch (error: any) {
-      console.error('Error creating product:', error)
-      toast.error(error.message || 'Gagal menambahkan produk')
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Gagal menambahkan produk'
+      console.error('Error creating product:', errorMessage)
+      toast.error(errorMessage)
     } finally {
       setLoading(false)
     }
@@ -241,10 +257,15 @@ export default function NewProductPage() {
                   <input
                     type="number"
                     required
-                    min="0"
+                    min="1"
                     step="100"
                     value={formData.price}
-                    onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                    onChange={(e) => {
+                      const value = e.target.value
+                      if (value === '' || (!isNaN(Number(value)) && Number(value) >= 0)) {
+                        setFormData({ ...formData, price: value })
+                      }
+                    }}
                     className="w-full pl-12 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                     placeholder="5000"
                   />
@@ -290,12 +311,18 @@ export default function NewProductPage() {
                   type="number"
                   required
                   min="1"
+                  max="3650"
                   value={formData.expiryDurationDays}
-                  onChange={(e) => setFormData({ ...formData, expiryDurationDays: e.target.value })}
+                  onChange={(e) => {
+                    const value = e.target.value
+                    if (value === '' || (!isNaN(Number(value)) && Number(value) >= 0)) {
+                      setFormData({ ...formData, expiryDurationDays: value })
+                    }
+                  }}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                   placeholder="30"
                 />
-                <p className="text-xs text-gray-500 mt-1">Berapa hari setelah stocking</p>
+                <p className="text-xs text-gray-500 mt-1">Berapa hari setelah stocking (maks. 10 tahun)</p>
               </div>
             </div>
 

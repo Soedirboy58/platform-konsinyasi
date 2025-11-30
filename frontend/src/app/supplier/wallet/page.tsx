@@ -192,9 +192,9 @@ export default function WalletPage() {
 
         console.log('💰 Wallet Sales Data Debug:')
         console.log('  - Product IDs count:', productIds.length)
-        console.log('  - Sales data count:', salesData?.length || 0)
-        console.log('  - Sales error:', salesError)
-        console.log('  - Sample data:', salesData?.slice(0, 2))
+        if (salesError) {
+          console.error('Sales data error:', salesError)
+        }
 
         const formattedPayments: SalesPayment[] = salesData?.map((item: any) => ({
           id: item.id,
@@ -208,13 +208,7 @@ export default function WalletPage() {
           payment_received_at: item.sales_transactions?.created_at || new Date().toISOString()
         })) || []
 
-        console.log('💰 Formatted Payments:')
-        console.log('  - Count:', formattedPayments.length)
-        console.log('  - Sample:', formattedPayments.slice(0, 2))
-
         setSalesPayments(formattedPayments)
-      } else {
-        console.warn('⚠️ No product IDs found for supplier')
       }
 
       // Get withdrawal requests
@@ -716,9 +710,16 @@ export default function WalletPage() {
               <input
                 type="number"
                 value={withdrawAmount}
-                onChange={(e) => setWithdrawAmount(e.target.value)}
+                onChange={(e) => {
+                  const value = e.target.value
+                  if (value === '' || !isNaN(Number(value))) {
+                    setWithdrawAmount(value)
+                  }
+                }}
                 className="w-full px-3 py-2 border rounded-lg"
                 placeholder="Minimal Rp 50.000"
+                min="50000"
+                step="1000"
               />
               <p className="text-xs text-gray-500 mt-1">
                 Saldo tersedia: Rp {wallet.available_balance.toLocaleString('id-ID')}
