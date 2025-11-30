@@ -84,6 +84,7 @@ export default function PaymentHistoryPage() {
       // ✅ Add timestamp to prevent caching
       const timestamp = Date.now()
       console.log(`🔍 Loading payment history with timestamp: ${timestamp}`)
+      console.log(`📅 Period filter: ${periodFilter}, Start date: ${startDate.toISOString()}`)
 
       // Load from supplier_payments table
       const { data, error } = await supabase
@@ -106,9 +107,9 @@ export default function PaymentHistoryPage() {
             business_name
           )
         `)
-        .gte('payment_date', startDate.toISOString().split('T')[0])
+        .gte('created_at', startDate.toISOString())
         .eq('status', 'COMPLETED')
-        .order('payment_date', { ascending: false })
+        .order('created_at', { ascending: false })
 
       if (error) {
         console.error('Error loading payment history:', error)
@@ -139,15 +140,22 @@ export default function PaymentHistoryPage() {
 
       console.log('💰 Payment History Loaded:', {
         timestamp: new Date().toISOString(),
+        periodFilter,
+        startDate: startDate.toISOString(),
         count: paymentHistory.length,
         totalAmount: paymentHistory.reduce((sum, p) => sum + p.amount, 0),
-        sample: paymentHistory.slice(0, 3).map(p => ({
+        allPayments: paymentHistory.map(p => ({
+          id: p.id,
           supplier: p.supplier_name,
           amount: p.amount,
           reference: p.payment_reference,
-          date: p.payment_date
+          payment_date: p.payment_date,
+          created_at: p.created_at
         }))
       })
+
+      // ✅ Log raw data from Supabase
+      console.log('📦 Raw Supabase data (first 5):', data?.slice(0, 5))
     } catch (error) {
       console.error('❌ Error loading payment history:', error)
       setPayments([])
