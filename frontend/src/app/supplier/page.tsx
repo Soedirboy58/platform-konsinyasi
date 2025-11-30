@@ -179,6 +179,8 @@ export default function SupplierDashboard() {
         .sort((a: any, b: any) => b.total_sold - a.total_sold)
         .slice(0, 10) as TopProduct[]
 
+      console.log('🔍 DEBUG: Fetching recent sales for productIds:', productIds)
+
       const { data: recentSales, error: recentSalesError } = await supabase
         .from('sales_transaction_items')
         .select(`
@@ -197,16 +199,27 @@ export default function SupplierDashboard() {
         .order('sales_transactions(created_at)', { ascending: false })
         .limit(50)
 
+      console.log('📊 Recent sales response:', { 
+        data: recentSales, 
+        error: recentSalesError,
+        count: recentSales?.length || 0 
+      })
+
       if (recentSalesError) {
         console.error('❌ Error fetching recent sales:', recentSalesError)
       }
 
       // Get location names separately to avoid ambiguous relationship
       const locationIds = Array.from(new Set(recentSales?.map((s: any) => s.sales_transactions?.location_id).filter(Boolean)))
+      
+      console.log('📍 Location IDs to fetch:', locationIds)
+      
       const { data: locationsData } = await supabase
         .from('locations')
         .select('id, name')
         .in('id', locationIds)
+      
+      console.log('🏪 Locations data:', locationsData)
       
       const locationMap = new Map(locationsData?.map(l => [l.id, l.name]) || [])
 
@@ -218,6 +231,8 @@ export default function SupplierDashboard() {
         outlet_name: locationMap.get(item.sales_transactions?.location_id) || 'Unknown',
         sold_at: item.sales_transactions?.created_at || new Date().toISOString()
       })) || []
+
+      console.log('🔔 Final sales notifications:', salesNotifs)
 
       setStats({
         totalProducts: approvedCount, // ONLY approved products
