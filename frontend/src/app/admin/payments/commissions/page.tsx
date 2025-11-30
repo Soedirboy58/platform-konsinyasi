@@ -108,6 +108,15 @@ export default function CommissionsPage() {
         startDate = new Date(2020, 0, 1) // All time
       }
 
+      // Get commission rate from platform settings
+      const { data: platformSettings } = await supabase
+        .from('platform_settings')
+        .select('commission_rate')
+        .single()
+      
+      const commissionRate = platformSettings?.commission_rate || 10 // Default 10%
+      console.log('💰 Commission rate:', commissionRate + '%')
+
       // OPTIMIZED: Single query with JOIN instead of loop
       // Get all sales with supplier info in one query
       const { data: salesItems, error: salesError } = await supabase
@@ -115,8 +124,6 @@ export default function CommissionsPage() {
         .select(`
           quantity,
           subtotal,
-          supplier_revenue,
-          commission_amount,
           sales_transactions!inner(
             id,
             status,
@@ -139,6 +146,8 @@ export default function CommissionsPage() {
         .gte('sales_transactions.created_at', startDate.toISOString())
         .eq('sales_transactions.status', 'COMPLETED')
         .eq('products.suppliers.status', 'APPROVED')
+
+      console.log('📊 Sales items loaded:', salesItems?.length || 0)
 
       if (salesError) {
         console.error('Error loading sales:', salesError)
@@ -201,8 +210,9 @@ export default function CommissionsPage() {
         
         // Calculate totals
         const totalSales = sales.reduce((sum: number, item: any) => sum + (item.subtotal || 0), 0)
-        const totalRevenue = sales.reduce((sum: number, item: any) => sum + (item.supplier_revenue || 0), 0)
-        const totalCommission = sales.reduce((sum: number, item: any) => sum + (item.commission_amount || 0), 0)
+        // Calculate commission and revenue manually since columns don't exist
+        const totalCommission = totalSales * (commissionRate / 100)
+        const totalRevenue = totalSales - totalCommission
         const productsSold = sales.reduce((sum: number, item: any) => sum + (item.quantity || 0), 0)
         
         // Get unique transaction count

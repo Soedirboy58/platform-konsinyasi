@@ -186,8 +186,8 @@ export default function SupplierDashboard() {
         .select(`
           id,
           quantity,
-          unit_price,
-          products!inner(name),
+          subtotal,
+          products!inner(name, selling_price),
           sales_transactions!inner(
             created_at,
             status,
@@ -223,14 +223,19 @@ export default function SupplierDashboard() {
       
       const locationMap = new Map(locationsData?.map(l => [l.id, l.name]) || [])
 
-      const salesNotifs: SalesNotification[] = recentSales?.map((item: any) => ({
-        id: item.id,
-        product_name: item.products?.name || 'Unknown',
-        quantity: item.quantity,
-        price: item.unit_price || 0,
-        outlet_name: locationMap.get(item.sales_transactions?.location_id) || 'Unknown',
-        sold_at: item.sales_transactions?.created_at || new Date().toISOString()
-      })) || []
+      const salesNotifs: SalesNotification[] = recentSales?.map((item: any) => {
+        // Calculate unit price from subtotal / quantity
+        const unitPrice = item.quantity > 0 ? item.subtotal / item.quantity : (item.products?.selling_price || 0)
+        
+        return {
+          id: item.id,
+          product_name: item.products?.name || 'Unknown',
+          quantity: item.quantity,
+          price: unitPrice,
+          outlet_name: locationMap.get(item.sales_transactions?.location_id) || 'Unknown',
+          sold_at: item.sales_transactions?.created_at || new Date().toISOString()
+        }
+      }) || []
 
       console.log('🔔 Final sales notifications:', salesNotifs)
 

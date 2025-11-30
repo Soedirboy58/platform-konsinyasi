@@ -17,16 +17,9 @@ WHERE st.status = 'COMPLETED'
 ORDER BY st.created_at DESC
 LIMIT 10;
 
--- 2. Cek detail items transaksi
+-- 2. Cek detail items transaksi (tanpa kolom yang mungkin tidak ada)
 SELECT 
-    sti.id,
-    sti.transaction_id,
-    sti.product_id,
-    sti.quantity,
-    sti.unit_price,
-    sti.subtotal,
-    sti.commission_amount,
-    sti.supplier_revenue,
+    sti.*,
     p.name AS product_name,
     s.business_name AS supplier_name,
     st.created_at,
