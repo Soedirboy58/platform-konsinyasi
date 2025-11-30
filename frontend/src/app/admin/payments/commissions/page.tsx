@@ -611,19 +611,38 @@ export default function CommissionsPage() {
   }
 
   const stats = {
+    // ✅ FIX: Total yang BELUM BAYAR = sum of unpaid_amount for UNPAID status
     totalUnpaid: filteredCommissions
       .filter(c => c.status === 'UNPAID')
-      .reduce((sum, c) => sum + c.commission_amount, 0),
+      .reduce((sum, c) => sum + c.unpaid_amount, 0),
+    
+    // ✅ FIX: Total yang SUDAH BAYAR = sum of already paid amount (revenue - unpaid) for ALL suppliers
     totalPaid: filteredCommissions
-      .filter(c => c.status === 'PAID')
-      .reduce((sum, c) => sum + c.commission_amount, 0),
+      .reduce((sum, c) => sum + (c.commission_amount - c.unpaid_amount), 0),
+    
+    // ✅ FIX: Total pending = sum of unpaid_amount for PENDING status
     totalPending: filteredCommissions
       .filter(c => c.status === 'PENDING')
-      .reduce((sum, c) => sum + c.commission_amount, 0),
+      .reduce((sum, c) => sum + c.unpaid_amount, 0),
+    
     totalSuppliers: filteredCommissions.length,
-    totalReadyToPay: readyToPaySuppliers.reduce((sum, c) => sum + c.commission_amount, 0),
-    totalPendingThreshold: pendingThresholdSuppliers.reduce((sum, c) => sum + c.commission_amount, 0)
+    
+    // ✅ FIX: Total ready to pay = sum of unpaid amounts (not total revenue)
+    totalReadyToPay: readyToPaySuppliers.reduce((sum, c) => sum + c.unpaid_amount, 0),
+    
+    // ✅ FIX: Total pending threshold = sum of unpaid amounts
+    totalPendingThreshold: pendingThresholdSuppliers.reduce((sum, c) => sum + c.unpaid_amount, 0)
   }
+
+  console.log('📊 Stats calculation:', {
+    totalUnpaid: stats.totalUnpaid.toLocaleString('id-ID'),
+    totalPaid: stats.totalPaid.toLocaleString('id-ID'),
+    totalPending: stats.totalPending.toLocaleString('id-ID'),
+    calculation: {
+      example: 'Dapur bunnara: revenue 180k - unpaid 18k = paid 162k',
+      formula: 'totalPaid = sum(commission_amount - unpaid_amount)'
+    }
+  })
 
   function handleBatchPayment() {
     if (readyToPaySuppliers.length === 0) {
