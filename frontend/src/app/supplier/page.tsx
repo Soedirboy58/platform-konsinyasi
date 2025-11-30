@@ -391,7 +391,7 @@ export default function SupplierDashboard() {
           value={stats.pendingShipments}
           subtitle="Stok sedang dikirim ke outlet"
           color="bg-cyan-600"
-          link="/supplier/shipments"
+          link="/supplier/shipments?tab=history"
         />
         <StatCard
           icon={<AlertCircle className="w-5 h-5" />}

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Package, History, RotateCcw } from 'lucide-react'
 import CreateShipmentTab from './CreateShipmentTab'
@@ -12,7 +12,11 @@ type TabType = 'create' | 'history' | 'returns'
 
 export default function ShipmentsPage() {
   const router = useRouter()
-  const [activeTab, setActiveTab] = useState<TabType>('create')
+  const searchParams = useSearchParams()
+  
+  // Read tab from URL query param (default: 'create')
+  const tabParam = searchParams.get('tab') as TabType | null
+  const [activeTab, setActiveTab] = useState<TabType>(tabParam || 'create')
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {

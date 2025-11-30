@@ -258,7 +258,6 @@ export default function NewProductPage() {
                     type="number"
                     required
                     min="1"
-                    step="100"
                     value={formData.price}
                     onChange={(e) => {
                       const value = e.target.value
