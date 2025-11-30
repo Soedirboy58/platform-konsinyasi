@@ -187,7 +187,7 @@ export default function SupplierDashboard() {
           id,
           quantity,
           subtotal,
-          products!inner(name, selling_price),
+          products!inner(name),
           sales_transactions!inner(
             created_at,
             status,
@@ -224,8 +224,8 @@ export default function SupplierDashboard() {
       const locationMap = new Map(locationsData?.map(l => [l.id, l.name]) || [])
 
       const salesNotifs: SalesNotification[] = recentSales?.map((item: any) => {
-        // Calculate unit price from subtotal / quantity
-        const unitPrice = item.quantity > 0 ? item.subtotal / item.quantity : (item.products?.selling_price || 0)
+        // Calculate unit price from subtotal / quantity (selling_price column doesn't exist)
+        const unitPrice = item.quantity > 0 ? (item.subtotal / item.quantity) : 0
         
         return {
           id: item.id,
