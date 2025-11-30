@@ -492,31 +492,53 @@ export default function CommissionsPage() {
       const periodStart = new Date(now.getFullYear(), now.getMonth(), 1)
       const periodEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0)
 
-      // Insert payment record with BOTH new and legacy columns for compatibility
-      // commission_amount in DB = platform commission (10%)
-      // net_payment in DB = amount paid to supplier (90%)
-      const platformCommission = selectedCommission.total_sales - selectedCommission.commission_amount
-      
+      // ✅ FIX: Calculate platform commission correctly
+      // commission_amount in DB should be platform's 10%, not supplier's 90%
+      const platformCommission = selectedCommission.total_sales * 0.10
+
+      // ✅ FIX: net_payment should be the ACTUAL AMOUNT TRANSFERRED (unpaid_amount)
+      // This is what admin just paid to supplier, not total revenue
+      const actualPaymentAmount = selectedCommission.unpaid_amount
+
+      console.log('💰 Payment calculation:', {
+        total_sales: selectedCommission.total_sales,
+        platform_commission: platformCommission,
+        supplier_total_revenue: selectedCommission.commission_amount,
+        already_paid: selectedCommission.commission_amount - selectedCommission.unpaid_amount,
+        unpaid_amount: selectedCommission.unpaid_amount,
+        amount_to_transfer: actualPaymentAmount
+      })
+
       const { data: payment, error } = await supabase
         .from('supplier_payments')
         .insert({
           supplier_id: selectedCommission.supplier_id,
           wallet_id: wallet?.id || null,
-          // NEW SCHEMA COLUMNS
+          
+          // Period info
           period_start: periodStart.toISOString().split('T')[0],
           period_end: periodEnd.toISOString().split('T')[0],
-          gross_sales: selectedCommission.total_sales,
-          commission_amount: platformCommission,
-          net_payment: selectedCommission.unpaid_amount,
+          
+          // Financial breakdown
+          gross_sales: selectedCommission.total_sales,  // Total sales before commission
+          commission_amount: platformCommission,  // ✅ Platform's 10% cut
+          net_payment: actualPaymentAmount,  // ✅ Amount ACTUALLY TRANSFERRED
           adjustments_deduction: 0,
-          // LEGACY COLUMNS (backward compatibility)
-          amount: selectedCommission.unpaid_amount,
+          
+          // Legacy columns (backward compatibility)
+          amount: actualPaymentAmount,  // ✅ Same as net_payment
+          
+          // Payment details
           payment_date: new Date(paymentDate + 'T00:00:00+07:00').toISOString(),
           payment_reference: paymentReference,
           payment_method: 'BANK_TRANSFER',
+          
+          // Bank info
           bank_name: selectedCommission.bank_name,
           bank_account_number: selectedCommission.bank_account,
           bank_account_holder: selectedCommission.bank_holder,
+          
+          // Status & metadata
           status: 'COMPLETED',
           notes: paymentNotes || null,
           created_by: user.id
