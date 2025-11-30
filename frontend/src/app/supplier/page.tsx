@@ -85,6 +85,25 @@ export default function SupplierDashboard() {
       const approvedCount = products?.filter(p => p.status === 'APPROVED').length || 0
       const pendingProductCount = products?.filter(p => p.status === 'PENDING').length || 0
 
+      // Early return if no products
+      if (productIds.length === 0) {
+        setStats({
+          totalProducts: 0,
+          approvedProducts: 0,
+          pendingProducts: 0,
+          actualRevenue: 0,
+          stockAtOutlets: 0,
+          totalShipped: 0,
+          totalReturns: 0,
+          walletBalance: 0,
+          pendingShipments: 0
+        })
+        setTopProducts([])
+        setSalesNotifications([])
+        setLoading(false)
+        return
+      }
+
       // Get pending shipments (status PENDING menunggu approved admin)
       const { count: pendingShipmentsCount } = await supabase
         .from('stock_movements')

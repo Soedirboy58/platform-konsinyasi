@@ -242,6 +242,19 @@ export default function CommissionsPage() {
           status = 'PAID'
         }
 
+        // Debug logging
+        if (supplier.business_name.includes('Aneka') || supplier.business_name.includes('Dapur')) {
+          console.log(`💰 ${supplier.business_name}:`, {
+            totalRevenue,
+            totalPaid,
+            unpaidAmount,
+            walletBalance,
+            pendingBalance,
+            status,
+            payments: payments.length
+          })
+        }
+
         commissionsData.push({
           supplier_id: supplierId,
           supplier_name: supplier.business_name,
