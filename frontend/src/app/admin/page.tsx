@@ -98,81 +98,101 @@ export default function AdminDashboard() {
         .from('products')
         .select('*')
       
-      // Get inventory levels to count products in stock
+      // Get inventory levels
       const { data: inventoryLevels } = await supabase
         .from('inventory_levels')
         .select('product_id, quantity')
         .gt('quantity', 0)
       
-      // Count unique products with stock (for "Produk di Etalase" - yang tampil di customer view)
       const uniqueProductsInStock = new Set(inventoryLevels?.map(inv => inv.product_id) || []).size
-      
-      // Calculate TOTAL quantity across all products (for "Produk Stok Tersedia" - real-time monitoring)
       const totalStockQuantity = inventoryLevels?.reduce((sum, inv) => sum + (inv.quantity || 0), 0) || 0
       
-      // Get today's sales data
-      const today = new Date()
-      today.setHours(0, 0, 0, 0)
+      // ========================================
+      // FIX: Get today's sales with proper timezone
+      // ========================================
       
-      // Query sales transactions with items
-      const { data: todaySales } = await supabase
-        .from('sales_transactions')
-        .select('id, transaction_code, total_amount, created_at, location_id, locations(name)')
-        .gte('created_at', today.toISOString())
-        .eq('status', 'COMPLETED')
-        .order('created_at', { ascending: false })
-        .limit(50)
+      const todayStart = new Date()
+      todayStart.setHours(0, 0, 0, 0)
+      const todayStartISO = todayStart.toISOString()
       
-      console.log('📊 Today sales loaded:', {
-        count: todaySales?.length || 0,
-        latest: todaySales?.[0]?.created_at
+      console.log('🔍 Fetching today sales:', {
+        todayStart: todayStartISO,
+        todayLocal: todayStart.toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })
       })
       
-      // Query sales items for revenue calculation
+      const { data: todaySales, error: todaySalesError } = await supabase
+        .from('sales_transactions')
+        .select(`
+          id,
+          transaction_code,
+          total_amount,
+          created_at,
+          status,
+          location_id,
+          locations (
+            name
+          )
+        `)
+        .gte('created_at', todayStartISO)
+        .eq('status', 'COMPLETED')
+        .order('created_at', { ascending: false })
+      
+      console.log('📊 Today sales result:', {
+        success: !todaySalesError,
+        count: todaySales?.length || 0,
+        error: todaySalesError?.message || null,
+        errorDetails: todaySalesError,
+        sampleData: todaySales?.slice(0, 2)
+      })
+      
+      if (todaySalesError) {
+        console.error('❌ Sales query error:', todaySalesError)
+      }
+      
+      // Query sales items
       const transactionIds = todaySales?.map(t => t.id) || []
       const { data: salesItems } = await supabase
         .from('sales_transaction_items')
         .select('transaction_id, quantity, subtotal, commission_amount, product_id')
         .in('transaction_id', transactionIds)
       
-      // Calculate expired products (>7 days with no stock movement) 
-      const sevenDaysAgo = new Date()
-      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
-      const expiredCount = 0 // TODO: Implement expired/stagnan logic
-      
-      // Calculate daily revenue from all items
+      const expiredCount = 0
       const dailyRevenue = salesItems?.reduce((sum, item) => sum + (item.subtotal || 0), 0) || 0
-      
-      // Calculate total commission earned by platform
       const dailyCommission = salesItems?.reduce((sum, item) => sum + (item.commission_amount || 0), 0) || 0
       
-      // Format recent sales (simplified - just show transaction totals)
+      // Format recent sales (limit to 5)
       const recentSalesData = todaySales?.slice(0, 5).map(sale => {
-        const locations = sale.locations as any
+        const location = sale.locations as any
+        const createdAt = new Date(sale.created_at)
+        const ageMs = Date.now() - createdAt.getTime()
+        const isNew = ageMs < 60000
+        
         return {
           id: sale.id,
           transaction_code: sale.transaction_code,
           total: sale.total_amount || 0,
           created_at: sale.created_at,
-          outlet_name: locations?.name || 'Outlet',
-          is_new: (new Date().getTime() - new Date(sale.created_at).getTime()) < 60000
+          outlet_name: location?.name || 'Outlet',
+          is_new: isNew
         }
       }) || []
       
       console.log('🆕 Recent sales formatted:', {
-        count: recentSalesData.length,
-        newCount: recentSalesData.filter(s => s.is_new).length
+        totalToday: todaySales?.length || 0,
+        displaying: recentSalesData.length,
+        newCount: recentSalesData.filter(s => s.is_new).length,
+        recentSales: recentSalesData
       })
       
       setStats({
-        totalProducts: products?.length || 0, // Semua produk yang terdaftar
+        totalProducts: products?.length || 0,
         totalSuppliers: suppliers?.length || 0,
         approvedSuppliers: suppliers?.filter(s => s.status === 'APPROVED').length || 0,
         pendingSuppliers: suppliers?.filter(s => s.status === 'PENDING').length || 0,
         approvedProducts: products?.filter(p => p.status === 'APPROVED').length || 0,
         pendingProducts: products?.filter(p => p.status === 'PENDING').length || 0,
-        productsInStock: totalStockQuantity, // TOTAL quantity ready untuk dijual (real-time monitoring)
-        productsDisplayed: uniqueProductsInStock, // Jumlah produk unik yang ready dijual
+        productsInStock: totalStockQuantity,
+        productsDisplayed: uniqueProductsInStock,
         expiredProducts: expiredCount,
         dailyRevenue: dailyRevenue,
         dailySales: todaySales?.length || 0,
