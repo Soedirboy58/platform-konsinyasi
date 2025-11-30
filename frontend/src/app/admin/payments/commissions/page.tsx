@@ -165,17 +165,55 @@ export default function CommissionsPage() {
       )
 
       // Get payment records for the period to check who has been paid
-      const { data: paymentRecords } = await supabase
-        .from('supplier_payments')
-        .select('supplier_id, net_payment, amount, payment_date, period_start, period_end, payment_reference, status, created_at')
-        .gte('period_start', startDate.toISOString().split('T')[0])
-        .eq('status', 'COMPLETED')
+      const startDateStr = startDate.toISOString().split('T')[0]
 
-      console.log('💰 Payment records loaded:', {
-        count: paymentRecords?.length || 0,
-        sample: paymentRecords?.slice(0, 2),
-        period: { start: startDate.toISOString(), filter: periodFilter }
+      console.log('🔍 Fetching payment records:', {
+        table: 'supplier_payments',
+        filter: {
+          period_start_gte: startDateStr,
+          status: 'COMPLETED'
+        },
+        periodFilter: periodFilter
       })
+
+      const { data: paymentRecords, error: paymentError } = await supabase
+        .from('supplier_payments')
+        .select(`
+          supplier_id,
+          net_payment,
+          amount,
+          payment_date,
+          period_start,
+          period_end,
+          payment_reference,
+          status,
+          created_at
+        `)
+        .gte('period_start', startDateStr)
+        .eq('status', 'COMPLETED')
+        .order('created_at', { ascending: false })
+
+      console.log('💰 Payment records fetched:', {
+        success: !paymentError,
+        count: paymentRecords?.length || 0,
+        error: paymentError?.message || null,
+        errorCode: paymentError?.code || null,
+        sampleData: paymentRecords?.slice(0, 3).map(p => ({
+          supplier_id: p.supplier_id,
+          net_payment: p.net_payment,
+          amount: p.amount,
+          period: `${p.period_start} to ${p.period_end}`
+        }))
+      })
+
+      if (paymentError) {
+        console.error('❌ Payment query error:', {
+          message: paymentError.message,
+          code: paymentError.code,
+          details: paymentError.details,
+          hint: paymentError.hint
+        })
+      }
 
       // Group payments by supplier
       const paymentMap = new Map<string, any[]>()
@@ -187,6 +225,16 @@ export default function CommissionsPage() {
           paymentMap.get(payment.supplier_id)!.push(payment)
         }
       }
+
+      console.log('📦 Payment map built:', {
+        totalSuppliers: paymentMap.size,
+        supplierIds: Array.from(paymentMap.keys()),
+        breakdown: Array.from(paymentMap.entries()).map(([supplierId, payments]) => ({
+          supplierId,
+          paymentCount: payments.length,
+          totalAmount: payments.reduce((sum, p) => sum + (p.net_payment || p.amount || 0), 0)
+        }))
+      })
 
       // Group by supplier
       const supplierSalesMap = new Map<string, any[]>()
@@ -237,6 +285,20 @@ export default function CommissionsPage() {
         // Check if this supplier has been paid in this period
         const payments = paymentMap.get(supplierId) || []
         const totalPaid = payments.reduce((sum, p) => sum + (p.net_payment || p.amount || 0), 0)
+        
+        console.log(`💵 Payment calculation for ${supplier.business_name}:`, {
+          supplierId,
+          paymentsFound: payments.length,
+          payments: payments.map(p => ({
+            net_payment: p.net_payment,
+            amount: p.amount,
+            used: p.net_payment || p.amount || 0,
+            period: `${p.period_start} to ${p.period_end}`
+          })),
+          totalPaid,
+          totalRevenue
+        })
+        
         const latestPayment = payments.length > 0 
           ? payments.sort((a, b) => {
               const dateA = new Date(b.payment_date || b.created_at).getTime()
@@ -254,7 +316,7 @@ export default function CommissionsPage() {
         }
         else if (unpaidAmount < -0.01) {
           status = 'PAID'
-          console.warn(`⚠️ Over-payment for ${supplier.business_name}:`, {
+          console.warn(`⚠️ Over-payment detected for ${supplier.business_name}:`, {
             totalRevenue,
             totalPaid,
             overpayment: Math.abs(unpaidAmount)
@@ -267,11 +329,12 @@ export default function CommissionsPage() {
           status = 'PAID'
         }
 
-        console.log(`📊 ${supplier.business_name}:`, {
+        console.log(`📊 Status for ${supplier.business_name}:`, {
           totalRevenue,
           totalPaid,
           unpaidAmount,
-          status
+          status,
+          calculation: `${totalRevenue} - ${totalPaid} = ${unpaidAmount}`
         })
 
         commissionsData.push({
@@ -292,11 +355,20 @@ export default function CommissionsPage() {
         })
       }
 
-      console.log('✅ Commissions calculated:', {
-        total: commissionsData.length,
-        unpaid: commissionsData.filter(c => c.status === 'UNPAID').length,
-        paid: commissionsData.filter(c => c.status === 'PAID').length,
-        overPaymentCount: commissionsData.filter(c => c.unpaid_amount < 0).length
+      console.log('✅ Commission calculation complete:', {
+        totalSuppliers: commissionsData.length,
+        breakdown: {
+          unpaid: commissionsData.filter(c => c.status === 'UNPAID').length,
+          paid: commissionsData.filter(c => c.status === 'PAID').length,
+          pending: commissionsData.filter(c => c.status === 'PENDING').length,
+          overPayment: commissionsData.filter(c => c.unpaid_amount < -0.01).length
+        },
+        suppliers: commissionsData.map(c => ({
+          name: c.supplier_name,
+          revenue: c.commission_amount,
+          unpaid: c.unpaid_amount,
+          status: c.status
+        }))
       })
 
       setCommissions(commissionsData)
