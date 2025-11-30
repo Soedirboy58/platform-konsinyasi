@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { ShoppingCart, Truck, Scan, Plus, Minus, Search, Filter, X, AlertTriangle } from 'lucide-react'
+import { ShoppingCart, Truck, Scan, Plus, Minus, Search, Filter, X, AlertTriangle, Store } from 'lucide-react'
 import { toast } from 'sonner'
 import ReportProductModal from '@/components/ReportProductModal'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
@@ -301,9 +301,12 @@ export default function KantinPage() {
       <header className="bg-gradient-to-r from-red-600 to-orange-600 text-white sticky top-0 z-20 shadow-lg">
         <div className="max-w-7xl mx-auto px-4 py-4">
           <div className="flex justify-between items-center">
-            <div>
-              <h1 className="text-2xl font-bold">🏪 Kantin Kejujuran</h1>
-              <p className="text-sm text-red-100">{locationName}</p>
+            <div className="flex items-center gap-3">
+              <Store className="w-8 h-8" />
+              <div>
+                <h1 className="text-2xl font-bold">Store Bisnis & Partnership</h1>
+                <p className="text-sm text-red-100">{locationName || 'Belanja mudah, bayar jujur'}</p>
+              </div>
             </div>
             
             {/* Action Icons */}
