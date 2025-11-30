@@ -1,17 +1,53 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Package, Users, TrendingUp, AlertCircle, DollarSign, RotateCcw, CheckCircle, Clock, Bell, ShoppingCart, Building, Archive, AlertTriangle } from 'lucide-react'
+import { 
+  Package, 
+  Users, 
+  TrendingUp, 
+  AlertCircle, 
+  DollarSign, 
+  RotateCcw, 
+  CheckCircle, 
+  Clock, 
+  Bell, 
+  ShoppingCart, 
+  Building, 
+  Archive, 
+  AlertTriangle,
+  MapPin,
+  Eye,
+  ArrowRight
+} from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 
+function formatRelativeTime(dateString: string): string {
+  const now = new Date()
+  const date = new Date(dateString)
+  const diffMs = now.getTime() - date.getTime()
+  const diffMins = Math.floor(diffMs / 60000)
+  const diffHours = Math.floor(diffMs / 3600000)
+  
+  if (diffMins < 1) return 'Baru saja'
+  if (diffMins < 60) return `${diffMins} menit yang lalu`
+  if (diffHours < 24) return `${diffHours} jam yang lalu`
+  
+  return date.toLocaleDateString('id-ID', { 
+    day: '2-digit', 
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit'
+  })
+}
+
 interface RecentSale {
   id: string
-  product_name: string
-  quantity: number
+  transaction_code: string
   total: number
   created_at: string
   outlet_name: string
+  is_new: boolean
 }
 
 export default function AdminDashboard() {
@@ -81,9 +117,16 @@ export default function AdminDashboard() {
       // Query sales transactions with items
       const { data: todaySales } = await supabase
         .from('sales_transactions')
-        .select('id, transaction_code, total_amount, created_at, location_id')
+        .select('id, transaction_code, total_amount, created_at, location_id, locations(name)')
         .gte('created_at', today.toISOString())
         .eq('status', 'COMPLETED')
+        .order('created_at', { ascending: false })
+        .limit(50)
+      
+      console.log('📊 Today sales loaded:', {
+        count: todaySales?.length || 0,
+        latest: todaySales?.[0]?.created_at
+      })
       
       // Query sales items for revenue calculation
       const transactionIds = todaySales?.map(t => t.id) || []
@@ -104,14 +147,22 @@ export default function AdminDashboard() {
       const dailyCommission = salesItems?.reduce((sum, item) => sum + (item.commission_amount || 0), 0) || 0
       
       // Format recent sales (simplified - just show transaction totals)
-      const recentSalesData = todaySales?.slice(0, 5).map(sale => ({
-        id: sale.id,
-        product_name: `Transaksi ${sale.transaction_code}`,
-        quantity: 1,
-        total: sale.total_amount || 0,
-        created_at: sale.created_at,
-        outlet_name: 'Outlet'
-      })) || []
+      const recentSalesData = todaySales?.slice(0, 5).map(sale => {
+        const locations = sale.locations as any
+        return {
+          id: sale.id,
+          transaction_code: sale.transaction_code,
+          total: sale.total_amount || 0,
+          created_at: sale.created_at,
+          outlet_name: locations?.name || 'Outlet',
+          is_new: (new Date().getTime() - new Date(sale.created_at).getTime()) < 60000
+        }
+      }) || []
+      
+      console.log('🆕 Recent sales formatted:', {
+        count: recentSalesData.length,
+        newCount: recentSalesData.filter(s => s.is_new).length
+      })
       
       setStats({
         totalProducts: products?.length || 0, // Semua produk yang terdaftar
@@ -135,6 +186,20 @@ export default function AdminDashboard() {
       setLoading(false)
     }
   }
+
+  useEffect(() => {
+    loadDashboardData()
+  }, [])
+
+  useEffect(() => {
+    // Auto-refresh every 30 seconds
+    const interval = setInterval(() => {
+      console.log('🔄 Auto-refreshing dashboard...')
+      loadDashboardData()
+    }, 30000)
+
+    return () => clearInterval(interval)
+  }, [])
 
   if (loading) {
     return (
@@ -329,34 +394,69 @@ export default function AdminDashboard() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Real-time Sales Notifications */}
           <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-              <Bell className="h-5 w-5 text-blue-600" />
-              Penjualan Hari Ini
-              <span className="ml-auto text-sm font-normal text-gray-600">
-                {stats.dailySales} transaksi
-              </span>
-            </h2>
-            <div className="space-y-3">
-              {recentSales.length === 0 ? (
-                <div className="text-center py-8">
-                  <ShoppingCart className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                  <p className="text-sm text-gray-500">Belum ada penjualan hari ini</p>
-                </div>
-              ) : (
-                recentSales.map((sale) => (
-                  <div key={sale.id} className="p-4 bg-green-50 rounded-lg border border-green-100">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <ShoppingCart className="w-4 h-4 text-green-600" />
-                          <p className="font-medium text-gray-900">{sale.product_name}</p>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                <Bell className="h-5 w-5 text-blue-600" />
+                Penjualan Hari Ini
+                {stats.dailySales > 0 && (
+                  <span className="ml-2 px-2 py-1 bg-blue-100 text-blue-800 text-xs font-semibold rounded-full">
+                    {stats.dailySales} transaksi
+                  </span>
+                )}
+              </h2>
+            </div>
+
+            {recentSales.length === 0 ? (
+              <div className="text-center py-12">
+                <ShoppingCart className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                <p className="text-gray-500 font-medium">Belum ada transaksi hari ini</p>
+                <p className="text-sm text-gray-400 mt-1">
+                  Transaksi akan muncul di sini secara real-time
+                </p>
+              </div>
+            ) : (
+              <>
+                <div className="space-y-3 mb-4">
+                  {recentSales.map((sale, index) => (
+                    <div 
+                      key={sale.id}
+                      className={`flex items-center justify-between p-4 rounded-lg border transition-all ${
+                        sale.is_new 
+                          ? 'bg-blue-50 border-blue-200 animate-pulse'
+                          : 'bg-gray-50 border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        {sale.is_new && (
+                          <span className="flex h-3 w-3">
+                            <span className="animate-ping absolute inline-flex h-3 w-3 rounded-full bg-blue-400 opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-3 w-3 bg-blue-500"></span>
+                          </span>
+                        )}
+                        <div className="flex-shrink-0 w-8 h-8 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center font-bold text-sm">
+                          {index + 1}
                         </div>
-                        <p className="text-sm text-gray-600">
-                          {sale.quantity}x • {sale.outlet_name}
-                        </p>
+                        <div>
+                          <p className="font-semibold text-gray-900 flex items-center gap-2">
+                            <ShoppingCart className="w-4 h-4 text-gray-400" />
+                            {sale.transaction_code}
+                            {sale.is_new && (
+                              <span className="px-2 py-0.5 bg-blue-500 text-white text-xs font-bold rounded-full animate-pulse">
+                                BARU
+                              </span>
+                            )}
+                          </p>
+                          <p className="text-sm text-gray-500 flex items-center gap-2 mt-1">
+                            <MapPin className="w-3 h-3" />
+                            {sale.outlet_name}
+                            <span className="mx-1">•</span>
+                            <Clock className="w-3 h-3" />
+                            {formatRelativeTime(sale.created_at)}
+                          </p>
+                        </div>
                       </div>
                       <div className="text-right">
-                        <p className="font-bold text-green-600">
+                        <p className="font-bold text-green-600 text-lg">
                           Rp {sale.total.toLocaleString('id-ID')}
                         </p>
                         <p className="text-xs text-gray-500">
@@ -367,17 +467,23 @@ export default function AdminDashboard() {
                         </p>
                       </div>
                     </div>
+                  ))}
+                </div>
+
+                {/* Show More Button */}
+                {stats.dailySales > 5 && (
+                  <div className="pt-4 border-t border-gray-200">
+                    <Link
+                      href="/admin/reports/sales"
+                      className="flex items-center justify-center gap-2 w-full py-3 px-4 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 font-semibold transition-all shadow-md hover:shadow-lg"
+                    >
+                      <Eye className="w-5 h-5" />
+                      Lihat Semua Transaksi ({stats.dailySales})
+                      <ArrowRight className="w-5 h-5" />
+                    </Link>
                   </div>
-                ))
-              )}
-            </div>
-            {stats.dailySales > 5 && (
-              <Link 
-                href="/admin/reports" 
-                className="block mt-4 text-center text-sm text-blue-600 hover:underline"
-              >
-                Lihat semua transaksi ({stats.dailySales}) →
-              </Link>
+                )}
+              </>
             )}
           </div>
 
