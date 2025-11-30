@@ -160,14 +160,25 @@ export default function SupplierDashboard() {
 
       const stockAtOutlets = inventoryData?.reduce((sum, inv) => sum + inv.quantity, 0) || 0
 
-      const { data: shipmentData } = await supabase
+      // ✅ FIX: Get shipment IDs first, then sum quantities from stock_movement_items
+      const { data: completedShipments } = await supabase
         .from('stock_movements')
-        .select('quantity')
-        .in('product_id', productIds)
+        .select('id')
+        .eq('supplier_id', supplier.id)  // ✅ Use supplier_id
         .eq('movement_type', 'SHIPMENT')
-        .eq('status', 'COMPLETED')
+        .in('status', ['APPROVED', 'COMPLETED'])  // ✅ Accept both statuses
 
-      const totalShipped = shipmentData?.reduce((sum, sm) => sum + sm.quantity, 0) || 0
+      const shipmentIds = completedShipments?.map(s => s.id) || []
+
+      let totalShipped = 0
+      if (shipmentIds.length > 0) {
+        const { data: itemsData } = await supabase
+          .from('stock_movement_items')
+          .select('quantity')
+          .in('movement_id', shipmentIds)
+        
+        totalShipped = itemsData?.reduce((sum, item) => sum + item.quantity, 0) || 0
+      }
 
       // Get returns count (from new shipment_returns table)
       const { data: returnData } = await supabase
