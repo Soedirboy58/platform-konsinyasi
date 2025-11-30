@@ -107,17 +107,26 @@ export default function SupplierDashboard() {
         return
       }
 
-      // Get pending shipments (status PENDING menunggu approved admin)
-      const { count: pendingShipmentsCount, error: pendingError } = await supabase
+      // Get pending shipments - Check ALL statuses first to debug
+      const { data: allShipments, error: allShipmentsError } = await supabase
         .from('stock_movements')
-        .select('*', { count: 'exact', head: true })
-        .eq('supplier_id', supplier.id)  // ✅ FIX: Query by supplier directly
+        .select('id, status, movement_type')
+        .eq('supplier_id', supplier.id)
         .eq('movement_type', 'SHIPMENT')
-        .eq('status', 'PENDING')
+
+      console.log('🔍 ALL Shipments for debugging:', {
+        allShipments,
+        error: allShipmentsError,
+        supplierId: supplier.id
+      })
+
+      // Now count PENDING (case-insensitive)
+      const pendingShipmentsCount = allShipments?.filter(s => 
+        s.status?.toUpperCase() === 'PENDING'
+      ).length || 0
 
       console.log('📦 DEBUG Pending Shipments:', {
         count: pendingShipmentsCount,
-        error: pendingError,
         supplierId: supplier.id
       })
 
@@ -166,19 +175,26 @@ export default function SupplierDashboard() {
 
       const stockAtOutlets = inventoryData?.reduce((sum, inv) => sum + inv.quantity, 0) || 0
 
-      // ✅ FIX: Get shipment IDs first, then sum quantities from stock_movement_items
-      const { data: completedShipments, error: shipmentError } = await supabase
+      // ✅ FIX: Get ALL shipments first to debug, then filter by status
+      const { data: allCompletedShipments, error: shipmentError } = await supabase
         .from('stock_movements')
         .select('id, status')
-        .eq('supplier_id', supplier.id)  // ✅ Use supplier_id
+        .eq('supplier_id', supplier.id)
         .eq('movement_type', 'SHIPMENT')
-        .in('status', ['APPROVED', 'COMPLETED'])  // ✅ Accept both statuses
 
-      console.log('🚚 DEBUG Total Terkirim:', {
-        shipments: completedShipments,
+      console.log('🚚 DEBUG All Shipments:', {
+        allShipments: allCompletedShipments,
         error: shipmentError,
         supplierId: supplier.id
       })
+
+      // Filter completed/approved (case-insensitive)
+      const completedShipments = allCompletedShipments?.filter(s => {
+        const status = s.status?.toUpperCase()
+        return status === 'APPROVED' || status === 'COMPLETED' || status === 'DISETUJUI'
+      }) || []
+
+      console.log('✅ Filtered Completed Shipments:', completedShipments)
 
       const shipmentIds = completedShipments?.map(s => s.id) || []
 
