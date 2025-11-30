@@ -122,17 +122,7 @@ export default function AdminDashboard() {
       
       const { data: todaySales, error: todaySalesError } = await supabase
         .from('sales_transactions')
-        .select(`
-          id,
-          transaction_code,
-          total_amount,
-          created_at,
-          status,
-          location_id,
-          locations (
-            name
-          )
-        `)
+        .select('id, transaction_code, total_amount, created_at, status, location_id')
         .gte('created_at', todayStartISO)
         .eq('status', 'COMPLETED')
         .order('created_at', { ascending: false })
@@ -162,7 +152,6 @@ export default function AdminDashboard() {
       
       // Format recent sales (limit to 5)
       const recentSalesData = todaySales?.slice(0, 5).map(sale => {
-        const location = sale.locations as any
         const createdAt = new Date(sale.created_at)
         const ageMs = Date.now() - createdAt.getTime()
         const isNew = ageMs < 60000
@@ -172,7 +161,7 @@ export default function AdminDashboard() {
           transaction_code: sale.transaction_code,
           total: sale.total_amount || 0,
           created_at: sale.created_at,
-          outlet_name: location?.name || 'Outlet',
+          outlet_name: 'Outlet',
           is_new: isNew
         }
       }) || []
