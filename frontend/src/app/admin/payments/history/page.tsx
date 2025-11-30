@@ -66,6 +66,7 @@ export default function PaymentHistoryPage() {
         .select(`
           id,
           supplier_id,
+          net_payment,
           amount,
           payment_reference,
           payment_date,
@@ -95,7 +96,7 @@ export default function PaymentHistoryPage() {
         id: p.id,
         supplier_id: p.supplier_id,
         supplier_name: p.suppliers?.business_name || 'Unknown',
-        amount: p.amount,
+        amount: p.net_payment || p.amount || 0,  // ✅ Use net_payment first, fallback to amount
         payment_date: p.payment_date,
         payment_reference: p.payment_reference,
         payment_method: p.payment_method || 'Transfer Bank',
@@ -112,7 +113,12 @@ export default function PaymentHistoryPage() {
 
       console.log('💰 Payment History Loaded:', {
         count: paymentHistory.length,
-        totalAmount: paymentHistory.reduce((sum, p) => sum + p.amount, 0)
+        totalAmount: paymentHistory.reduce((sum, p) => sum + p.amount, 0),
+        sample: paymentHistory.slice(0, 3).map(p => ({
+          supplier: p.supplier_name,
+          amount: p.amount,
+          reference: p.payment_reference
+        }))
       })
     } catch (error) {
       console.error('Error loading payment history:', error)
