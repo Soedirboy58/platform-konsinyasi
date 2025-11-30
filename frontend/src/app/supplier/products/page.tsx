@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Package, Edit, Trash2, Plus } from 'lucide-react'
 import { toast } from 'sonner'
+import ConfirmDialog from '@/components/supplier/ConfirmDialog'
 
 type Product = {
   id: string
@@ -26,6 +27,20 @@ export default function ProductsPage() {
   const [supplierId, setSupplierId] = useState<string | null>(null)
   const [selectedProducts, setSelectedProducts] = useState<string[]>([])
   const [isDeleting, setIsDeleting] = useState(false)
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean
+    title: string
+    message: string
+    onConfirm: () => void | Promise<void>
+    variant?: 'primary' | 'danger' | 'warning' | 'success'
+    icon?: 'warning' | 'danger' | 'success' | 'package'
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {},
+    variant: 'danger'
+  })
 
   useEffect(() => {
     loadProducts()
@@ -71,25 +86,32 @@ export default function ProductsPage() {
   }
 
   async function deleteProduct(id: string) {
-    if (!confirm('Yakin ingin menghapus produk ini?')) return
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Hapus Produk',
+      message: 'Yakin ingin menghapus produk ini? Tindakan ini tidak dapat dibatalkan.',
+      variant: 'danger',
+      icon: 'danger',
+      onConfirm: async () => {
+        try {
+          const supabase = createClient()
+          
+          const { error } = await supabase
+            .from('products')
+            .delete()
+            .eq('id', id)
 
-    try {
-      const supabase = createClient()
-      
-      const { error } = await supabase
-        .from('products')
-        .delete()
-        .eq('id', id)
+          if (error) throw error
 
-      if (error) throw error
-
-      toast.success('Produk berhasil dihapus')
-      setProducts(products.filter(p => p.id !== id))
-      setSelectedProducts(selectedProducts.filter(pid => pid !== id))
-    } catch (error) {
-      console.error('Error deleting product:', error)
-      toast.error('Gagal menghapus produk')
-    }
+          toast.success('Produk berhasil dihapus')
+          setProducts(products.filter(p => p.id !== id))
+          setSelectedProducts(selectedProducts.filter(pid => pid !== id))
+        } catch (error) {
+          console.error('Error deleting product:', error)
+          toast.error('Gagal menghapus produk')
+        }
+      }
+    })
   }
 
   async function deleteSelectedProducts() {
@@ -98,28 +120,35 @@ export default function ProductsPage() {
       return
     }
 
-    if (!confirm(`Yakin ingin menghapus ${selectedProducts.length} produk yang dipilih?`)) return
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Hapus Produk Terpilih',
+      message: `Yakin ingin menghapus ${selectedProducts.length} produk yang dipilih? Tindakan ini tidak dapat dibatalkan.`,
+      variant: 'danger',
+      icon: 'danger',
+      onConfirm: async () => {
+        try {
+          setIsDeleting(true)
+          const supabase = createClient()
+          
+          const { error } = await supabase
+            .from('products')
+            .delete()
+            .in('id', selectedProducts)
 
-    try {
-      setIsDeleting(true)
-      const supabase = createClient()
-      
-      const { error } = await supabase
-        .from('products')
-        .delete()
-        .in('id', selectedProducts)
+          if (error) throw error
 
-      if (error) throw error
-
-      toast.success(`${selectedProducts.length} produk berhasil dihapus`)
-      setProducts(products.filter(p => !selectedProducts.includes(p.id)))
-      setSelectedProducts([])
-    } catch (error) {
-      console.error('Error deleting products:', error)
-      toast.error('Gagal menghapus produk')
-    } finally {
-      setIsDeleting(false)
-    }
+          toast.success(`${selectedProducts.length} produk berhasil dihapus`)
+          setProducts(products.filter(p => !selectedProducts.includes(p.id)))
+          setSelectedProducts([])
+        } catch (error) {
+          console.error('Error deleting products:', error)
+          toast.error('Gagal menghapus produk')
+        } finally {
+          setIsDeleting(false)
+        }
+      }
+    })
   }
 
   function toggleSelectAll() {
@@ -403,6 +432,18 @@ export default function ProductsPage() {
           </>
         )}
       </main>
+
+      {/* Confirm Dialog */}
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        onClose={() => setConfirmDialog({ ...confirmDialog, isOpen: false })}
+        onConfirm={confirmDialog.onConfirm}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        variant={confirmDialog.variant}
+        icon={confirmDialog.icon}
+        confirmLoading={isDeleting}
+      />
     </div>
   )
 }

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { CheckCircle, XCircle, Clock, Package, AlertTriangle, Eye, X } from 'lucide-react'
+import ConfirmDialog from '@/components/supplier/ConfirmDialog'
 
 interface ReturnRequest {
   id: string
@@ -48,6 +49,24 @@ export default function ReturnTab() {
   // Bulk selection
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [bulkProcessing, setBulkProcessing] = useState(false)
+  
+  // Confirm dialog state
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean
+    title: string
+    message: string | React.ReactNode
+    onConfirm: () => void | Promise<void>
+    variant?: 'primary' | 'danger' | 'warning' | 'success'
+    icon?: 'warning' | 'danger' | 'success' | 'package'
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {},
+    variant: 'warning'
+  })
+  const [rejectionInput, setRejectionInput] = useState('')
+  const [showRejectInput, setShowRejectInput] = useState(false)
 
   useEffect(() => {
     loadReturns()
@@ -191,43 +210,54 @@ export default function ReturnTab() {
     }
   }
 
-  const handleBulkReject = async () => {
+  const handleBulkReject = () => {
     if (selectedIds.size === 0) return
     
-    const reason = prompt('Alasan penolakan massal:')
-    if (!reason || !reason.trim()) {
-      toast.error('Alasan penolakan wajib diisi')
-      return
-    }
+    setShowRejectInput(true)
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Tolak Retur Massal',
+      message: `Tolak ${selectedIds.size} retur yang dipilih?`,
+      variant: 'warning',
+      icon: 'warning',
+      onConfirm: async () => {
+        if (!rejectionInput.trim()) {
+          toast.error('Alasan penolakan wajib diisi')
+          return
+        }
 
-    setBulkProcessing(true)
-    try {
-      const promises = Array.from(selectedIds).map(id =>
-        supabase.rpc('reject_return_request', {
-          p_return_id: id,
-          p_review_notes: reason
-        })
-      )
+        setBulkProcessing(true)
+        try {
+          const promises = Array.from(selectedIds).map(id =>
+            supabase.rpc('reject_return_request', {
+              p_return_id: id,
+              p_review_notes: rejectionInput
+            })
+          )
 
-      const results = await Promise.allSettled(promises)
-      const succeeded = results.filter(r => r.status === 'fulfilled').length
-      const failed = results.filter(r => r.status === 'rejected').length
+          const results = await Promise.allSettled(promises)
+          const succeeded = results.filter(r => r.status === 'fulfilled').length
+          const failed = results.filter(r => r.status === 'rejected').length
 
-      if (succeeded > 0) {
-        toast.success(`${succeeded} retur ditolak`)
+          if (succeeded > 0) {
+            toast.success(`${succeeded} retur ditolak`)
+          }
+          if (failed > 0) {
+            toast.error(`${failed} retur gagal ditolak`)
+          }
+
+          setSelectedIds(new Set())
+          setRejectionInput('')
+          setShowRejectInput(false)
+          loadReturns()
+        } catch (error) {
+          console.error('Bulk reject error:', error)
+          toast.error('Gagal tolak retur')
+        } finally {
+          setBulkProcessing(false)
+        }
       }
-      if (failed > 0) {
-        toast.error(`${failed} retur gagal ditolak`)
-      }
-
-      setSelectedIds(new Set())
-      loadReturns()
-    } catch (error) {
-      console.error('Bulk reject error:', error)
-      toast.error('Gagal tolak retur')
-    } finally {
-      setBulkProcessing(false)
-    }
+    })
   }
 
   async function handleSubmitReview() {
@@ -265,20 +295,27 @@ export default function ReturnTab() {
   }
 
   async function confirmPickup(id: string) {
-    if (!confirm('Konfirmasi bahwa produk sudah diambil kembali?')) return
-
-    setProcessingId(id)
-    try {
-      const { error } = await supabase.rpc('confirm_return_pickup', { p_return_id: id })
-      if (error) throw error
-      toast.success('Retur selesai - produk dikonfirmasi diterima')
-      await loadReturns()
-    } catch (e: any) {
-      console.error(e)
-      toast.error(e.message || 'Gagal konfirmasi')
-    } finally {
-      setProcessingId(null)
-    }
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Konfirmasi Pickup Retur',
+      message: 'Konfirmasi bahwa produk sudah diambil kembali dan diterima dengan baik?',
+      variant: 'success',
+      icon: 'success',
+      onConfirm: async () => {
+        setProcessingId(id)
+        try {
+          const { error } = await supabase.rpc('confirm_return_pickup', { p_return_id: id })
+          if (error) throw error
+          toast.success('Retur selesai - produk dikonfirmasi diterima')
+          await loadReturns()
+        } catch (e: any) {
+          console.error(e)
+          toast.error(e.message || 'Gagal konfirmasi')
+        } finally {
+          setProcessingId(null)
+        }
+      }
+    })
   }
 
   const getStatusBadge = (status: string) => {
@@ -858,6 +895,35 @@ export default function ReturnTab() {
           </div>
         </div>
       )}
+
+      {/* Confirm Dialog */}
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        onClose={() => {
+          setConfirmDialog({ ...confirmDialog, isOpen: false })
+          setShowRejectInput(false)
+          setRejectionInput('')
+        }}
+        onConfirm={confirmDialog.onConfirm}
+        title={confirmDialog.title}
+        message={
+          showRejectInput ? (
+            <div>
+              <p className="mb-3">{confirmDialog.message}</p>
+              <textarea
+                value={rejectionInput}
+                onChange={(e) => setRejectionInput(e.target.value)}
+                placeholder="Alasan penolakan..."
+                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                rows={3}
+              />
+            </div>
+          ) : confirmDialog.message
+        }
+        variant={confirmDialog.variant}
+        icon={confirmDialog.icon}
+        confirmLoading={bulkProcessing || processingId !== null}
+      />
     </>
   )
 }
