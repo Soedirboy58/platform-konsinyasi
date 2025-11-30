@@ -850,6 +850,11 @@ export default function CommissionsPage() {
                       <div className="text-sm font-bold text-green-600">
                         Rp {commission.commission_amount.toLocaleString('id-ID')}
                       </div>
+                      {commission.status === 'PAID' && commission.unpaid_amount > 0 ?  (
+                        <div className="text-xs text-orange-600 font-semibold mt-1">
+                          ⚠️ Ada revenue baru: Rp {commission.unpaid_amount.toLocaleString('id-ID')}
+                        </div>
+                        ) : (
                       <div className="text-xs text-gray-500">
                         Sudah dipotong fee {(commission.commission_rate * 100).toFixed(0)}%
                       </div>
