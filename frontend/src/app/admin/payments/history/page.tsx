@@ -4,9 +4,11 @@ import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { History, Download, Eye, Search, Calendar, Filter, X, FileText, Building, CreditCard } from 'lucide-react'
 
-// ✅ Disable caching for this page
+// ✅ Disable ALL caching for this page
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
+export const fetchCache = 'force-no-store'
+export const runtime = 'edge'
 
 interface PaymentHistory {
   id: string
@@ -86,7 +88,7 @@ export default function PaymentHistoryPage() {
       console.log(`🔍 Loading payment history with timestamp: ${timestamp}`)
       console.log(`📅 Period filter: ${periodFilter}, Start date: ${startDate.toISOString()}`)
 
-      // Load from supplier_payments table
+      // Load from supplier_payments table with aggressive cache busting
       const { data, error } = await supabase
         .from('supplier_payments')
         .select(`
@@ -109,7 +111,9 @@ export default function PaymentHistoryPage() {
         `)
         .gte('created_at', startDate.toISOString())
         .eq('status', 'COMPLETED')
+        .not('net_payment', 'is', null)
         .order('created_at', { ascending: false })
+        .limit(100)
 
       if (error) {
         console.error('Error loading payment history:', error)
@@ -118,7 +122,15 @@ export default function PaymentHistoryPage() {
         return
       }
 
-      const paymentHistory: PaymentHistory[] = (data || []).map((p: any) => ({
+      // ✅ Filter out records with zero or null net_payment (old legacy data)
+      const validData = (data || []).filter((p: any) => {
+        const netPayment = parseFloat(p.net_payment || '0')
+        return netPayment > 0
+      })
+
+      console.log(`✅ Filtered data: ${data?.length || 0} total, ${validData.length} valid (net_payment > 0)`)
+
+      const paymentHistory: PaymentHistory[] = validData.map((p: any) => ({
         id: p.id,
         supplier_id: p.supplier_id,
         supplier_name: p.suppliers?.business_name || 'Unknown',
@@ -211,9 +223,15 @@ export default function PaymentHistoryPage() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 py-4 sm:py-8 sm:px-6 lg:px-8">
-        {/* Last Refresh Indicator */}
-        <div className="mb-3 text-xs text-gray-500 text-right">
-          Terakhir diperbarui: {lastRefresh.toLocaleTimeString('id-ID')} | Auto-refresh setiap 30 detik
+        {/* Last Refresh Indicator - More Prominent */}
+        <div className="mb-3 px-4 py-2 bg-blue-50 border border-blue-200 rounded-lg flex items-center justify-between">
+          <div className="flex items-center gap-2 text-sm">
+            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+            <span className="text-gray-700">
+              <strong>Live Data:</strong> Terakhir diperbarui {lastRefresh.toLocaleTimeString('id-ID')}
+            </span>
+          </div>
+          <span className="text-xs text-gray-500">Auto-refresh: 30 detik</span>
         </div>
 
         {/* Stats */}
