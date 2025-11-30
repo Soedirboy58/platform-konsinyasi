@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react'
 import { Package, Check, X, Search, Edit, Trash2, Eye, Image as ImageIcon } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useSearchParams } from 'next/navigation'
+import ConfirmDialog from '@/components/admin/ConfirmDialog'
+import AlertDialog from '@/components/admin/AlertDialog'
 
 interface Product {
   id: string
@@ -42,6 +44,32 @@ export default function ProductsApproval() {
   // Bulk selection
   const [selectedProducts, setSelectedProducts] = useState<string[]>([])
   const [isDeleting, setIsDeleting] = useState(false)
+
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean
+    title: string
+    message: string
+    onConfirm: () => void | Promise<void>
+    variant?: 'primary' | 'danger' | 'warning' | 'success'
+    icon?: 'warning' | 'danger' | 'info' | 'success'
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {}
+  })
+
+  const [alertDialog, setAlertDialog] = useState<{
+    isOpen: boolean
+    title: string
+    message: string
+    type?: 'success' | 'error' | 'warning' | 'info'
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    type: 'info'
+  })
 
   useEffect(() => {
     loadData()
@@ -91,12 +119,22 @@ export default function ProductsApproval() {
         .select()
 
       if (error) throw error
-      alert('Produk berhasil di-approve')
+      setAlertDialog({
+        isOpen: true,
+        title: 'Berhasil',
+        message: 'Produk berhasil di-approve',
+        type: 'success'
+      })
       loadData()
       setSelectedProduct(null)
     } catch (error) {
       console.error('Error approving product:', error)
-      alert('Gagal menyetujui produk')
+      setAlertDialog({
+        isOpen: true,
+        title: 'Gagal',
+        message: 'Gagal menyetujui produk',
+        type: 'error'
+      })
     }
   }
 
@@ -110,114 +148,205 @@ export default function ProductsApproval() {
         .select()
 
       if (error) throw error
-      alert('Produk berhasil di-reject')
+      setAlertDialog({
+        isOpen: true,
+        title: 'Berhasil',
+        message: 'Produk berhasil di-reject',
+        type: 'success'
+      })
       loadData()
       setSelectedProduct(null)
     } catch (error) {
       console.error('Error rejecting product:', error)
-      alert('Gagal menolak produk')
+      setAlertDialog({
+        isOpen: true,
+        title: 'Gagal',
+        message: 'Gagal menolak produk',
+        type: 'error'
+      })
     }
   }
 
   async function handleDeleteProduct(productId: string) {
-    if (!confirm('Apakah Anda yakin ingin menghapus produk ini? Tindakan ini tidak dapat dibatalkan.')) {
-      return
-    }
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Hapus Produk',
+      message: 'Apakah Anda yakin ingin menghapus produk ini? Tindakan ini tidak dapat dibatalkan.',
+      variant: 'danger',
+      icon: 'danger',
+      onConfirm: async () => {
+        try {
+          const supabase = createClient()
+          const { error } = await supabase
+            .from('products')
+            .delete()
+            .eq('id', productId)
 
-    try {
-      const supabase = createClient()
-      const { error } = await supabase
-        .from('products')
-        .delete()
-        .eq('id', productId)
-
-      if (error) throw error
-      alert('Produk berhasil dihapus')
-      loadData()
-      setSelectedProduct(null)
-      setSelectedProducts(selectedProducts.filter(id => id !== productId))
-    } catch (error) {
-      console.error('Error deleting product:', error)
-      alert('Gagal menghapus produk')
-    }
+          if (error) throw error
+          setAlertDialog({
+            isOpen: true,
+            title: 'Berhasil',
+            message: 'Produk berhasil dihapus',
+            type: 'success'
+          })
+          loadData()
+          setSelectedProduct(null)
+          setSelectedProducts(selectedProducts.filter(id => id !== productId))
+        } catch (error) {
+          console.error('Error deleting product:', error)
+          setAlertDialog({
+            isOpen: true,
+            title: 'Gagal',
+            message: 'Gagal menghapus produk',
+            type: 'error'
+          })
+        }
+      }
+    })
   }
 
   async function handleBulkApprove() {
     if (selectedProducts.length === 0) {
-      alert('Pilih produk terlebih dahulu')
+      setAlertDialog({
+        isOpen: true,
+        title: 'Validasi',
+        message: 'Pilih produk terlebih dahulu',
+        type: 'warning'
+      })
       return
     }
 
-    if (!confirm(`Approve ${selectedProducts.length} produk?`)) return
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Bulk Approve',
+      message: `Approve ${selectedProducts.length} produk?`,
+      variant: 'success',
+      icon: 'success',
+      onConfirm: async () => {
+        try {
+          const supabase = createClient()
+          const { error } = await supabase
+            .from('products')
+            .update({ status: 'APPROVED' })
+            .in('id', selectedProducts)
 
-    try {
-      const supabase = createClient()
-      const { error } = await supabase
-        .from('products')
-        .update({ status: 'APPROVED' })
-        .in('id', selectedProducts)
-
-      if (error) throw error
-      alert(`${selectedProducts.length} produk berhasil di-approve`)
-      setSelectedProducts([])
-      loadData()
-    } catch (error) {
-      console.error('Error bulk approving:', error)
-      alert('Gagal approve produk')
-    }
+          if (error) throw error
+          setAlertDialog({
+            isOpen: true,
+            title: 'Berhasil',
+            message: `${selectedProducts.length} produk berhasil di-approve`,
+            type: 'success'
+          })
+          setSelectedProducts([])
+          loadData()
+        } catch (error) {
+          console.error('Error bulk approving:', error)
+          setAlertDialog({
+            isOpen: true,
+            title: 'Gagal',
+            message: 'Gagal approve produk',
+            type: 'error'
+          })
+        }
+      }
+    })
   }
 
   async function handleBulkReject() {
     if (selectedProducts.length === 0) {
-      alert('Pilih produk terlebih dahulu')
+      setAlertDialog({
+        isOpen: true,
+        title: 'Validasi',
+        message: 'Pilih produk terlebih dahulu',
+        type: 'warning'
+      })
       return
     }
 
-    if (!confirm(`Reject ${selectedProducts.length} produk?`)) return
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Bulk Reject',
+      message: `Reject ${selectedProducts.length} produk?`,
+      variant: 'warning',
+      icon: 'warning',
+      onConfirm: async () => {
+        try {
+          const supabase = createClient()
+          const { error } = await supabase
+            .from('products')
+            .update({ status: 'REJECTED' })
+            .in('id', selectedProducts)
 
-    try {
-      const supabase = createClient()
-      const { error } = await supabase
-        .from('products')
-        .update({ status: 'REJECTED' })
-        .in('id', selectedProducts)
-
-      if (error) throw error
-      alert(`${selectedProducts.length} produk berhasil di-reject`)
-      setSelectedProducts([])
-      loadData()
-    } catch (error) {
-      console.error('Error bulk rejecting:', error)
-      alert('Gagal reject produk')
-    }
+          if (error) throw error
+          setAlertDialog({
+            isOpen: true,
+            title: 'Berhasil',
+            message: `${selectedProducts.length} produk berhasil di-reject`,
+            type: 'success'
+          })
+          setSelectedProducts([])
+          loadData()
+        } catch (error) {
+          console.error('Error bulk rejecting:', error)
+          setAlertDialog({
+            isOpen: true,
+            title: 'Gagal',
+            message: 'Gagal reject produk',
+            type: 'error'
+          })
+        }
+      }
+    })
   }
 
   async function handleBulkDelete() {
     if (selectedProducts.length === 0) {
-      alert('Pilih produk terlebih dahulu')
+      setAlertDialog({
+        isOpen: true,
+        title: 'Validasi',
+        message: 'Pilih produk terlebih dahulu',
+        type: 'warning'
+      })
       return
     }
 
-    if (!confirm(`HAPUS PERMANEN ${selectedProducts.length} produk? Tindakan ini tidak dapat dibatalkan!`)) return
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Hapus Permanen',
+      message: `HAPUS PERMANEN ${selectedProducts.length} produk? Tindakan ini tidak dapat dibatalkan!`,
+      variant: 'danger',
+      icon: 'danger',
+      onConfirm: async () => {
+        try {
+          setIsDeleting(true)
+          const supabase = createClient()
+          const { error } = await supabase
+            .from('products')
+            .delete()
+            .in('id', selectedProducts)
 
-    try {
-      setIsDeleting(true)
-      const supabase = createClient()
-      const { error } = await supabase
-        .from('products')
-        .delete()
-        .in('id', selectedProducts)
-
-      if (error) throw error
-      alert(`${selectedProducts.length} produk berhasil dihapus`)
-      setProducts(products.filter(p => !selectedProducts.includes(p.id)))
-      setSelectedProducts([])
-    } catch (error) {
-      console.error('Error bulk deleting:', error)
-      alert('Gagal menghapus produk')
-    } finally {
-      setIsDeleting(false)
-    }
+          if (error) throw error
+          setAlertDialog({
+            isOpen: true,
+            title: 'Berhasil',
+            message: `${selectedProducts.length} produk berhasil dihapus`,
+            type: 'success'
+          })
+          setProducts(products.filter(p => !selectedProducts.includes(p.id)))
+          setSelectedProducts([])
+        } catch (error) {
+          console.error('Error bulk deleting:', error)
+          setAlertDialog({
+            isOpen: true,
+            title: 'Gagal',
+            message: 'Gagal menghapus produk',
+            type: 'error'
+          })
+        } finally {
+          setIsDeleting(false)
+        }
+      }
+    })
   }
 
   function toggleProductSelection(productId: string) {
@@ -826,6 +955,27 @@ export default function ProductsApproval() {
           </div>
         </div>
       )}
+
+      {/* Confirm Dialog */}
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        onClose={() => setConfirmDialog({ ...confirmDialog, isOpen: false })}
+        onConfirm={confirmDialog.onConfirm}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        variant={confirmDialog.variant}
+        icon={confirmDialog.icon}
+        confirmLoading={isDeleting}
+      />
+
+      {/* Alert Dialog */}
+      <AlertDialog
+        isOpen={alertDialog.isOpen}
+        onClose={() => setAlertDialog({ ...alertDialog, isOpen: false })}
+        title={alertDialog.title}
+        message={alertDialog.message}
+        type={alertDialog.type}
+      />
     </div>
   )
 }

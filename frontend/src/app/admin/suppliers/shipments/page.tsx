@@ -5,6 +5,8 @@ import { useSearchParams } from 'next/navigation'
 import { Package, Truck, RotateCcw, Check, X, Eye, AlertTriangle, Calendar, Building } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
+import ConfirmDialog from '@/components/admin/ConfirmDialog'
+import AlertDialog from '@/components/admin/AlertDialog'
 
 interface Product {
   id: string
@@ -67,6 +69,33 @@ function ShipmentsTab() {
   const [showRejectModal, setShowRejectModal] = useState(false)
   const [rejectionReason, setRejectionReason] = useState('')
   const [processing, setProcessing] = useState(false)
+
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean
+    title: string
+    message: string
+    onConfirm: () => void | Promise<void>
+    variant?: 'primary' | 'danger' | 'warning' | 'success'
+    icon?: 'warning' | 'danger' | 'info' | 'success'
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {},
+    variant: 'primary'
+  })
+
+  const [alertDialog, setAlertDialog] = useState<{
+    isOpen: boolean
+    title: string
+    message: string
+    type?: 'success' | 'error' | 'warning' | 'info'
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    type: 'info'
+  })
 
   useEffect(() => {
     loadShipments()
@@ -134,38 +163,61 @@ function ShipmentsTab() {
   }
 
   async function handleApprove(shipmentId: string) {
-    if (!confirm('Approve pengiriman ini? Stok akan ditambahkan ke lokasi tujuan.')) return
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Approve Pengiriman',
+      message: 'Approve pengiriman ini? Stok akan ditambahkan ke lokasi tujuan.',
+      variant: 'success',
+      icon: 'success',
+      onConfirm: async () => {
+        setProcessing(true)
+        try {
+          const supabase = createClient()
+          const { data: { user } } = await supabase.auth.getUser()
+          
+          if (!user) throw new Error('Not authenticated')
 
-    setProcessing(true)
-    try {
-      const supabase = createClient()
-      const { data: { user } } = await supabase.auth.getUser()
-      
-      if (!user) throw new Error('Not authenticated')
+          const { error } = await supabase.rpc('approve_stock_movement', {
+            p_movement_id: shipmentId,
+            p_admin_id: user.id
+          })
 
-      // Call RPC function to approve shipment
-      const { error } = await supabase.rpc('approve_stock_movement', {
-        p_movement_id: shipmentId,
-        p_admin_id: user.id
-      })
+          if (error) throw error
 
-      if (error) throw error
-
-      alert('Pengiriman berhasil di-approve!')
-      await loadShipments()
-      setShowDetailModal(false)
-    } catch (error: any) {
-      console.error('Error approving shipment:', error)
-      alert('Gagal approve: ' + (error.message || 'Unknown error'))
-    } finally {
-      setProcessing(false)
-    }
+          setAlertDialog({
+            isOpen: true,
+            title: 'Berhasil',
+            message: 'Pengiriman berhasil di-approve!',
+            type: 'success'
+          })
+          
+          await loadShipments()
+          setShowDetailModal(false)
+        } catch (error: any) {
+          console.error('Error approving shipment:', error)
+          setAlertDialog({
+            isOpen: true,
+            title: 'Gagal Approve',
+            message: 'Gagal approve: ' + (error.message || 'Unknown error'),
+            type: 'error'
+          })
+        } finally {
+          setProcessing(false)
+        }
+      }
+    })
   }
 
   async function handleReject() {
     if (!selectedShipment) return
+    
     if (!rejectionReason.trim()) {
-      alert('Mohon isi alasan penolakan')
+      setAlertDialog({
+        isOpen: true,
+        title: 'Validasi',
+        message: 'Mohon isi alasan penolakan',
+        type: 'warning'
+      })
       return
     }
 
@@ -176,7 +228,6 @@ function ShipmentsTab() {
       
       if (!user) throw new Error('Not authenticated')
 
-      // Call RPC function to reject shipment
       const { error } = await supabase.rpc('reject_stock_movement', {
         p_movement_id: selectedShipment.id,
         p_admin_id: user.id,
@@ -185,14 +236,25 @@ function ShipmentsTab() {
 
       if (error) throw error
 
-      alert('Pengiriman berhasil ditolak')
+      setAlertDialog({
+        isOpen: true,
+        title: 'Berhasil',
+        message: 'Pengiriman berhasil ditolak',
+        type: 'success'
+      })
+      
       await loadShipments()
       setShowRejectModal(false)
       setShowDetailModal(false)
       setRejectionReason('')
     } catch (error: any) {
       console.error('Error rejecting shipment:', error)
-      alert('Gagal reject: ' + (error.message || 'Unknown error'))
+      setAlertDialog({
+        isOpen: true,
+        title: 'Gagal Reject',
+        message: 'Gagal reject: ' + (error.message || 'Unknown error'),
+        type: 'error'
+      })
     } finally {
       setProcessing(false)
     }
@@ -621,6 +683,27 @@ function ShipmentsTab() {
           </div>
         </div>
       )}
+
+      {/* Confirm Dialog */}
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        onClose={() => setConfirmDialog({ ...confirmDialog, isOpen: false })}
+        onConfirm={confirmDialog.onConfirm}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        variant={confirmDialog.variant}
+        icon={confirmDialog.icon}
+        confirmLoading={processing}
+      />
+
+      {/* Alert Dialog */}
+      <AlertDialog
+        isOpen={alertDialog.isOpen}
+        onClose={() => setAlertDialog({ ...alertDialog, isOpen: false })}
+        title={alertDialog.title}
+        message={alertDialog.message}
+        type={alertDialog.type}
+      />
     </>
   )
 }
