@@ -148,9 +148,17 @@ export default function WalletPage() {
         ) || 0
       }
 
-      // Update wallet with real total earned
+      // Calculate REAL available balance (deduct withdrawals and pending)
+      const totalWithdrawn = walletData?.total_withdrawn || 0
+      const pendingBalance = walletData?.pending_balance || 0
+      const realAvailableBalance = realTotalEarned - totalWithdrawn - pendingBalance
+
+      // Update wallet with CORRECTED values
       if (walletData) {
         walletData.total_earned = realTotalEarned
+        walletData.available_balance = realAvailableBalance  // ✅ FIX: Kurangi withdrawn & pending
+        walletData.total_withdrawn = totalWithdrawn
+        walletData.pending_balance = pendingBalance
       }
 
       setWallet(walletData)

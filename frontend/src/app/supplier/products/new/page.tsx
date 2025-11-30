@@ -262,8 +262,18 @@ export default function NewProductPage() {
                     value={formData.price}
                     onChange={(e) => {
                       const value = e.target.value
+                      // Allow empty string (while typing) OR valid positive number
                       if (value === '' || (!isNaN(Number(value)) && Number(value) >= 0)) {
                         setFormData({ ...formData, price: value })
+                      }
+                    }}
+                    onBlur={(e) => {
+                      // On blur, ensure value is at least 1 (or reset to empty)
+                      const value = e.target.value
+                      const num = parseFloat(value)
+                      if (value !== '' && (isNaN(num) || num < 1)) {
+                        setFormData({ ...formData, price: '' })
+                        toast.error('Harga minimal Rp 1')
                       }
                     }}
                     className="w-full pl-12 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
@@ -317,6 +327,14 @@ export default function NewProductPage() {
                     const value = e.target.value
                     if (value === '' || (!isNaN(Number(value)) && Number(value) >= 0)) {
                       setFormData({ ...formData, expiryDurationDays: value })
+                    }
+                  }}
+                  onBlur={(e) => {
+                    const value = e.target.value
+                    const num = parseInt(value, 10)
+                    if (value !== '' && (isNaN(num) || num < 1)) {
+                      setFormData({ ...formData, expiryDurationDays: '30' })
+                      toast.error('Durasi minimal 1 hari')
                     }
                   }}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
