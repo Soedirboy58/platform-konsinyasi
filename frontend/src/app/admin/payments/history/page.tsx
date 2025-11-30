@@ -4,6 +4,10 @@ import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { History, Download, Eye, Search, Calendar, Filter, X, FileText, Building, CreditCard } from 'lucide-react'
 
+// ✅ Disable caching for this page
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 interface PaymentHistory {
   id: string
   supplier_id: string
@@ -28,6 +32,7 @@ export default function PaymentHistoryPage() {
   const [periodFilter, setPeriodFilter] = useState<'THIS_MONTH' | 'LAST_MONTH' | 'THIS_YEAR' | 'ALL'>('THIS_MONTH')
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage, setItemsPerPage] = useState(10)
+  const [lastRefresh, setLastRefresh] = useState<Date>(new Date())
   
   // Modal state
   const [selectedPayment, setSelectedPayment] = useState<PaymentHistory | null>(null)
@@ -40,6 +45,22 @@ export default function PaymentHistoryPage() {
   useEffect(() => {
     applyFilters()
   }, [payments, searchQuery])
+
+  // ✅ Auto-refresh every 30 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      console.log('🔄 Auto-refreshing payment history...')
+      loadPaymentHistory()
+    }, 30000) // 30 seconds
+
+    return () => clearInterval(interval)
+  }, [periodFilter])
+
+  function forceRefresh() {
+    console.log('🔃 Force refresh triggered')
+    setLastRefresh(new Date())
+    loadPaymentHistory()
+  }
 
   async function loadPaymentHistory() {
     try {
@@ -59,6 +80,10 @@ export default function PaymentHistoryPage() {
       } else {
         startDate = new Date(2020, 0, 1) // All time
       }
+
+      // ✅ Add timestamp to prevent caching
+      const timestamp = Date.now()
+      console.log(`🔍 Loading payment history with timestamp: ${timestamp}`)
 
       // Load from supplier_payments table
       const { data, error } = await supabase
@@ -109,19 +134,22 @@ export default function PaymentHistoryPage() {
       }))
 
       setPayments(paymentHistory)
+      setLastRefresh(new Date()) // ✅ Update timestamp
       setLoading(false)
 
       console.log('💰 Payment History Loaded:', {
+        timestamp: new Date().toISOString(),
         count: paymentHistory.length,
         totalAmount: paymentHistory.reduce((sum, p) => sum + p.amount, 0),
         sample: paymentHistory.slice(0, 3).map(p => ({
           supplier: p.supplier_name,
           amount: p.amount,
-          reference: p.payment_reference
+          reference: p.payment_reference,
+          date: p.payment_date
         }))
       })
     } catch (error) {
-      console.error('Error loading payment history:', error)
+      console.error('❌ Error loading payment history:', error)
       setPayments([])
       setLoading(false)
     }
@@ -175,6 +203,11 @@ export default function PaymentHistoryPage() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 py-4 sm:py-8 sm:px-6 lg:px-8">
+        {/* Last Refresh Indicator */}
+        <div className="mb-3 text-xs text-gray-500 text-right">
+          Terakhir diperbarui: {lastRefresh.toLocaleTimeString('id-ID')} | Auto-refresh setiap 30 detik
+        </div>
+
         {/* Stats */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-6 mb-4 sm:mb-6">
           <div className="bg-white rounded-lg shadow p-4 sm:p-6">
@@ -263,6 +296,29 @@ export default function PaymentHistoryPage() {
                 <option value={25}>25</option>
                 <option value={50}>50</option>
               </select>
+
+              {/* ✅ Force Refresh Button */}
+              <button
+                onClick={forceRefresh}
+                disabled={loading}
+                className="flex items-center gap-2 px-3 sm:px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                title="Refresh data pembayaran"
+              >
+                <svg 
+                  className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} 
+                  fill="none" 
+                  stroke="currentColor" 
+                  viewBox="0 0 24 24"
+                >
+                  <path 
+                    strokeLinecap="round" 
+                    strokeLinejoin="round" 
+                    strokeWidth={2} 
+                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" 
+                  />
+                </svg>
+                <span className="hidden sm:inline">Refresh</span>
+              </button>
             </div>
           </div>
         </div>
