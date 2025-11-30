@@ -167,9 +167,15 @@ export default function CommissionsPage() {
       // Get payment records for the period to check who has been paid
       const { data: paymentRecords } = await supabase
         .from('supplier_payments')
-        .select('supplier_id, net_payment, period_start, period_end, created_at')
+        .select('supplier_id, net_payment, amount, payment_date, period_start, period_end, payment_reference, status, created_at')
         .gte('period_start', startDate.toISOString().split('T')[0])
-        .eq('status', 'PAID')
+        .eq('status', 'COMPLETED')
+
+      console.log('💰 Payment records loaded:', {
+        count: paymentRecords?.length || 0,
+        sample: paymentRecords?.slice(0, 2),
+        period: { start: startDate.toISOString(), filter: periodFilter }
+      })
 
       // Group payments by supplier
       const paymentMap = new Map<string, any[]>()
@@ -230,9 +236,13 @@ export default function CommissionsPage() {
 
         // Check if this supplier has been paid in this period
         const payments = paymentMap.get(supplierId) || []
-        const totalPaid = payments.reduce((sum, p) => sum + (p.net_payment || 0), 0)
+        const totalPaid = payments.reduce((sum, p) => sum + (p.net_payment || p.amount || 0), 0)
         const latestPayment = payments.length > 0 
-          ? payments.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0]
+          ? payments.sort((a, b) => {
+              const dateA = new Date(b.payment_date || b.created_at).getTime()
+              const dateB = new Date(a.payment_date || a.created_at).getTime()
+              return dateA - dateB
+            })[0]
           : null
 
         const unpaidAmount = totalRevenue - totalPaid
@@ -274,8 +284,8 @@ export default function CommissionsPage() {
           products_sold: productsSold,
           transactions: uniqueTransactions,
           status: status,
-          payment_date: latestPayment?.period_start,
-          payment_reference: latestPayment?.notes || new Date(latestPayment?.created_at).toLocaleDateString('id-ID'),
+          payment_date: latestPayment?.payment_date || latestPayment?.period_start,
+          payment_reference: latestPayment?.payment_reference,
           bank_name: supplier.bank_name,
           bank_account: supplier.bank_account_number,
           bank_holder: supplier.bank_account_holder
@@ -397,7 +407,7 @@ export default function CommissionsPage() {
       const periodStart = new Date(now.getFullYear(), now.getMonth(), 1)
       const periodEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0)
 
-      // Insert payment record (schema: period_start, period_end, net_payment, gross_sales, commission_amount, status, notes)
+      // Insert payment record with BOTH new and legacy columns for compatibility
       // commission_amount in DB = platform commission (10%)
       // net_payment in DB = amount paid to supplier (90%)
       const platformCommission = selectedCommission.total_sales - selectedCommission.commission_amount
@@ -406,14 +416,25 @@ export default function CommissionsPage() {
         .from('supplier_payments')
         .insert({
           supplier_id: selectedCommission.supplier_id,
+          wallet_id: wallet?.id || null,
+          // NEW SCHEMA COLUMNS
           period_start: periodStart.toISOString().split('T')[0],
           period_end: periodEnd.toISOString().split('T')[0],
           gross_sales: selectedCommission.total_sales,
-          adjustments_deduction: 0,
           commission_amount: platformCommission,
           net_payment: selectedCommission.unpaid_amount,
-          status: 'PAID',
-          notes: `${paymentReference || 'Payment'} - ${paymentNotes || ''}`.trim()
+          adjustments_deduction: 0,
+          // LEGACY COLUMNS (backward compatibility)
+          amount: selectedCommission.unpaid_amount,
+          payment_date: new Date(paymentDate + 'T00:00:00+07:00').toISOString(),
+          payment_reference: paymentReference,
+          payment_method: 'BANK_TRANSFER',
+          bank_name: selectedCommission.bank_name,
+          bank_account_number: selectedCommission.bank_account,
+          bank_account_holder: selectedCommission.bank_holder,
+          status: 'COMPLETED',
+          notes: paymentNotes || null,
+          created_by: user.id
         })
         .select()
         .single()
