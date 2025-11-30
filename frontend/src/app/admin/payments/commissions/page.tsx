@@ -2,7 +2,20 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { DollarSign, Upload, Check, Clock, Filter, Download, Eye, X } from 'lucide-react'
+import { 
+  DollarSign, 
+  Upload, 
+  Check, 
+  Clock, 
+  Filter, 
+  Download, 
+  Eye, 
+  X,
+  TrendingDown,
+  Wallet,
+  Building,
+  CheckCircle
+} from 'lucide-react'
 
 interface Commission {
   supplier_id: string
@@ -1250,9 +1263,12 @@ export default function CommissionsPage() {
       {/* Detail Modal */}
       {showDetailModal && selectedCommission && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full">
-            <div className="p-6 border-b flex items-center justify-between">
-              <h2 className="text-xl font-bold text-gray-900">Detail Komisi</h2>
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b flex items-center justify-between bg-gradient-to-r from-blue-50 to-blue-100">
+              <div>
+                <h2 className="text-xl font-bold text-gray-900">Detail Pembayaran Supplier</h2>
+                <p className="text-sm text-gray-600 mt-1">Rincian lengkap penjualan dan komisi</p>
+              </div>
               <button
                 onClick={() => setShowDetailModal(false)}
                 className="text-gray-400 hover:text-gray-600"
@@ -1261,63 +1277,200 @@ export default function CommissionsPage() {
               </button>
             </div>
 
-            <div className="p-6 space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm text-gray-600">Supplier</label>
-                  <p className="font-semibold">{selectedCommission.supplier_name}</p>
+            <div className="p-6 space-y-6">
+              {/* Supplier Info Header */}
+              <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                <div className="flex items-center justify-between mb-2">
+                  <div>
+                    <p className="text-sm text-gray-600">Supplier</p>
+                    <p className="text-lg font-bold text-gray-900">{selectedCommission.supplier_name}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm text-gray-600">Status</p>
+                    <span className={`inline-block px-3 py-1 rounded-full text-sm font-semibold ${
+                      selectedCommission.status === 'PAID' 
+                        ? 'bg-green-100 text-green-800'
+                        : selectedCommission.status === 'PENDING'
+                        ? 'bg-orange-100 text-orange-800'
+                        : 'bg-red-100 text-red-800'
+                    }`}>
+                      {selectedCommission.status === 'PAID' ? '✅ Sudah Bayar' : 
+                       selectedCommission.status === 'PENDING' ? '⏳ Pending' : '❌ Belum Bayar'}
+                    </span>
+                  </div>
                 </div>
-                <div>
-                  <label className="text-sm text-gray-600">Status</label>
-                  <p className="font-semibold">{selectedCommission.status}</p>
-                </div>
-                <div>
-                  <label className="text-sm text-gray-600">Total Penjualan</label>
-                  <p className="font-semibold">Rp {selectedCommission.total_sales.toLocaleString('id-ID')}</p>
-                </div>
-                <div>
-                  <label className="text-sm text-gray-600">Komisi</label>
-                  <p className="font-semibold text-blue-600">
-                    Rp {selectedCommission.commission_amount.toLocaleString('id-ID')}
-                  </p>
-                </div>
-                <div>
-                  <label className="text-sm text-gray-600">Produk Terjual</label>
-                  <p className="font-semibold">{selectedCommission.products_sold} unit</p>
-                </div>
-                <div>
-                  <label className="text-sm text-gray-600">Transaksi</label>
-                  <p className="font-semibold">{selectedCommission.transactions} transaksi</p>
-                </div>
-              </div>
-
-              <div className="pt-4 border-t">
-                <h3 className="font-semibold mb-2">Informasi Bank</h3>
-                <div className="space-y-2 text-sm">
-                  <p><span className="text-gray-600">Bank:</span> {selectedCommission.bank_name}</p>
-                  <p><span className="text-gray-600">No. Rekening:</span> {selectedCommission.bank_account}</p>
-                  <p><span className="text-gray-600">Atas Nama:</span> {selectedCommission.bank_holder}</p>
+                <div className="grid grid-cols-2 gap-4 mt-3 text-sm">
+                  <div>
+                    <span className="text-gray-600">Produk Terjual:</span>
+                    <span className="ml-2 font-semibold text-gray-900">{selectedCommission.products_sold} unit</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-600">Transaksi:</span>
+                    <span className="ml-2 font-semibold text-gray-900">{selectedCommission.transactions} transaksi</span>
+                  </div>
                 </div>
               </div>
 
+              {/* Sales Breakdown */}
+              <div className="space-y-3">
+                <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+                  <DollarSign className="w-5 h-5 text-blue-600" />
+                  Rincian Penjualan
+                </h3>
+                <div className="bg-white border border-gray-200 rounded-lg p-4 space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-700">Total Penjualan Kotor</span>
+                    <span className="font-semibold text-gray-900">
+                      Rp {selectedCommission.total_sales.toLocaleString('id-ID')}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center text-sm text-gray-600">
+                    <span>({selectedCommission.products_sold} produk × harga rata-rata)</span>
+                    <span></span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Commission Calculation */}
+              <div className="space-y-3">
+                <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+                  <TrendingDown className="w-5 h-5 text-orange-600" />
+                  Perhitungan Komisi
+                </h3>
+                <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-700">Komisi Platform ({(selectedCommission.commission_rate * 100).toFixed(0)}%)</span>
+                    <span className="font-semibold text-orange-600">
+                      - Rp {(selectedCommission.total_sales - selectedCommission.commission_amount).toLocaleString('id-ID')}
+                    </span>
+                  </div>
+                  <div className="border-t border-orange-300 pt-2">
+                    <div className="flex justify-between items-center">
+                      <span className="font-medium text-gray-700">Total Revenue Supplier</span>
+                      <span className="font-bold text-green-600">
+                        Rp {selectedCommission.commission_amount.toLocaleString('id-ID')}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Payment Status */}
+              <div className="space-y-3">
+                <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+                  <Wallet className="w-5 h-5 text-green-600" />
+                  Status Pembayaran
+                </h3>
+                <div className="bg-white border border-gray-200 rounded-lg p-4 space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-700">Total Revenue Supplier</span>
+                    <span className="font-semibold text-gray-900">
+                      Rp {selectedCommission.commission_amount.toLocaleString('id-ID')}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-700">Sudah Dibayar</span>
+                    <span className="font-semibold text-blue-600">
+                      - Rp {(selectedCommission.commission_amount - selectedCommission.unpaid_amount).toLocaleString('id-ID')}
+                    </span>
+                  </div>
+                  <div className="border-t-2 border-gray-300 pt-3">
+                    <div className={`flex justify-between items-center p-3 rounded-lg ${
+                      selectedCommission.unpaid_amount > 0 
+                        ? 'bg-red-50 border-2 border-red-300'
+                        : selectedCommission.unpaid_amount < 0
+                        ? 'bg-yellow-50 border-2 border-yellow-300'
+                        : 'bg-green-50 border-2 border-green-300'
+                    }`}>
+                      <span className={`font-bold text-lg ${
+                        selectedCommission.unpaid_amount > 0 
+                          ? 'text-red-700'
+                          : selectedCommission.unpaid_amount < 0
+                          ? 'text-yellow-700'
+                          : 'text-green-700'
+                      }`}>
+                        {selectedCommission.unpaid_amount > 0 
+                          ? '💰 YANG HARUS DIBAYAR'
+                          : selectedCommission.unpaid_amount < 0
+                          ? '⚠️ OVER-PAYMENT'
+                          : '✅ LUNAS'}
+                      </span>
+                      <span className={`font-bold text-2xl ${
+                        selectedCommission.unpaid_amount > 0 
+                          ? 'text-red-700'
+                          : selectedCommission.unpaid_amount < 0
+                          ? 'text-yellow-700'
+                          : 'text-green-700'
+                      }`}>
+                        Rp {Math.abs(selectedCommission.unpaid_amount).toLocaleString('id-ID')}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Bank Information */}
+              <div className="space-y-3">
+                <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+                  <Building className="w-5 h-5 text-purple-600" />
+                  Informasi Bank Tujuan
+                </h3>
+                <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-700">Bank</span>
+                    <span className="font-semibold text-gray-900">{selectedCommission.bank_name || '-'}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-700">No. Rekening</span>
+                    <span className="font-mono font-semibold text-gray-900">{selectedCommission.bank_account || '-'}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-700">Atas Nama</span>
+                    <span className="font-semibold text-gray-900">{selectedCommission.bank_holder || '-'}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Previous Payment Info (if exists) */}
               {selectedCommission.payment_date && (
-                <div className="pt-4 border-t">
-                  <h3 className="font-semibold mb-2">Informasi Pembayaran</h3>
-                  <div className="space-y-2 text-sm">
-                    <p><span className="text-gray-600">Tanggal:</span> {selectedCommission.payment_date}</p>
-                    <p><span className="text-gray-600">Referensi:</span> {selectedCommission.payment_reference}</p>
+                <div className="space-y-3">
+                  <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+                    <CheckCircle className="w-5 h-5 text-green-600" />
+                    Pembayaran Terakhir
+                  </h3>
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-4 space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-700">Tanggal</span>
+                      <span className="font-semibold text-gray-900">{selectedCommission.payment_date}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-700">Referensi</span>
+                      <span className="font-mono font-semibold text-gray-900">{selectedCommission.payment_reference}</span>
+                    </div>
                   </div>
                 </div>
               )}
             </div>
 
-            <div className="p-6 border-t flex justify-end">
+            <div className="p-6 border-t bg-gray-50 flex gap-3 justify-end">
               <button
                 onClick={() => setShowDetailModal(false)}
-                className="px-4 py-2 border rounded-lg hover:bg-gray-50"
+                className="px-6 py-2.5 border-2 border-gray-300 rounded-lg hover:bg-gray-100 font-medium text-gray-700"
               >
                 Tutup
               </button>
+              {selectedCommission.unpaid_amount > 0 && (
+                <button
+                  onClick={() => {
+                    setShowDetailModal(false)
+                    handleOpenPaymentModal(selectedCommission)
+                  }}
+                  className="px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium flex items-center gap-2"
+                >
+                  <Upload className="w-4 h-4" />
+                  Proses Pembayaran
+                </button>
+              )}
             </div>
           </div>
         </div>
