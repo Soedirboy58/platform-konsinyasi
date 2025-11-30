@@ -165,7 +165,7 @@ export default function SupplierDashboard() {
         .select(`
           id,
           quantity,
-          supplier_revenue,
+          unit_price,
           products!inner(name),
           sales_transactions!inner(
             created_at,
@@ -195,7 +195,7 @@ export default function SupplierDashboard() {
         id: item.id,
         product_name: item.products?.name || 'Unknown',
         quantity: item.quantity,
-        price: item.supplier_revenue || 0,
+        price: item.unit_price || 0,
         outlet_name: locationMap.get(item.sales_transactions?.location_id) || 'Unknown',
         sold_at: item.sales_transactions?.created_at || new Date().toISOString()
       })) || []

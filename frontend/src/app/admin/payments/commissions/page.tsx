@@ -231,7 +231,7 @@ export default function CommissionsPage() {
         
         // 1. Jika ada sisa yang belum dibayar (prioritas tertinggi)
         if (unpaidAmount > 0) {
-        status = 'UNPAID'
+          status = 'UNPAID'
         }
         // 2.  Jika pending withdrawal
         else if (pendingBalance > 0) {
