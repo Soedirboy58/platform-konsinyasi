@@ -38,8 +38,20 @@ export default function CheckoutPage() {
   const [checkoutResult, setCheckoutResult] = useState<CheckoutResult | null>(null)
   const [confirming, setConfirming] = useState(false)
   const [showCashConfirm, setShowCashConfirm] = useState(false)
+  const [hasProcessed, setHasProcessed] = useState(false)
 
   useEffect(() => {
+    // Check if already processed to prevent double submission on refresh
+    const processedKey = `checkout_processed_${locationSlug}`
+    const alreadyProcessed = sessionStorage.getItem(processedKey)
+    
+    if (alreadyProcessed) {
+      // Redirect to previous page if already processed
+      toast.info('Transaksi sudah diproses')
+      router.push(`/kantin/${locationSlug}`)
+      return
+    }
+    
     loadCart()
   }, [])
 
@@ -65,6 +77,12 @@ export default function CheckoutPage() {
 
   async function processCheckout() {
     if (cart.length === 0) return
+    
+    // Prevent double submission
+    if (hasProcessed) {
+      toast.error('Checkout sudah diproses')
+      return
+    }
 
     setProcessing(true)
     try {
@@ -88,6 +106,10 @@ export default function CheckoutPage() {
       
       if (data && data.length > 0) {
         const result = data[0]
+        
+        // Mark as processed to prevent refresh issues
+        setHasProcessed(true)
+        sessionStorage.setItem(`checkout_processed_${locationSlug}`, 'true')
         
         // Function returns: transaction_id, transaction_code, total_amount, qris_code, qris_image_url
         setCheckoutResult({
@@ -123,8 +145,9 @@ export default function CheckoutPage() {
       if (error) throw error
       
       if (data && data.length > 0 && data[0].success) {
-        // Clear cart
+        // Clear cart and processed flag
         sessionStorage.removeItem(`cart_${locationSlug}`)
+        sessionStorage.removeItem(`checkout_processed_${locationSlug}`)
         
         // Show success message
         toast.success(data[0].message)
