@@ -97,7 +97,7 @@ export default function SupplierList() {
       const supabase = createClient()
       const { error } = await supabase
         .from('suppliers')
-        .update({ status: 'PENDING' })
+        .update({ status: 'REJECTED' })
         .eq('id', supplierId)
         .select()
 
@@ -108,6 +108,39 @@ export default function SupplierList() {
     } catch (error) {
       console.error('Error rejecting supplier:', error)
       alert('Gagal reject supplier')
+    }
+  }
+
+  async function handleDelete(supplierId: string, businessName: string) {
+    const confirmed = confirm(
+      `PERHATIAN: Hapus permanen supplier "${businessName}"?\n\n` +
+      `Data yang akan dihapus:\n` +
+      `- Akun supplier\n` +
+      `- Semua produk supplier\n` +
+      `- Riwayat transaksi\n\n` +
+      `Aksi ini TIDAK BISA DIBATALKAN!`
+    )
+    
+    if (!confirmed) return
+
+    try {
+      const supabase = createClient()
+      
+      // Delete supplier (cascade will handle related data)
+      const { error } = await supabase
+        .from('suppliers')
+        .delete()
+        .eq('id', supplierId)
+        .eq('status', 'REJECTED') // Only allow delete if REJECTED
+
+      if (error) throw error
+      
+      alert('Supplier berhasil dihapus permanen')
+      await loadSuppliers()
+      setSelectedSupplier(null)
+    } catch (error) {
+      console.error('Error deleting supplier:', error)
+      alert('Gagal menghapus supplier: ' + (error as any).message)
     }
   }
 
@@ -136,7 +169,7 @@ export default function SupplierList() {
       const supabase = createClient()
       await supabase
         .from('suppliers')
-        .update({ status: 'PENDING' })
+        .update({ status: 'REJECTED' })
         .in('id', selectedSuppliers)
 
       alert(`${selectedSuppliers.length} supplier di-reject`)
@@ -144,6 +177,41 @@ export default function SupplierList() {
       await loadSuppliers()
     } catch (error) {
       alert('Gagal reject supplier')
+    }
+  }
+
+  async function handleBulkDelete() {
+    if (selectedSuppliers.length === 0) return
+
+    const rejectedSuppliers = paginatedSuppliers.filter(
+      s => selectedSuppliers.includes(s.id) && s.status === 'REJECTED'
+    )
+
+    if (rejectedSuppliers.length === 0) {
+      alert('Hanya supplier dengan status REJECTED yang bisa dihapus permanen')
+      return
+    }
+
+    const confirmed = confirm(
+      `PERHATIAN: Hapus permanen ${rejectedSuppliers.length} supplier?\n\n` +
+      `Aksi ini TIDAK BISA DIBATALKAN!`
+    )
+    
+    if (!confirmed) return
+
+    try {
+      const supabase = createClient()
+      await supabase
+        .from('suppliers')
+        .delete()
+        .in('id', rejectedSuppliers.map(s => s.id))
+        .eq('status', 'REJECTED')
+
+      alert(`${rejectedSuppliers.length} supplier berhasil dihapus`)
+      setSelectedSuppliers([])
+      await loadSuppliers()
+    } catch (error) {
+      alert('Gagal menghapus supplier')
     }
   }
 
@@ -171,7 +239,8 @@ export default function SupplierList() {
     const matchesStatus = 
       statusFilter === 'ALL' || 
       (statusFilter === 'APPROVED' && supplier.status === 'APPROVED') || 
-      (statusFilter === 'PENDING' && supplier.status === 'PENDING')
+      (statusFilter === 'PENDING' && supplier.status === 'PENDING') ||
+      (statusFilter === 'REJECTED' && supplier.status === 'REJECTED')
     
     return matchesSearch && matchesStatus
   })
@@ -188,19 +257,30 @@ export default function SupplierList() {
   const stats = {
     total: suppliers.length,
     approved: suppliers.filter(s => s.status === 'APPROVED').length,
-    pending: suppliers.filter(s => s.status === 'PENDING').length
+    pending: suppliers.filter(s => s.status === 'PENDING').length,
+    rejected: suppliers.filter(s => s.status === 'REJECTED').length
   }
 
   function getStatusBadge(status: string) {
-    return status === 'APPROVED' ? (
-      <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-        APPROVED
-      </span>
-    ) : (
-      <span className="px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
-        PENDING
-      </span>
-    )
+    if (status === 'APPROVED') {
+      return (
+        <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+          APPROVED
+        </span>
+      )
+    } else if (status === 'REJECTED') {
+      return (
+        <span className="px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+          REJECTED
+        </span>
+      )
+    } else {
+      return (
+        <span className="px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+          PENDING
+        </span>
+      )
+    }
   }
 
   if (loading) {
@@ -221,7 +301,7 @@ export default function SupplierList() {
       </header>
 
       <main className="px-4 py-4 sm:py-6">
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 mb-4">
           <div className="bg-white rounded-lg shadow p-4">
             <div className="flex items-center gap-3">
               <div className="bg-blue-600 text-white p-2 rounded-lg">
@@ -257,6 +337,18 @@ export default function SupplierList() {
               </div>
             </div>
           </div>
+
+          <div className="bg-white rounded-lg shadow p-4">
+            <div className="flex items-center gap-3">
+              <div className="bg-red-600 text-white p-2 rounded-lg">
+                <X className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="text-xs text-gray-600">Rejected</p>
+                <p className="text-xl font-bold text-red-600">{stats.rejected}</p>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div className="bg-white rounded-lg shadow p-3 mb-4">
@@ -280,6 +372,7 @@ export default function SupplierList() {
               <option value="ALL">Semua Status</option>
               <option value="APPROVED">Approved</option>
               <option value="PENDING">Pending</option>
+              <option value="REJECTED">Rejected</option>
             </select>
           </div>
         </div>
@@ -313,6 +406,13 @@ export default function SupplierList() {
                 >
                   <X className="w-4 h-4" />
                   Reject
+                </button>
+                <button
+                  onClick={handleBulkDelete}
+                  className="flex-1 sm:flex-initial px-3 py-1.5 text-sm text-white bg-red-600 rounded-lg hover:bg-red-700 flex items-center justify-center gap-1"
+                >
+                  <X className="w-4 h-4" />
+                  Hapus
                 </button>
               </div>
             </div>
@@ -373,7 +473,7 @@ export default function SupplierList() {
                           <Eye className="w-3 h-3" />
                           Detail
                         </button>
-                        {supplier.status !== 'APPROVED' ? (
+                        {supplier.status !== 'APPROVED' && supplier.status !== 'REJECTED' && (
                           <button
                             onClick={() => handleApprove(supplier.id)}
                             className="flex-1 px-3 py-1.5 text-xs bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center justify-center gap-1"
@@ -381,13 +481,23 @@ export default function SupplierList() {
                             <Check className="w-3 h-3" />
                             Approve
                           </button>
-                        ) : (
+                        )}
+                        {supplier.status === 'APPROVED' && (
                           <button
                             onClick={() => handleReject(supplier.id)}
                             className="flex-1 px-3 py-1.5 text-xs bg-orange-600 text-white rounded-lg hover:bg-orange-700 flex items-center justify-center gap-1"
                           >
                             <X className="w-3 h-3" />
                             Reject
+                          </button>
+                        )}
+                        {supplier.status === 'REJECTED' && (
+                          <button
+                            onClick={() => handleDelete(supplier.id, supplier.business_name)}
+                            className="flex-1 px-3 py-1.5 text-xs bg-red-600 text-white rounded-lg hover:bg-red-700 flex items-center justify-center gap-1"
+                          >
+                            <X className="w-3 h-3" />
+                            Hapus
                           </button>
                         )}
                       </div>
@@ -480,10 +590,10 @@ export default function SupplierList() {
                         >
                           <Eye className="w-5 h-5 inline" />
                         </button>
-                        {supplier.status !== 'APPROVED' && (
+                        {supplier.status !== 'APPROVED' && supplier.status !== 'REJECTED' && (
                           <button
                             onClick={() => handleApprove(supplier.id)}
-                            className="text-green-600 hover:text-green-900"
+                            className="text-green-600 hover:text-green-900 mr-4"
                           >
                             <Check className="w-5 h-5 inline" />
                           </button>
@@ -492,6 +602,15 @@ export default function SupplierList() {
                           <button
                             onClick={() => handleReject(supplier.id)}
                             className="text-orange-600 hover:text-orange-900"
+                          >
+                            <X className="w-5 h-5 inline" />
+                          </button>
+                        )}
+                        {supplier.status === 'REJECTED' && (
+                          <button
+                            onClick={() => handleDelete(supplier.id, supplier.business_name)}
+                            className="text-red-600 hover:text-red-900"
+                            title="Hapus Permanen"
                           >
                             <X className="w-5 h-5 inline" />
                           </button>
