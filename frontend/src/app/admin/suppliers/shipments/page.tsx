@@ -163,6 +163,12 @@ function ShipmentsTab() {
   }
 
   async function handleApprove(shipmentId: string) {
+    // Prevent multiple calls while processing (before showing dialog)
+    if (processing) {
+      console.warn('Already processing approval, ignoring duplicate call')
+      return
+    }
+
     setConfirmDialog({
       isOpen: true,
       title: 'Approve Pengiriman',
@@ -170,6 +176,12 @@ function ShipmentsTab() {
       variant: 'success',
       icon: 'success',
       onConfirm: async () => {
+        // Additional safety check before RPC call
+        if (processing) {
+          console.warn('Already processing approval, aborting')
+          return
+        }
+        
         setProcessing(true)
         try {
           const supabase = createClient()
@@ -622,10 +634,19 @@ function ShipmentsTab() {
                   <button
                     onClick={() => handleApprove(selectedShipment.id)}
                     disabled={processing}
-                    className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 flex items-center justify-center gap-2 text-sm"
+                    className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 text-sm"
                   >
-                    <Check className="w-4 h-4 sm:w-5 sm:h-5" />
-                    {processing ? 'Processing...' : 'Approve'}
+                    {processing ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                        Processing...
+                      </>
+                    ) : (
+                      <>
+                        <Check className="w-4 h-4 sm:w-5 sm:h-5" />
+                        Approve
+                      </>
+                    )}
                   </button>
                   <button
                     onClick={() => setShowRejectModal(true)}
