@@ -163,7 +163,7 @@ function ShipmentsTab() {
   }
 
   async function handleApprove(shipmentId: string) {
-    // Prevent multiple calls while processing
+    // Prevent multiple calls while processing (before showing dialog)
     if (processing) {
       console.warn('Already processing approval, ignoring duplicate call')
       return
@@ -176,7 +176,7 @@ function ShipmentsTab() {
       variant: 'success',
       icon: 'success',
       onConfirm: async () => {
-        // Double-check processing state before RPC call
+        // Additional safety check before RPC call
         if (processing) {
           console.warn('Already processing approval, aborting')
           return

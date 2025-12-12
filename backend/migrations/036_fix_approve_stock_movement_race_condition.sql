@@ -48,6 +48,7 @@ BEGIN
   
   -- ATOMIC INVENTORY UPDATE: Use INSERT...ON CONFLICT for atomicity
   -- This prevents duplicate inventory additions even if called multiple times
+  -- Note: Status is already verified to be APPROVED by the UPDATE above
   INSERT INTO inventory_levels (product_id, location_id, quantity, last_updated)
   SELECT 
     smi.product_id,
@@ -57,7 +58,6 @@ BEGIN
   FROM stock_movement_items smi
   JOIN stock_movements sm ON sm.id = smi.movement_id
   WHERE smi.movement_id = p_movement_id
-    AND sm.status = 'APPROVED'  -- Double-check status
   ON CONFLICT (product_id, location_id)
   DO UPDATE SET 
     quantity = inventory_levels.quantity + EXCLUDED.quantity,

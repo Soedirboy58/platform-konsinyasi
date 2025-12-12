@@ -30,8 +30,9 @@ The `approve_stock_movement` function in `backend/migrations/007_functions.sql` 
 ### Evidence
 
 The ratio 8 → 22 suggests:
-- 8 units × 2.75 = 22 units
-- Indicates the approval function was likely called 2-3 times
+- 22 units ÷ 8 units = 2.75x multiplier
+- This indicates the original 8 units were added, then approximately 14 more units were added in duplicate calls
+- Pattern suggests 2-3 total executions of the inventory addition code
 - Could be due to:
   - UI double-click
   - Network retry logic

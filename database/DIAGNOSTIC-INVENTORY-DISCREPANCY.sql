@@ -41,11 +41,14 @@ WITH shipment_totals AS (
   GROUP BY smi.product_id, sm.location_id
 ),
 sales_totals AS (
+  -- Note: This assumes sales_transactions table exists (created in migration 002)
+  -- If table doesn't exist in your database, comment out this CTE
   SELECT 
     product_id,
     location_id,
     SUM(quantity) AS total_sold
   FROM sales_transactions
+  WHERE location_id IS NOT NULL  -- Only include sales with known location
   GROUP BY product_id, location_id
 )
 SELECT 
