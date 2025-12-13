@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect, useMemo } from 'react'
-import { createClient } from '@/lib/supabase/client'
 import { X, Download, Copy, ChevronDown, ChevronUp, TrendingUp, Package, Users, Calendar } from 'lucide-react'
 import { toast } from 'sonner'
 import { exportShipmentSummaryToExcel } from '@/lib/exportShipmentSummary'
@@ -75,10 +74,14 @@ export default function ShipmentSummaryModal({ isOpen, onClose, shipments }: Pro
 
   // Filter shipments based on criteria
   const filteredShipments = useMemo(() => {
+    const startDateTime = startDate ? new Date(startDate).getTime() : null
+    const endDateTime = endDate ? new Date(endDate + 'T23:59:59').getTime() : null
+    
     return shipments.filter(shipment => {
       // Date filter
-      if (startDate && new Date(shipment.created_at) < new Date(startDate)) return false
-      if (endDate && new Date(shipment.created_at) > new Date(endDate + 'T23:59:59')) return false
+      const shipmentTime = new Date(shipment.created_at).getTime()
+      if (startDateTime && shipmentTime < startDateTime) return false
+      if (endDateTime && shipmentTime > endDateTime) return false
       
       // Supplier filter
       if (supplierFilter !== 'ALL' && shipment.supplier_id !== supplierFilter) return false
