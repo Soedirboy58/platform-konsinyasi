@@ -422,7 +422,6 @@ export default function StockOpnameModal({ isOpen, onClose, suppliers, onSuccess
                   <input
                     type="file"
                     accept="image/*"
-                    capture="environment"
                     onChange={handlePhotoChange}
                     className="hidden"
                     multiple

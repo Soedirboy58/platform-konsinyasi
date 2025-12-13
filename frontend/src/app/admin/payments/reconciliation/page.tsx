@@ -7,6 +7,14 @@ import StockOpnameModal from '@/components/StockOpnameModal'
 import VarianceInvestigationModal from '@/components/VarianceInvestigationModal'
 import { exportReconciliationToExcel } from '@/lib/exportReconciliation'
 
+// Payment status constants
+const PAYMENT_STATUS = {
+  COMPLETED: 'COMPLETED',
+  PENDING: 'PENDING',
+  FAILED: 'FAILED',
+  CANCELLED: 'CANCELLED'
+} as const
+
 interface Reconciliation {
   supplier_id: string
   supplier_name: string
@@ -92,7 +100,7 @@ export default function ReconciliationPage() {
           .select('amount')
           .eq('supplier_id', supplier.id)
           .gte('payment_date', startDate.toISOString().split('T')[0])
-          .eq('status', 'COMPLETED')
+          .eq('status', PAYMENT_STATUS.COMPLETED)
 
         const commissionPaid = payments?.reduce((sum, p) => sum + (p.amount || 0), 0) || 0
         const difference = commissionPaid - commissionCalculated

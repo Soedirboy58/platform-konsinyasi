@@ -277,16 +277,16 @@ export default function VarianceInvestigationModal({ isOpen, onClose, stockOpnam
               Status Resolusi <span className="text-red-500">*</span>
             </label>
             <div className="grid grid-cols-2 gap-2">
-              {[
-                { value: 'PENDING', label: 'Pending', color: 'bg-yellow-50 border-yellow-300 text-yellow-700' },
-                { value: 'RESOLVED', label: 'Resolved', color: 'bg-green-50 border-green-300 text-green-700' },
-                { value: 'UNRESOLVED', label: 'Unresolved', color: 'bg-red-50 border-red-300 text-red-700' },
-                { value: 'ACCEPTED_LOSS', label: 'Accept Loss', color: 'bg-gray-50 border-gray-300 text-gray-700' }
-              ].map(status => (
+              {([
+                { value: 'PENDING' as const, label: 'Pending', color: 'bg-yellow-50 border-yellow-300 text-yellow-700' },
+                { value: 'RESOLVED' as const, label: 'Resolved', color: 'bg-green-50 border-green-300 text-green-700' },
+                { value: 'UNRESOLVED' as const, label: 'Unresolved', color: 'bg-red-50 border-red-300 text-red-700' },
+                { value: 'ACCEPTED_LOSS' as const, label: 'Accept Loss', color: 'bg-gray-50 border-gray-300 text-gray-700' }
+              ] as const).map(status => (
                 <button
                   key={status.value}
                   type="button"
-                  onClick={() => setResolutionStatus(status.value as any)}
+                  onClick={() => setResolutionStatus(status.value)}
                   className={`px-4 py-2 rounded-lg border-2 text-sm font-medium transition-all ${
                     resolutionStatus === status.value
                       ? `${status.color} border-current`
