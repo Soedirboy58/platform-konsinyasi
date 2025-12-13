@@ -221,11 +221,6 @@ export default function AdminDashboard() {
       }
       
       setLocations(data || [])
-      
-      // Set default to first outlet if no preference saved
-      if (data && data.length > 0 && !localStorage.getItem('admin_selected_store')) {
-        setSelectedStore(data[0].qr_code)
-      }
     } catch (error) {
       console.error('Failed to load outlets:', error)
     }
@@ -243,18 +238,26 @@ export default function AdminDashboard() {
 
   // Load saved store preference from localStorage
   useEffect(() => {
+    if (locations.length === 0) return
+    
     const savedStore = localStorage.getItem('admin_selected_store')
     if (savedStore && locations.some(loc => loc.qr_code === savedStore)) {
       setSelectedStore(savedStore)
+    } else {
+      // Fallback to first outlet if no valid preference saved
+      setSelectedStore(locations[0].qr_code)
     }
   }, [locations])
 
   // Save selected store to localStorage
   useEffect(() => {
-    if (selectedStore) {
+    if (locations.length === 0) return
+    
+    // Only save if selectedStore is valid (exists in locations)
+    if (selectedStore && locations.some(loc => loc.qr_code === selectedStore)) {
       localStorage.setItem('admin_selected_store', selectedStore)
     }
-  }, [selectedStore])
+  }, [selectedStore, locations])
 
   if (loading) {
     return (
