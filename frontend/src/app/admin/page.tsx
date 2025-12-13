@@ -50,6 +50,12 @@ interface RecentSale {
   is_new: boolean
 }
 
+interface Location {
+  id: string
+  name: string
+  qr_code: string
+}
+
 export default function AdminDashboard() {
   const [stats, setStats] = useState({
     totalProducts: 0,
@@ -68,9 +74,12 @@ export default function AdminDashboard() {
   const [recentSales, setRecentSales] = useState<RecentSale[]>([])
   const [loading, setLoading] = useState(true)
   const [userName, setUserName] = useState('Admin')
+  const [locations, setLocations] = useState<Location[]>([])
+  const [selectedStore, setSelectedStore] = useState<string>('outlet_lobby_a')
 
   useEffect(() => {
     loadDashboardData()
+    loadLocations()
   }, [])
 
   async function loadDashboardData() {
@@ -196,9 +205,31 @@ export default function AdminDashboard() {
     }
   }
 
-  useEffect(() => {
-    loadDashboardData()
-  }, [])
+  async function loadLocations() {
+    try {
+      const supabase = createClient()
+      const { data, error } = await supabase
+        .from('locations')
+        .select('id, name, qr_code')
+        .eq('type', 'OUTLET')
+        .eq('is_active', true)
+        .order('name')
+      
+      if (error) {
+        console.error('Error loading locations:', error)
+        return
+      }
+      
+      setLocations(data || [])
+      
+      // Set default to first outlet if no preference saved
+      if (data && data.length > 0 && !localStorage.getItem('admin_selected_store')) {
+        setSelectedStore(data[0].qr_code)
+      }
+    } catch (error) {
+      console.error('Failed to load outlets:', error)
+    }
+  }
 
   useEffect(() => {
     // Auto-refresh every 30 seconds
@@ -209,6 +240,21 @@ export default function AdminDashboard() {
 
     return () => clearInterval(interval)
   }, [])
+
+  // Load saved store preference from localStorage
+  useEffect(() => {
+    const savedStore = localStorage.getItem('admin_selected_store')
+    if (savedStore && locations.some(loc => loc.qr_code === savedStore)) {
+      setSelectedStore(savedStore)
+    }
+  }, [locations])
+
+  // Save selected store to localStorage
+  useEffect(() => {
+    if (selectedStore) {
+      localStorage.setItem('admin_selected_store', selectedStore)
+    }
+  }, [selectedStore])
 
   if (loading) {
     return (
@@ -348,8 +394,29 @@ export default function AdminDashboard() {
               </div>
             </div>
             <p className="text-sm text-gray-600 mb-1">Produk di Etalase</p>
-            <p className="text-2xl font-bold text-indigo-600 mb-1">{stats.productsDisplayed}</p>
-            <a href="/kantin/outlet_lobby_a" target="_blank" rel="noopener noreferrer" className="text-xs text-indigo-600 hover:underline flex items-center gap-1">
+            <p className="text-2xl font-bold text-indigo-600 mb-2">{stats.productsDisplayed}</p>
+            
+            {/* Store Selector */}
+            {locations.length > 1 && (
+              <select 
+                value={selectedStore}
+                onChange={(e) => setSelectedStore(e.target.value)}
+                className="w-full text-xs border border-gray-300 rounded px-2 py-1 mb-2 text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              >
+                {locations.map(loc => (
+                  <option key={loc.id} value={loc.qr_code}>
+                    {loc.name}
+                  </option>
+                ))}
+              </select>
+            )}
+            
+            <a 
+              href={`/kantin/${selectedStore}`} 
+              target="_blank" 
+              rel="noopener noreferrer" 
+              className="text-xs text-indigo-600 hover:underline flex items-center gap-1"
+            >
               Lihat etalase 🔗
             </a>
           </div>
@@ -362,8 +429,29 @@ export default function AdminDashboard() {
               </div>
             </div>
             <p className="text-sm text-gray-600 mb-1">Produk Stok Tersedia</p>
-            <p className="text-2xl font-bold text-teal-600 mb-1">{stats.productsInStock} <span className="text-sm text-gray-600">pcs</span></p>
-            <a href="/kantin/outlet_lobby_a" target="_blank" rel="noopener noreferrer" className="text-xs text-teal-600 hover:underline">
+            <p className="text-2xl font-bold text-teal-600 mb-2">{stats.productsInStock} <span className="text-sm text-gray-600">pcs</span></p>
+            
+            {/* Store Selector */}
+            {locations.length > 1 && (
+              <select 
+                value={selectedStore}
+                onChange={(e) => setSelectedStore(e.target.value)}
+                className="w-full text-xs border border-gray-300 rounded px-2 py-1 mb-2 text-gray-700 focus:outline-none focus:ring-2 focus:ring-teal-500"
+              >
+                {locations.map(loc => (
+                  <option key={loc.id} value={loc.qr_code}>
+                    {loc.name}
+                  </option>
+                ))}
+              </select>
+            )}
+            
+            <a 
+              href={`/kantin/${selectedStore}`} 
+              target="_blank" 
+              rel="noopener noreferrer" 
+              className="text-xs text-teal-600 hover:underline"
+            >
               Monitor katalog 🔗
             </a>
           </div>
@@ -570,20 +658,39 @@ export default function AdminDashboard() {
                 </Link>
               )}
 
-              <a 
-                href="/kantin/outlet_lobby_a"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block p-4 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors"
-              >
-                <div className="flex items-center justify-between">
+              <div className="block p-4 bg-indigo-50 rounded-lg">
+                <div className="flex items-center justify-between mb-2">
                   <div>
                     <p className="font-medium text-gray-900">Lihat Etalase Produk 🔗</p>
                     <p className="text-sm text-gray-600">{stats.productsDisplayed} produk ready dijual</p>
                   </div>
                   <Archive className="h-6 w-6 text-indigo-600" />
                 </div>
-              </a>
+                
+                {/* Store Selector */}
+                {locations.length > 1 && (
+                  <select 
+                    value={selectedStore}
+                    onChange={(e) => setSelectedStore(e.target.value)}
+                    className="w-full text-xs border border-gray-300 rounded px-2 py-1 mb-2 text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  >
+                    {locations.map(loc => (
+                      <option key={loc.id} value={loc.qr_code}>
+                        {loc.name}
+                      </option>
+                    ))}
+                  </select>
+                )}
+                
+                <a 
+                  href={`/kantin/${selectedStore}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-indigo-600 hover:underline inline-block mt-1"
+                >
+                  Buka etalase →
+                </a>
+              </div>
 
               <Link 
                 href="/admin/reports"
