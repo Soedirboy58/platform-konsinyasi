@@ -222,12 +222,16 @@ function formatCurrency(value: number): string {
 }
 
 // Sanitize string to prevent formula injection and XSS
-function sanitizeString(str: unknown): string {
-  const strValue = typeof str !== 'string' ? String(str) : str
+function sanitizeString(str: string): string {
+  if (typeof str !== 'string') return String(str)
   
-  // Remove potential formula injection characters at the start using regex
-  // Remove any leading formula characters (=, +, -, @, tab, carriage return)
-  const sanitized = strValue.replace(/^[=+\-@\t\r]+/, '')
+  // Remove potential formula injection characters at the start
+  const formulaChars = ['=', '+', '-', '@', '\t', '\r']
+  let sanitized = str
+  
+  while (formulaChars.some(char => sanitized.startsWith(char))) {
+    sanitized = sanitized.substring(1)
+  }
   
   // Limit length to prevent DoS
   return sanitized.substring(0, 1000)

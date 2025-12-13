@@ -60,7 +60,7 @@ export default function ShipmentSummaryModal({ isOpen, onClose, shipments }: Pro
   const [statusFilter, setStatusFilter] = useState('ALL')
   const [expandedSuppliers, setExpandedSuppliers] = useState<Set<string>>(new Set())
 
-  // Initialize date range to current month
+  // Initialize date range to current month when modal opens
   useEffect(() => {
     if (isOpen && !startDate && !endDate) {
       const now = new Date()
@@ -70,7 +70,7 @@ export default function ShipmentSummaryModal({ isOpen, onClose, shipments }: Pro
       setStartDate(firstDay.toISOString().split('T')[0])
       setEndDate(lastDay.toISOString().split('T')[0])
     }
-  }, [isOpen])
+  }, [isOpen, startDate, endDate])
 
   // Filter shipments based on criteria
   const filteredShipments = useMemo(() => {
