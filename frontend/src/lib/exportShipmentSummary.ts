@@ -106,7 +106,7 @@ export function exportShipmentSummaryToExcel(
   ]
   
   supplierSummaries.forEach((supplier, supplierIdx) => {
-    perSupplierData.push([`${supplierIdx + 1}. ${supplier.supplier_name}`])
+    perSupplierData.push([`${supplierIdx + 1}. ${sanitizeString(supplier.supplier_name)}`])
     perSupplierData.push(['Jumlah Pengiriman:', supplier.total_shipments])
     perSupplierData.push(['Total Quantity:', supplier.total_quantity, 'unit'])
     perSupplierData.push(['Total Nilai:', formatCurrency(supplier.total_value)])
@@ -155,7 +155,7 @@ export function exportShipmentSummaryToExcel(
     const date = new Date(shipment.created_at).toLocaleDateString('id-ID')
     const supplierName = shipment.supplier?.business_name || 'Unknown'
     const locationName = shipment.location?.name || '-'
-    const status = shipment.status
+    const status = sanitizeString(shipment.status)
     
     shipment.stock_movement_items?.forEach(item => {
       const productName = item.product?.name || 'Unknown'

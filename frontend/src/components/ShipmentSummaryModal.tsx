@@ -72,8 +72,9 @@ export default function ShipmentSummaryModal({ isOpen, onClose, shipments }: Pro
     }
   }, [isOpen, startDate, endDate])
 
-  // Filter shipments based on criteria
+  // Filter shipments based on criteria - skip if modal is closed
   const filteredShipments = useMemo(() => {
+    if (!isOpen) return []
     const startDateTime = startDate ? new Date(startDate).getTime() : null
     const endDateTime = endDate ? new Date(endDate + 'T23:59:59').getTime() : null
     
@@ -91,10 +92,11 @@ export default function ShipmentSummaryModal({ isOpen, onClose, shipments }: Pro
       
       return true
     })
-  }, [shipments, startDate, endDate, supplierFilter, statusFilter])
+  }, [isOpen, shipments, startDate, endDate, supplierFilter, statusFilter])
 
-  // Calculate summary data
+  // Calculate summary data - skip if modal is closed
   const summary = useMemo(() => {
+    if (!isOpen) return []
     const supplierMap = new Map<string, SupplierSummary>()
     
     filteredShipments.forEach(shipment => {
@@ -145,20 +147,22 @@ export default function ShipmentSummaryModal({ isOpen, onClose, shipments }: Pro
     return Array.from(supplierMap.values()).sort((a, b) => 
       b.total_value - a.total_value
     )
-  }, [filteredShipments])
+  }, [isOpen, filteredShipments])
 
-  // Calculate grand totals
+  // Calculate grand totals - skip if modal is closed
   const grandTotals = useMemo(() => {
+    if (!isOpen) return { total_shipments: 0, total_quantity: 0, total_value: 0, total_suppliers: 0 }
     return {
       total_shipments: filteredShipments.length,
       total_quantity: summary.reduce((sum, s) => sum + s.total_quantity, 0),
       total_value: summary.reduce((sum, s) => sum + s.total_value, 0),
       total_suppliers: summary.length
     }
-  }, [filteredShipments, summary])
+  }, [isOpen, filteredShipments, summary])
 
-  // Get unique suppliers for filter dropdown
+  // Get unique suppliers for filter dropdown - skip if modal is closed
   const uniqueSuppliers = useMemo(() => {
+    if (!isOpen) return []
     const suppliers = new Map<string, string>()
     shipments.forEach(s => {
       if (s.supplier_id && s.supplier?.business_name) {
@@ -166,7 +170,7 @@ export default function ShipmentSummaryModal({ isOpen, onClose, shipments }: Pro
       }
     })
     return Array.from(suppliers.entries()).map(([id, name]) => ({ id, name }))
-  }, [shipments])
+  }, [isOpen, shipments])
 
   function toggleSupplier(supplierId: string) {
     const newExpanded = new Set(expandedSuppliers)
@@ -214,6 +218,7 @@ export default function ShipmentSummaryModal({ isOpen, onClose, shipments }: Pro
     }
   }
 
+  // Don't render if modal is closed
   if (!isOpen) return null
 
   return (
