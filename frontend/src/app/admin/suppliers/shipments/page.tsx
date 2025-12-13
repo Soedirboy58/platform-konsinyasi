@@ -2,11 +2,12 @@
 
 import { useState, useEffect } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { Package, Truck, RotateCcw, Check, X, Eye, AlertTriangle, Calendar, Building } from 'lucide-react'
+import { Package, Truck, RotateCcw, Check, X, Eye, AlertTriangle, Calendar, Building, BarChart3 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 import ConfirmDialog from '@/components/admin/ConfirmDialog'
 import AlertDialog from '@/components/admin/AlertDialog'
+import ShipmentSummaryModal from '@/components/ShipmentSummaryModal'
 
 interface Product {
   id: string
@@ -67,6 +68,7 @@ function ShipmentsTab() {
   const [selectedShipment, setSelectedShipment] = useState<Shipment | null>(null)
   const [showDetailModal, setShowDetailModal] = useState(false)
   const [showRejectModal, setShowRejectModal] = useState(false)
+  const [showSummaryModal, setShowSummaryModal] = useState(false)
   const [rejectionReason, setRejectionReason] = useState('')
   const [processing, setProcessing] = useState(false)
 
@@ -305,11 +307,20 @@ function ShipmentsTab() {
       <div className="bg-white rounded-lg shadow">
         <div className="p-4 sm:p-6 border-b">
           <div className="flex flex-col gap-3">
-            <div>
-              <h2 className="text-base sm:text-lg font-semibold text-gray-900">Pengiriman Supplier</h2>
-              <p className="text-xs sm:text-sm text-gray-600 mt-1">
-                Review dan approve pengiriman
-              </p>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div>
+                <h2 className="text-base sm:text-lg font-semibold text-gray-900">Pengiriman Supplier</h2>
+                <p className="text-xs sm:text-sm text-gray-600 mt-1">
+                  Review dan approve pengiriman
+                </p>
+              </div>
+              <button
+                onClick={() => setShowSummaryModal(true)}
+                className="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:from-blue-700 hover:to-indigo-700 flex items-center justify-center gap-2 font-semibold text-sm shadow-md hover:shadow-lg transition-all"
+              >
+                <BarChart3 className="w-4 h-4" />
+                📊 Rekap Total
+              </button>
             </div>
             <div className="flex flex-col sm:flex-row gap-3">
               <select
@@ -703,6 +714,13 @@ function ShipmentsTab() {
         title={alertDialog.title}
         message={alertDialog.message}
         type={alertDialog.type}
+      />
+
+      {/* Shipment Summary Modal */}
+      <ShipmentSummaryModal
+        isOpen={showSummaryModal}
+        onClose={() => setShowSummaryModal(false)}
+        shipments={shipments}
       />
     </>
   )
