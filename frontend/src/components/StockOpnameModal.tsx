@@ -43,15 +43,30 @@ export default function StockOpnameModal({ isOpen, onClose, suppliers, onSuccess
 
   async function loadProducts() {
     try {
-      const { data, error } = await supabase
+      const { data: productsData, error } = await supabase
         .from('products')
-        .select('id, name, price, stock')
+        .select(`
+          id, 
+          name, 
+          price,
+          inventory_levels(quantity)
+        `)
         .eq('supplier_id', selectedSupplierId)
-        .eq('status', 'ACTIVE')
+        .eq('status', 'APPROVED')
         .order('name')
 
       if (error) throw error
-      setProducts(data || [])
+
+      // Transform data to aggregate stock across all locations
+      const productsWithStock = productsData?.map(p => ({
+        id: p.id,
+        name: p.name,
+        price: p.price,
+        // Sum stock across all locations for this product
+        stock: p.inventory_levels?.reduce((sum: number, inv: { quantity: number }) => sum + (inv.quantity || 0), 0) || 0
+      })) || []
+
+      setProducts(productsWithStock)
     } catch (error) {
       console.error('Error loading products:', error)
       toast.error('Gagal memuat produk')
