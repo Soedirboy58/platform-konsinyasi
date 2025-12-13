@@ -48,9 +48,8 @@ export default function StockOpnameModal({ isOpen, onClose, suppliers, onSuccess
         .select(`
           id, 
           name, 
-          price, 
-          supplier_id,
-          inventory_levels(quantity, location_id)
+          price,
+          inventory_levels(quantity)
         `)
         .eq('supplier_id', selectedSupplierId)
         .eq('status', 'APPROVED')
@@ -64,7 +63,7 @@ export default function StockOpnameModal({ isOpen, onClose, suppliers, onSuccess
         name: p.name,
         price: p.price,
         // Sum stock across all locations for this product
-        stock: p.inventory_levels?.reduce((sum: number, inv: any) => sum + (inv.quantity || 0), 0) || 0
+        stock: p.inventory_levels?.reduce((sum: number, inv: { quantity: number }) => sum + (inv.quantity || 0), 0) || 0
       })) || []
 
       setProducts(productsWithStock)
