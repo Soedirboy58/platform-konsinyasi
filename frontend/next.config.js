@@ -150,6 +150,7 @@ const withPWA = require('next-pwa')({
 });
 
 const nextConfig = {
+  outputFileTracing: false,
   images: {
     remotePatterns: [
       {
@@ -162,3 +163,4 @@ const nextConfig = {
 }
 
 module.exports = withPWA(nextConfig)
+
