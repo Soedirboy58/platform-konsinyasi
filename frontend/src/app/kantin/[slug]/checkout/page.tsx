@@ -6,7 +6,6 @@ import { createClient } from '@/lib/supabase/client'
 import { ArrowLeft, Check, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import Image from 'next/image'
-import ConfirmDialog from '@/components/ui/ConfirmDialog'
 
 type CartItem = {
   product_id: string
@@ -37,7 +36,7 @@ export default function CheckoutPage() {
   const [processing, setProcessing] = useState(false)
   const [checkoutResult, setCheckoutResult] = useState<CheckoutResult | null>(null)
   const [confirming, setConfirming] = useState(false)
-  const [showCashConfirm, setShowCashConfirm] = useState(false)
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'QRIS' | 'CASH' | null>(null)
   const [hasProcessed, setHasProcessed] = useState(false)
 
   useEffect(() => {
@@ -75,19 +74,20 @@ export default function CheckoutPage() {
     }
   }
 
-  async function processCheckout() {
+async function processCheckout(paymentMethod: 'QRIS' | 'CASH') {
     if (cart.length === 0) return
-    
+
     // Prevent double submission
     if (hasProcessed) {
       toast.error('Checkout sudah diproses')
       return
     }
 
+    setSelectedPaymentMethod(paymentMethod)
     setProcessing(true)
     try {
       const supabase = createClient()
-      
+
       // Format items for function
       const items = cart.map(item => ({
         product_id: item.product_id,
@@ -103,21 +103,28 @@ export default function CheckoutPage() {
         })
 
       if (error) throw error
-      
+
       if (data && data.length > 0) {
         const result = data[0]
-        
+
         // Mark as processed to prevent refresh issues
         setHasProcessed(true)
         sessionStorage.setItem(`checkout_processed_${locationSlug}`, 'true')
-        
+
         // Function returns: transaction_id, transaction_code, total_amount, qris_code, qris_image_url
         setCheckoutResult({
           ...result,
           success: true,
           message: 'Checkout berhasil'
         })
-        toast.success('Checkout berhasil! Silakan scan QRIS untuk pembayaran')
+        
+        // Auto-confirm for CASH payment
+        if (paymentMethod === 'CASH') {
+          toast.success('Checkout berhasil! Memproses pembayaran tunai...')
+          await confirmPayment('CASH')
+        } else {
+          toast.success('Checkout berhasil! Silakan scan QRIS untuk pembayaran')
+        }
       } else {
         toast.error('Tidak ada data transaksi')
       }
@@ -149,12 +156,12 @@ export default function CheckoutPage() {
         sessionStorage.removeItem(`cart_${locationSlug}`)
         sessionStorage.removeItem(`checkout_processed_${locationSlug}`)
         
-        // Show success message
-        toast.success(data[0].message)
-        
-        // Redirect to success page
-        router.push(`/kantin/${locationSlug}/success?code=${checkoutResult.transaction_code}`)
-      } else {
+        // Show success message based on payment method
+        if (paymentMethod === 'CASH') {
+          toast.success('✅ Pembayaran Tunai Berhasil!')
+        } else {
+          toast.success('✅ Pembayaran QRIS Berhasil!')
+        }
         toast.error(data[0]?.message || 'Gagal konfirmasi pembayaran')
       }
     } catch (error) {
@@ -197,8 +204,8 @@ export default function CheckoutPage() {
     )
   }
 
-  // Show QRIS payment screen after checkout
-  if (checkoutResult) {
+  // Show QRIS payment screen after checkout (only for QRIS payment)
+  if (checkoutResult && selectedPaymentMethod === 'QRIS') {
     return (
       <div className="min-h-screen bg-gray-50 py-8 px-4">
         <div className="max-w-md mx-auto bg-white rounded-lg shadow-lg p-6">
@@ -284,66 +291,29 @@ export default function CheckoutPage() {
           </div>
         </div>
 
-        {/* Payment Method Buttons */}
-        <div className="space-y-3">
-          {/* Cash Payment Button */}
-          <button
-            onClick={() => setShowCashConfirm(true)}
-            disabled={confirming}
-            className="w-full bg-orange-600 text-white py-4 rounded-lg font-semibold hover:bg-orange-700 transition disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-          >
-            {confirming ? (
-              <>
-                <Loader2 className="w-5 h-5 animate-spin" />
-                Memproses...
-              </>
-            ) : (
-              <>
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
-                </svg>
-                💵 Bayar Tunai
-              </>
-            )}
-          </button>
-
-          {/* QRIS Verification Button */}
-          <button
-            onClick={() => confirmPayment('QRIS')}
-            disabled={confirming}
-            className="w-full bg-green-600 text-white py-4 rounded-lg font-semibold hover:bg-green-700 transition disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-          >
-            {confirming ? (
-              <>
-                <Loader2 className="w-5 h-5 animate-spin" />
-                Memproses...
-              </>
-            ) : (
-              <>
-                <Check className="w-5 h-5" />
-                ✅ Verifikasi Bayar QRIS
-              </>
-            )}
-          </button>
-        </div>
+        {/* QRIS Verification Button */}
+        <button
+          onClick={() => confirmPayment('QRIS')}
+          disabled={confirming}
+          className="w-full bg-green-600 text-white py-4 rounded-lg font-semibold hover:bg-green-700 transition disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+        >
+          {confirming ? (
+            <>
+              <Loader2 className="w-5 h-5 animate-spin" />
+              Memproses...
+            </>
+          ) : (
+            <>
+              <Check className="w-5 h-5" />
+              ✅ Verifikasi Bayar QRIS
+            </>
+          )}
+        </button>
 
         {/* Warning Note */}
         <p className="text-xs text-gray-500 text-center mt-4">
           Klik verifikasi hanya setelah pembayaran berhasil. Admin akan mengecek transaksi.
         </p>
-
-        {/* Cash Payment Confirmation Dialog */}
-        <ConfirmDialog
-          isOpen={showCashConfirm}
-          onClose={() => setShowCashConfirm(false)}
-          onConfirm={() => confirmPayment('CASH')}
-          title="Konfirmasi Pembayaran Tunai"
-          message="Pastikan Anda sudah menyerahkan uang tunai ke kasir dengan jumlah yang sesuai. Setelah klik konfirmasi, transaksi akan diproses."
-          icon="cash"
-          confirmText="💵 Ya, Sudah Bayar"
-          cancelText="Belum"
-          variant="warning"
-        />
       </div>
     )
   }
@@ -400,21 +370,63 @@ export default function CheckoutPage() {
           </div>
         </div>
 
-        {/* Checkout Button */}
-        <button
-          onClick={processCheckout}
-          disabled={processing}
-          className="w-full bg-primary-600 text-white py-4 rounded-lg text-lg font-bold hover:bg-primary-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
-        >
-          {processing ? (
-            <>
-              <Loader2 className="w-5 h-5 animate-spin" />
-              Memproses...
-            </>
-          ) : (
-            'Lanjut ke Pembayaran'
-          )}
-        </button>
+        {/* Payment Method Selection */}
+        <div className="mb-4">
+          <h2 className="text-lg font-semibold text-gray-900 mb-3">Pilih Metode Pembayaran:</h2>
+          
+          <div className="space-y-3">
+            {/* QRIS Button */}
+            <button
+              onClick={() => processCheckout('QRIS')}
+              disabled={processing}
+              className="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white py-4 rounded-xl font-bold text-lg hover:from-blue-700 hover:to-blue-800 active:scale-95 transition-all shadow-lg flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {processing && selectedPaymentMethod === 'QRIS' ? (
+                <>
+                  <Loader2 className="w-6 h-6 animate-spin" />
+                  Memproses...
+                </>
+              ) : (
+                <>
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
+                  </svg>
+                  💳 Bayar dengan QRIS
+                </>
+              )}
+            </button>
+
+            {/* Cash Button */}
+            <button
+              onClick={() => processCheckout('CASH')}
+              disabled={processing}
+              className="w-full bg-gradient-to-r from-orange-600 to-orange-700 text-white py-4 rounded-xl font-bold text-lg hover:from-orange-700 hover:to-orange-800 active:scale-95 transition-all shadow-lg flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {processing && selectedPaymentMethod === 'CASH' ? (
+                <>
+                  <Loader2 className="w-6 h-6 animate-spin" />
+                  Memproses...
+                </>
+              ) : (
+                <>
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                  </svg>
+                  💵 Bayar Tunai
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+
+        {/* Info Box */}
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-800">
+          <p className="font-semibold mb-2">ℹ️ Informasi Pembayaran:</p>
+          <ul className="space-y-1 text-xs">
+            <li><strong>QRIS:</strong> Scan QR code untuk bayar via mobile banking/e-wallet</li>
+            <li><strong>Tunai:</strong> Serahkan uang langsung ke kasir/petugas</li>
+          </ul>
+        </div>
       </div>
     </div>
   )
