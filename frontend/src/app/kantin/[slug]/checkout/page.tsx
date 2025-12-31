@@ -38,19 +38,10 @@ export default function CheckoutPage() {
   const [confirming, setConfirming] = useState(false)
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'QRIS' | 'CASH' | null>(null)
   const [hasProcessed, setHasProcessed] = useState(false)
+  const [showCashConfirm, setShowCashConfirm] = useState(false)
 
   useEffect(() => {
-    // Check if already processed to prevent double submission on refresh
-    const processedKey = `checkout_processed_${locationSlug}`
-    const alreadyProcessed = sessionStorage.getItem(processedKey)
-    
-    if (alreadyProcessed) {
-      // Redirect to previous page if already processed
-      toast.info('Transaksi sudah diproses')
-      router.push(`/kantin/${locationSlug}`)
-      return
-    }
-    
+    // Load cart data
     loadCart()
   }, [])
 
@@ -118,10 +109,11 @@ async function processCheckout(paymentMethod: 'QRIS' | 'CASH') {
           message: 'Checkout berhasil'
         })
         
-        // Auto-confirm for CASH payment
+        // Show different message based on payment method
         if (paymentMethod === 'CASH') {
           toast.success('Checkout berhasil! Memproses pembayaran tunai...')
-          await confirmPayment('CASH')
+          // Show cash confirmation modal
+          setShowCashConfirm(true)
         } else {
           toast.success('Checkout berhasil! Silakan scan QRIS untuk pembayaran')
         }
@@ -155,13 +147,12 @@ async function processCheckout(paymentMethod: 'QRIS' | 'CASH') {
         // Clear cart and processed flag
         sessionStorage.removeItem(`cart_${locationSlug}`)
         sessionStorage.removeItem(`checkout_processed_${locationSlug}`)
-        
-        // Show success message based on payment method
-        if (paymentMethod === 'CASH') {
-          toast.success('✅ Pembayaran Tunai Berhasil!')
-        } else {
-          toast.success('✅ Pembayaran QRIS Berhasil!')
-        }
+
+        toast.success(data[0].message)
+
+        // Redirect to success page
+        router.push(`/kantin/${locationSlug}/success?code=${checkoutResult.transaction_code}`)
+      } else {
         toast.error(data[0]?.message || 'Gagal konfirmasi pembayaran')
       }
     } catch (error) {
@@ -428,6 +419,58 @@ async function processCheckout(paymentMethod: 'QRIS' | 'CASH') {
           </ul>
         </div>
       </div>
+
+      {/* Cash Confirmation Modal */}
+      {showCashConfirm && checkoutResult && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 animate-scale-in">
+            <div className="text-center mb-6">
+              <div className="w-20 h-20 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg className="w-10 h-10 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
+              </div>
+              <h2 className="text-xl font-bold text-gray-900 mb-2">
+                Konfirmasi Pembayaran Tunai
+              </h2>
+              <p className="text-sm text-gray-600">
+                Pastikan Anda sudah menyerahkan uang tunai ke kasir dengan jumlah yang sesuai. 
+                Setelah klik konfirmasi, transaksi akan diproses.
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              <button
+                onClick={async () => {
+                  setShowCashConfirm(false)
+                  await confirmPayment('CASH')
+                }}
+                disabled={confirming}
+                className="w-full bg-orange-600 text-white py-3 rounded-lg font-semibold hover:bg-orange-700 transition disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {confirming ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    Memproses...
+                  </>
+                ) : (
+                  <>
+                    💵 Ya, Sudah Bayar
+                  </>
+                )}
+              </button>
+              
+              <button
+                onClick={() => setShowCashConfirm(false)}
+                disabled={confirming}
+                className="w-full bg-gray-200 text-gray-700 py-3 rounded-lg font-semibold hover:bg-gray-300 transition disabled:opacity-50"
+              >
+                Belum
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
