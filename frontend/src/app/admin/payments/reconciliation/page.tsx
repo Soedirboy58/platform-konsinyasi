@@ -2,24 +2,49 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { CheckCircle, XCircle, AlertCircle, RefreshCw, DollarSign, TrendingUp } from 'lucide-react'
+import { CheckCircle, XCircle, AlertCircle, RefreshCw, DollarSign, TrendingUp, FileSpreadsheet, ClipboardList, Search } from 'lucide-react'
+import StockOpnameModal from '@/components/StockOpnameModal'
+import VarianceInvestigationModal from '@/components/VarianceInvestigationModal'
+import { exportReconciliationToExcel } from '@/lib/exportReconciliation'
+
+// Payment status constants
+const PAYMENT_STATUS = {
+  COMPLETED: 'COMPLETED',
+  PENDING: 'PENDING',
+  FAILED: 'FAILED',
+  CANCELLED: 'CANCELLED'
+} as const
 
 interface Reconciliation {
   supplier_id: string
   supplier_name: string
-  total_sales: number
+  platform_sales_qty: number
+  platform_sales_value: number
   commission_calculated: number
   commission_paid: number
   difference: number
-  status: 'MATCHED' | 'OVERPAID' | 'UNDERPAID' | 'NOT_PAID'
+  payment_status: 'PAID' | 'PARTIAL' | 'UNPAID'
   last_payment_date?: string
+  has_stock_opname: boolean
+  stock_variance?: number
+  variance_value?: number
+  last_opname_date?: string
 }
 
 export default function ReconciliationPage() {
   const [reconciliations, setReconciliations] = useState<Reconciliation[]>([])
   const [loading, setLoading] = useState(true)
   const [periodFilter, setPeriodFilter] = useState<'THIS_MONTH' | 'LAST_MONTH' | 'THIS_YEAR'>('THIS_MONTH')
-  const [statusFilter, setStatusFilter] = useState<'ALL' | 'MATCHED' | 'UNDERPAID' | 'OVERPAID' | 'NOT_PAID'>('ALL')
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'PAID' | 'PARTIAL' | 'UNPAID'>('ALL')
+  const [suppliers, setSuppliers] = useState<Array<{ id: string; business_name: string }>>([])
+  const [showStockOpnameModal, setShowStockOpnameModal] = useState(false)
+  const [showInvestigationModal, setShowInvestigationModal] = useState(false)
+  const [selectedInvestigation, setSelectedInvestigation] = useState<{
+    supplier_id: string
+    supplier_name: string
+    opname_date: string
+    total_variance_value: number
+  } | null>(null)
 
   useEffect(() => {
     loadReconciliation()
@@ -53,46 +78,75 @@ export default function ReconciliationPage() {
       const reconciliationData: Reconciliation[] = []
 
       for (const supplier of suppliers) {
-        // Get sales data
+        // Get sales data with quantity
         const { data: sales } = await supabase
           .from('sales')
           .select(`
             id,
+            quantity,
             total_price,
             product:products(supplier_id)
           `)
           .gte('created_at', startDate.toISOString())
           .eq('product.supplier_id', supplier.id)
 
+        const totalQuantity = sales?.reduce((sum, sale) => sum + (sale.quantity || 0), 0) || 0
         const totalSales = sales?.reduce((sum, sale) => sum + (sale.total_price || 0), 0) || 0
         const commissionCalculated = totalSales * 0.10 // 10% commission
 
-        // TODO: Get actual payments from payment_history table
-        // For now, assume not paid
-        const commissionPaid = 0
+        // Get REAL payments from supplier_payments table
+        const { data: payments } = await supabase
+          .from('supplier_payments')
+          .select('amount')
+          .eq('supplier_id', supplier.id)
+          .gte('payment_date', startDate.toISOString().split('T')[0])
+          .eq('status', PAYMENT_STATUS.COMPLETED)
+
+        const commissionPaid = payments?.reduce((sum, p) => sum + (p.amount || 0), 0) || 0
         const difference = commissionPaid - commissionCalculated
 
-        let status: 'MATCHED' | 'OVERPAID' | 'UNDERPAID' | 'NOT_PAID' = 'NOT_PAID'
-        if (commissionPaid === commissionCalculated && commissionPaid > 0) {
-          status = 'MATCHED'
-        } else if (commissionPaid > commissionCalculated) {
-          status = 'OVERPAID'
-        } else if (commissionPaid > 0 && commissionPaid < commissionCalculated) {
-          status = 'UNDERPAID'
+        // Determine payment status
+        let paymentStatus: 'PAID' | 'PARTIAL' | 'UNPAID' = 'UNPAID'
+        if (commissionPaid === 0) {
+          paymentStatus = 'UNPAID'
+        } else if (commissionPaid >= commissionCalculated) {
+          paymentStatus = 'PAID'
+        } else {
+          paymentStatus = 'PARTIAL'
         }
 
-        if (totalSales > 0) {
+        // Get stock opname data
+        const { data: opnameData } = await supabase
+          .from('stock_opnames')
+          .select('variance, variance_value, opname_date')
+          .eq('supplier_id', supplier.id)
+          .gte('opname_date', startDate.toISOString().split('T')[0])
+          .order('opname_date', { ascending: false })
+
+        const hasStockOpname = (opnameData?.length || 0) > 0
+        const totalVariance = opnameData?.reduce((sum, o) => sum + (o.variance || 0), 0) || 0
+        const totalVarianceValue = opnameData?.reduce((sum, o) => sum + (o.variance_value || 0), 0) || 0
+        const lastOpnameDate = opnameData?.[0]?.opname_date
+
+        if (totalSales > 0 || hasStockOpname) {
           reconciliationData.push({
             supplier_id: supplier.id,
             supplier_name: supplier.business_name,
-            total_sales: totalSales,
+            platform_sales_qty: totalQuantity,
+            platform_sales_value: totalSales,
             commission_calculated: commissionCalculated,
             commission_paid: commissionPaid,
             difference: difference,
-            status: status
+            payment_status: paymentStatus,
+            has_stock_opname: hasStockOpname,
+            stock_variance: totalVariance,
+            variance_value: totalVarianceValue,
+            last_opname_date: lastOpnameDate
           })
         }
       }
+
+      setSuppliers(suppliers)
 
       setReconciliations(reconciliationData)
       setLoading(false)
@@ -104,14 +158,30 @@ export default function ReconciliationPage() {
 
   const filteredData = statusFilter === 'ALL' 
     ? reconciliations 
-    : reconciliations.filter(r => r.status === statusFilter)
+    : reconciliations.filter(r => r.payment_status === statusFilter)
 
   const stats = {
-    matched: reconciliations.filter(r => r.status === 'MATCHED').length,
-    underpaid: reconciliations.filter(r => r.status === 'UNDERPAID').length,
-    overpaid: reconciliations.filter(r => r.status === 'OVERPAID').length,
-    notPaid: reconciliations.filter(r => r.status === 'NOT_PAID').length,
-    totalDifference: reconciliations.reduce((sum, r) => sum + Math.abs(r.difference), 0)
+    paid: reconciliations.filter(r => r.payment_status === 'PAID').length,
+    partial: reconciliations.filter(r => r.payment_status === 'PARTIAL').length,
+    unpaid: reconciliations.filter(r => r.payment_status === 'UNPAID').length,
+    totalDifference: reconciliations.reduce((sum, r) => sum + Math.abs(r.difference), 0),
+    stockOpnames: reconciliations.filter(r => r.has_stock_opname).length
+  }
+
+  function handleExportExcel() {
+    exportReconciliationToExcel(reconciliations, periodFilter)
+  }
+
+  function handleInvestigate(recon: Reconciliation) {
+    if (!recon.has_stock_opname) return
+    
+    setSelectedInvestigation({
+      supplier_id: recon.supplier_id,
+      supplier_name: recon.supplier_name,
+      opname_date: recon.last_opname_date || '',
+      total_variance_value: recon.variance_value || 0
+    })
+    setShowInvestigationModal(true)
   }
 
   if (loading) {
@@ -128,16 +198,32 @@ export default function ReconciliationPage() {
         <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Rekonsiliasi Pembayaran</h1>
-              <p className="text-gray-600 mt-1">Verifikasi kesesuaian pembayaran dengan komisi</p>
+              <h1 className="text-2xl font-bold text-gray-900">Rekonsiliasi Pembayaran & Stok</h1>
+              <p className="text-gray-600 mt-1">Verifikasi pembayaran komisi dan stock opname</p>
             </div>
-            <button 
-              onClick={loadReconciliation}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
-            >
-              <RefreshCw className="w-4 h-4" />
-              Refresh Data
-            </button>
+            <div className="flex gap-2">
+              <button 
+                onClick={() => setShowStockOpnameModal(true)}
+                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2"
+              >
+                <ClipboardList className="w-4 h-4" />
+                Input Stock Opname
+              </button>
+              <button 
+                onClick={handleExportExcel}
+                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 flex items-center gap-2"
+              >
+                <FileSpreadsheet className="w-4 h-4" />
+                Export Excel
+              </button>
+              <button 
+                onClick={loadReconciliation}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
+              >
+                <RefreshCw className="w-4 h-4" />
+                Refresh
+              </button>
+            </div>
           </div>
         </div>
       </header>
@@ -151,20 +237,8 @@ export default function ReconciliationPage() {
                 <CheckCircle className="w-5 h-5 text-green-600" />
               </div>
               <div>
-                <p className="text-xs text-gray-600">Matched</p>
-                <p className="text-xl font-bold text-green-600">{stats.matched}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg shadow p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-red-100 rounded-full">
-                <AlertCircle className="w-5 h-5 text-red-600" />
-              </div>
-              <div>
-                <p className="text-xs text-gray-600">Belum Bayar</p>
-                <p className="text-xl font-bold text-red-600">{stats.notPaid}</p>
+                <p className="text-xs text-gray-600">Lunas</p>
+                <p className="text-xl font-bold text-green-600">{stats.paid}</p>
               </div>
             </div>
           </div>
@@ -175,20 +249,32 @@ export default function ReconciliationPage() {
                 <TrendingUp className="w-5 h-5 text-orange-600" />
               </div>
               <div>
-                <p className="text-xs text-gray-600">Kurang Bayar</p>
-                <p className="text-xl font-bold text-orange-600">{stats.underpaid}</p>
+                <p className="text-xs text-gray-600">Sebagian</p>
+                <p className="text-xl font-bold text-orange-600">{stats.partial}</p>
               </div>
             </div>
           </div>
 
           <div className="bg-white rounded-lg shadow p-4">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-purple-100 rounded-full">
-                <DollarSign className="w-5 h-5 text-purple-600" />
+              <div className="p-2 bg-red-100 rounded-full">
+                <XCircle className="w-5 h-5 text-red-600" />
               </div>
               <div>
-                <p className="text-xs text-gray-600">Lebih Bayar</p>
-                <p className="text-xl font-bold text-purple-600">{stats.overpaid}</p>
+                <p className="text-xs text-gray-600">Belum Bayar</p>
+                <p className="text-xl font-bold text-red-600">{stats.unpaid}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-lg shadow p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-blue-100 rounded-full">
+                <ClipboardList className="w-5 h-5 text-blue-600" />
+              </div>
+              <div>
+                <p className="text-xs text-gray-600">Stock Opname</p>
+                <p className="text-xl font-bold text-blue-600">{stats.stockOpnames}</p>
               </div>
             </div>
           </div>
@@ -232,10 +318,9 @@ export default function ReconciliationPage() {
                 className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="ALL">Semua Status</option>
-                <option value="MATCHED">Matched</option>
-                <option value="NOT_PAID">Belum Bayar</option>
-                <option value="UNDERPAID">Kurang Bayar</option>
-                <option value="OVERPAID">Lebih Bayar</option>
+                <option value="PAID">Lunas</option>
+                <option value="PARTIAL">Sebagian</option>
+                <option value="UNPAID">Belum Bayar</option>
               </select>
             </div>
           </div>
@@ -251,7 +336,7 @@ export default function ReconciliationPage() {
                     Supplier
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Total Penjualan
+                    Penjualan Platform
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                     Komisi Terhitung
@@ -260,10 +345,13 @@ export default function ReconciliationPage() {
                     Komisi Terbayar
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Selisih
+                    Status Bayar
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Status
+                    Selisih Stok
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    Aksi
                   </th>
                 </tr>
               </thead>
@@ -274,9 +362,19 @@ export default function ReconciliationPage() {
                       <div className="text-sm font-medium text-gray-900">
                         {recon.supplier_name}
                       </div>
+                      {recon.last_opname_date && (
+                        <div className="text-xs text-gray-500 mt-1">
+                          Opname: {new Date(recon.last_opname_date).toLocaleDateString('id-ID')}
+                        </div>
+                      )}
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-900">
-                      Rp {recon.total_sales.toLocaleString('id-ID')}
+                    <td className="px-6 py-4">
+                      <div className="text-sm text-gray-900">
+                        Rp {recon.platform_sales_value.toLocaleString('id-ID')}
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        {recon.platform_sales_qty} item
+                      </div>
                     </td>
                     <td className="px-6 py-4 text-sm font-medium text-blue-600">
                       Rp {recon.commission_calculated.toLocaleString('id-ID')}
@@ -285,39 +383,51 @@ export default function ReconciliationPage() {
                       Rp {recon.commission_paid.toLocaleString('id-ID')}
                     </td>
                     <td className="px-6 py-4">
-                      <div className={`text-sm font-medium ${
-                        recon.difference === 0 ? 'text-gray-500' :
-                        recon.difference > 0 ? 'text-purple-600' : 'text-red-600'
-                      }`}>
-                        {recon.difference === 0 ? '-' : (
-                          `${recon.difference > 0 ? '+' : ''}Rp ${Math.abs(recon.difference).toLocaleString('id-ID')}`
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      {recon.status === 'MATCHED' && (
+                      {recon.payment_status === 'PAID' && (
                         <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">
                           <CheckCircle className="w-3 h-3" />
-                          Matched
+                          Lunas
                         </span>
                       )}
-                      {recon.status === 'NOT_PAID' && (
+                      {recon.payment_status === 'UNPAID' && (
                         <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full bg-red-100 text-red-800">
                           <XCircle className="w-3 h-3" />
                           Belum Bayar
                         </span>
                       )}
-                      {recon.status === 'UNDERPAID' && (
+                      {recon.payment_status === 'PARTIAL' && (
                         <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full bg-orange-100 text-orange-800">
                           <AlertCircle className="w-3 h-3" />
-                          Kurang Bayar
+                          Sebagian
                         </span>
                       )}
-                      {recon.status === 'OVERPAID' && (
-                        <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full bg-purple-100 text-purple-800">
-                          <DollarSign className="w-3 h-3" />
-                          Lebih Bayar
-                        </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      {recon.has_stock_opname ? (
+                        <div>
+                          <div className={`text-sm font-medium ${
+                            (recon.stock_variance || 0) > 0 ? 'text-green-600' : 
+                            (recon.stock_variance || 0) < 0 ? 'text-red-600' : 'text-gray-600'
+                          }`}>
+                            {(recon.stock_variance || 0) > 0 ? '+' : ''}{recon.stock_variance || 0} unit
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            Rp {Math.abs(recon.variance_value || 0).toLocaleString('id-ID')}
+                          </div>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-gray-400">Belum ada</span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4">
+                      {recon.has_stock_opname && (recon.stock_variance || 0) !== 0 && (
+                        <button
+                          onClick={() => handleInvestigate(recon)}
+                          className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-blue-700 bg-blue-50 rounded-lg hover:bg-blue-100"
+                        >
+                          <Search className="w-3 h-3" />
+                          Investigasi
+                        </button>
                       )}
                     </td>
                   </tr>
@@ -342,15 +452,41 @@ export default function ReconciliationPage() {
             <div className="text-sm text-blue-800">
               <p className="font-semibold mb-1">Informasi Rekonsiliasi:</p>
               <ul className="list-disc list-inside space-y-1">
-                <li><strong>Matched:</strong> Pembayaran sesuai dengan komisi yang dihitung</li>
+                <li><strong>Lunas:</strong> Pembayaran sesuai atau melebihi komisi yang dihitung</li>
+                <li><strong>Sebagian:</strong> Pembayaran kurang dari komisi yang seharusnya</li>
                 <li><strong>Belum Bayar:</strong> Belum ada pembayaran untuk periode ini</li>
-                <li><strong>Kurang Bayar:</strong> Pembayaran kurang dari komisi yang seharusnya</li>
-                <li><strong>Lebih Bayar:</strong> Pembayaran melebihi komisi yang dihitung</li>
+                <li><strong>Stock Opname:</strong> Pencatatan fisik stok untuk deteksi offline sales</li>
+                <li><strong>Investigasi:</strong> Analisis selisih stok (brankas, QRIS, dll)</li>
               </ul>
             </div>
           </div>
         </div>
       </main>
+
+      {/* Modals */}
+      <StockOpnameModal
+        isOpen={showStockOpnameModal}
+        onClose={() => setShowStockOpnameModal(false)}
+        suppliers={suppliers}
+        onSuccess={() => {
+          loadReconciliation()
+          setShowStockOpnameModal(false)
+        }}
+      />
+
+      <VarianceInvestigationModal
+        isOpen={showInvestigationModal}
+        onClose={() => {
+          setShowInvestigationModal(false)
+          setSelectedInvestigation(null)
+        }}
+        stockOpnameData={selectedInvestigation}
+        onSuccess={() => {
+          loadReconciliation()
+          setShowInvestigationModal(false)
+          setSelectedInvestigation(null)
+        }}
+      />
     </div>
   )
 }
