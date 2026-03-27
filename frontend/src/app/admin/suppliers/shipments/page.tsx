@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { Package, Truck, RotateCcw, Check, X, Eye, AlertTriangle, Calendar, Building } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
@@ -1948,7 +1948,7 @@ function ReturnsTab() {
   )
 }
 
-export default function ShipmentsPage() {
+function ShipmentsPageContent() {
   const searchParams = useSearchParams()
   const initialTab = searchParams?.get('tab') || 'shipments'
   
@@ -2018,5 +2018,13 @@ export default function ShipmentsPage() {
         )}
       </main>
     </div>
+  )
+}
+
+export default function ShipmentsPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" /></div>}>
+      <ShipmentsPageContent />
+    </Suspense>
   )
 }

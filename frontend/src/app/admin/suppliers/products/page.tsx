@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { Package, Check, X, Search, Edit, Trash2, Eye, Image as ImageIcon } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useSearchParams } from 'next/navigation'
@@ -25,7 +25,7 @@ interface Supplier {
   business_name: string
 }
 
-export default function ProductsApproval() {
+function ProductsApprovalContent() {
   const searchParams = useSearchParams()
   const supplierFilter = searchParams.get('supplier')
   
@@ -977,5 +977,13 @@ export default function ProductsApproval() {
         type={alertDialog.type}
       />
     </div>
+  )
+}
+
+export default function ProductsApproval() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" /></div>}>
+      <ProductsApprovalContent />
+    </Suspense>
   )
 }
