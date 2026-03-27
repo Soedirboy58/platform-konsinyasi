@@ -47,6 +47,7 @@ export default function CheckoutPage() {
   const [qrLoadingFailed, setQrLoadingFailed] = useState(false)
   const [timeLeft, setTimeLeft] = useState(0)
   const realtimeChannelRef = useRef<ReturnType<ReturnType<typeof createClient>['channel']> | null>(null)
+  const qrCanvasRef = useRef<HTMLCanvasElement>(null)
 
   useEffect(() => {
     // Load cart data
@@ -111,6 +112,42 @@ export default function CheckoutPage() {
       setQrLoadingFailed(true)
     } finally {
       setQrLoading(false)
+    }
+  }
+
+  function downloadDynamicQR() {
+    const canvas = qrCanvasRef.current
+    if (!canvas) return
+    const url = canvas.toDataURL('image/png')
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `QRIS-${checkoutResult?.transaction_code}.png`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    toast.success('QR berhasil disimpan!')
+  }
+
+  async function shareDynamicQR() {
+    const canvas = qrCanvasRef.current
+    if (!canvas) return
+    try {
+      canvas.toBlob(async (blob) => {
+        if (!blob) return
+        const file = new File([blob], `QRIS-${checkoutResult?.transaction_code}.png`, { type: 'image/png' })
+        if (navigator.share && navigator.canShare({ files: [file] })) {
+          await navigator.share({
+            title: 'Pembayaran QRIS',
+            text: `Bayar Rp ${checkoutResult?.total_amount.toLocaleString('id-ID')}`,
+            files: [file],
+          })
+        } else {
+          // Fallback: download jika share tidak tersedia
+          downloadDynamicQR()
+        }
+      })
+    } catch (err) {
+      downloadDynamicQR()
     }
   }
 
@@ -337,6 +374,7 @@ async function processCheckout(paymentMethod: 'QRIS' | 'CASH') {
               <>
                 <div className="bg-white p-4 rounded-lg mb-4 flex flex-col items-center">
                   <QRCodeCanvas
+                    ref={qrCanvasRef}
                     value={dynamicQrString}
                     size={256}
                     bgColor="#ffffff"
@@ -354,6 +392,60 @@ async function processCheckout(paymentMethod: 'QRIS' | 'CASH') {
                     :{String(timeLeft % 60).padStart(2, '0')}
                   </p>
                 </div>
+                {/* Tombol aksi */}
+                <div className="flex gap-2 mt-3 mb-3">
+                  <button
+                    onClick={downloadDynamicQR}
+                    className="flex-1 bg-gray-100 text-gray-700 py-2 rounded-lg text-sm font-medium hover:bg-gray-200 transition flex items-center justify-center gap-1"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    Simpan QR
+                  </button>
+                  <button
+                    onClick={shareDynamicQR}
+                    className="flex-1 bg-blue-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition flex items-center justify-center gap-1"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                    </svg>
+                    Bagikan QR
+                  </button>
+                </div>
+
+                {/* Tombol buka aplikasi pembayaran */}
+                <div className="mb-3">
+                  <p className="text-xs text-gray-500 text-center mb-2">Atau buka langsung di aplikasi:</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <a
+                      href={`gojek://qr?data=${encodeURIComponent(dynamicQrString)}`}
+                      className="bg-green-50 border border-green-200 text-green-800 py-2 px-3 rounded-lg text-xs font-medium text-center hover:bg-green-100 transition"
+                    >
+                      💚 GoPay
+                    </a>
+                    <a
+                      href={`shopeepay://qr?data=${encodeURIComponent(dynamicQrString)}`}
+                      className="bg-orange-50 border border-orange-200 text-orange-800 py-2 px-3 rounded-lg text-xs font-medium text-center hover:bg-orange-100 transition"
+                    >
+                      🧡 ShopeePay
+                    </a>
+                    <a
+                      href={`dana://qr?data=${encodeURIComponent(dynamicQrString)}`}
+                      className="bg-blue-50 border border-blue-200 text-blue-800 py-2 px-3 rounded-lg text-xs font-medium text-center hover:bg-blue-100 transition"
+                    >
+                      💙 DANA
+                    </a>
+                    <a
+                      href={`ovo://qr?data=${encodeURIComponent(dynamicQrString)}`}
+                      className="bg-purple-50 border border-purple-200 text-purple-800 py-2 px-3 rounded-lg text-xs font-medium text-center hover:bg-purple-100 transition"
+                    >
+                      💜 OVO
+                    </a>
+                  </div>
+                  <p className="text-xs text-gray-400 text-center mt-1">*Jika tidak terbuka, gunakan Simpan QR lalu scan dari galeri</p>
+                </div>
+
                 {/* Menunggu konfirmasi otomatis */}
                 <div className="flex items-center justify-center gap-2 text-sm text-blue-700 bg-blue-100 rounded-lg p-3">
                   <Loader2 className="w-4 h-4 animate-spin" />
