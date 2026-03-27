@@ -93,15 +93,21 @@ export default function CheckoutPage() {
           transaction_code: checkoutResult.transaction_code,
         }),
       })
-      if (!res.ok) throw new Error('Xendit API gagal')
-      const qrData = await res.json()
-      setDynamicQrString(qrData.qr_string)
-      setQrExpiresAt(new Date(qrData.expires_at))
-      setTimeLeft(Math.floor((new Date(qrData.expires_at).getTime() - Date.now()) / 1000))
-      // Mulai listen pembayaran otomatis via Supabase Realtime
+      const resData = await res.json()
+      if (!res.ok) {
+        const errMsg = resData?.detail || resData?.error || `HTTP ${res.status}`
+        console.error('Dynamic QRIS error:', errMsg, resData)
+        toast.error(`Dynamic QRIS gagal: ${errMsg}. Menggunakan QR statis.`)
+        setQrLoadingFailed(true)
+        return
+      }
+      setDynamicQrString(resData.qr_string)
+      setQrExpiresAt(new Date(resData.expires_at))
+      setTimeLeft(Math.floor((new Date(resData.expires_at).getTime() - Date.now()) / 1000))
       subscribeToPayment(checkoutResult.transaction_id)
     } catch (err) {
-      console.warn('Dynamic QRIS gagal, fallback ke static:', err)
+      console.error('Dynamic QRIS exception:', err)
+      toast.error('Dynamic QRIS gagal dihubungi. Menggunakan QR statis.')
       setQrLoadingFailed(true)
     } finally {
       setQrLoading(false)
