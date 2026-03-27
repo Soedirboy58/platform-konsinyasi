@@ -34,11 +34,12 @@ export async function POST(request: NextRequest) {
     const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString()
 
     // Panggil Xendit API — buat dynamic QRIS
-    const xenditRes = await fetch('https://api.xendit.co/v2/qr_codes', {
+    const xenditRes = await fetch('https://api.xendit.co/qr_codes', {
       method: 'POST',
       headers: {
         'Authorization': `Basic ${Buffer.from(xenditSecretKey + ':').toString('base64')}`,
         'Content-Type': 'application/json',
+        'api-version': '2022-07-31',
       },
       body: JSON.stringify({
         reference_id: transaction_code,   // Unique ID per transaksi
