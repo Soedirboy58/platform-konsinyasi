@@ -39,7 +39,6 @@ export async function POST(request: NextRequest) {
       headers: {
         'Authorization': `Basic ${Buffer.from(xenditSecretKey + ':').toString('base64')}`,
         'Content-Type': 'application/json',
-        'api-version': '2022-07-31',
       },
       body: JSON.stringify({
         reference_id: transaction_code,   // Unique ID per transaksi
