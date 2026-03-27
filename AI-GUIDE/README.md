@@ -1,8 +1,8 @@
 # 🤖 AI AGENT GUIDE - Platform Konsinyasi
 
 > **Panduan lengkap untuk AI Agent dalam membangun dan maintain Platform Konsinyasi**  
-> **Last Updated:** 2 Desember 2025  
-> **Version:** 1.0
+> **Last Updated:** 28 Maret 2026  
+> **Version:** 1.4.0
 
 ---
 
@@ -48,14 +48,15 @@ Supplier → Kirim Produk → Toko (Location) → Customer Beli → Platform Fee
 ## 🛠️ TECH STACK
 
 ### **Frontend:**
-- **Framework:** Next.js 14.0.4 (App Router)
+- **Framework:** Next.js 14.2.29 (App Router) — upgraded from 14.0.4 to fix Vercel build crash
 - **Language:** TypeScript (strict mode)
 - **Styling:** Tailwind CSS
 - **UI Components:** Custom components + Lucide Icons
 - **State Management:** React Hooks (useState, useEffect)
 - **Forms:** Native HTML5 + client-side validation
 - **Notifications:** Sonner (toast)
-- **PWA:** next-pwa (Progressive Web App support)
+- **PWA:** next-pwa@5.6.0 — **DISABLED on Vercel** (enabled only in dev / local builds)
+- **Node.js:** Pinned to `22.x` in `package.json` engines
 
 ### **Backend:**
 - **Database:** PostgreSQL (via Supabase)
@@ -593,6 +594,43 @@ SELECT pg_get_functiondef(oid) FROM pg_proc WHERE proname = 'function_name';
 #### **5. Checkout fails with inventory constraint error**
 **Cause:** Double submission on page refresh  
 **Fix:** Implement idempotency check with sessionStorage
+
+#### **6. Vercel build crash — RangeError: Maximum call stack size exceeded**
+**Cause:** Next.js 14.0.x bug in `collect-build-traces.js` — micromatch called with complex patterns, blows stack on Node 18+  
+**Fix:** Upgrade Next.js to `14.2.29` (minimum safe version)  
+**Also needed:**
+- Pin Node.js to `22.x` in `package.json` engines (prevent Vercel from using Node 24.x)
+- Disable next-pwa on Vercel: `disable: !!process.env.VERCEL` in `next.config.js`
+
+#### **7. Build error — useSearchParams() must be wrapped in Suspense**
+**Cause:** Next.js 14.2+ enforces Suspense boundary for `useSearchParams()` (14.0.x didn't check)  
+**Fix:** Extract page content into a child component, wrap in `<Suspense>` in the default export:
+```typescript
+export default function MyPage() {
+  return <Suspense fallback={<div>Loading...</div>}><MyPageContent /></Suspense>
+}
+```
+**Affected pages this session:** `admin/suppliers/products`, `admin/suppliers/shipments`, `supplier/login`
+
+#### **8. Products not showing on /kantin/[slug]**
+**Cause A:** `get_products_by_location` had filter `AND l.type = 'OUTLET'` — kantin-kejujuran has type `KANTIN`  
+**Fix A:** Remove the `l.type = 'OUTLET'` filter (Migration 035)  
+**Cause B:** Wrong slug in URL — DB stores `qr_code = 'kantin-kejujuran'`, not `outlet_lobby_a`  
+**Fix B:** Use the correct URL: `/kantin/kantin-kejujuran`
+
+#### **9. process_anonymous_checkout returns 500**
+**Cause:** Frontend was sending `{ p_location_id: UUID, p_total_amount: number }` but function expects `{ p_location_slug: TEXT, p_items: JSONB }`  
+**Fix:** Update RPC call in `checkout/page.tsx`:
+```typescript
+await supabase.rpc('process_anonymous_checkout', {
+  p_location_slug: locationSlug,  // TEXT, not UUID
+  p_items: items.map(i => ({       // JSONB array
+    product_id: i.product_id,
+    quantity: i.quantity,
+    price: i.price
+  }))
+})
+```
 
 ---
 

@@ -1,7 +1,7 @@
 # 📝 CHANGELOG & VERSION HISTORY
 
 > **Catatan perubahan dan riwayat versi Platform Konsinyasi**  
-> **Last Updated:** 2 Desember 2025
+> **Last Updated:** 28 Maret 2026
 
 ---
 
@@ -16,6 +16,56 @@ Format: `MAJOR.MINOR.PATCH`
 ---
 
 ## 🚀 LATEST VERSION
+
+### **v1.4.0** - 2026-03-28
+
+**Type:** Critical Bug Fix Release  
+**Status:** ✅ Production
+
+**Bug Fixes:**
+
+#### 🔴 Vercel Build Failure (CRITICAL)
+- **Root Cause 1:** `next-pwa@5.6.0` + Node.js 22+ menyebabkan `RangeError: Maximum call stack size exceeded` di fase "Collecting build traces" via `micromatch`
+- **Root Cause 2:** `"engines": { "node": ">=18.0.0" }` menyebabkan Vercel auto-upgrade ke Node.js 24.x yang memperparah crash
+- **Root Cause 3:** Next.js `14.0.4` punya bug di `collect-build-traces.js` → `shouldIgnore` → `micromatch.isMatch` overflow
+- **Fix:** Upgrade Next.js `14.0.4` → `14.2.29`, pin Node.js ke `22.x`, disable next-pwa di Vercel via `process.env.VERCEL`
+
+#### 🔴 Checkout 500 Internal Error (CRITICAL)
+- **Root Cause:** Frontend memanggil `process_anonymous_checkout` dengan parameter salah: `p_location_id` (UUID) padahal function butuh `p_location_slug` (TEXT). Juga mengirim `p_total_amount` yang tidak ada di signature.
+- **Fix:** Ubah RPC call ke `{ p_location_slug: locationSlug, p_items: items }`
+- **File:** `/frontend/src/app/kantin/[slug]/checkout/page.tsx`
+
+#### 🔴 Produk Tidak Tampil di Marketplace (CRITICAL)
+- **Root Cause 1:** SQL function `get_products_by_location` punya filter `AND l.type = 'OUTLET'` — lokasi bernama `kantin-kejujuran` memiliki type berbeda
+- **Root Cause 2:** URL yang dipakai `/kantin/outlet_lobby_a` tidak cocok dengan `qr_code` database = `kantin-kejujuran`
+- **Fix SQL:** Hapus filter `l.type = 'OUTLET'` dari function (Migration 035)
+- **Fix URL:** Gunakan `/kantin/kantin-kejujuran` yang sesuai qr_code di database
+
+#### 🟡 `useSearchParams()` Error di Next.js 14.2 (MEDIUM)
+- **Root Cause:** Next.js 14.2 mewajibkan `useSearchParams()` dibungkus `<Suspense>` saat static generation
+- **Affected Pages:** `/admin/suppliers/products`, `/admin/suppliers/shipments`, `/supplier/login`
+- **Fix:** Pisahkan komponen utama → `XxxContent()`, bungkus dengan `<Suspense>` di default export
+
+**Database Migrations:**
+- Migration 034: Fix `process_anonymous_checkout` — hapus `p.is_active` check (kolom tidak ada), fix `confirm_payment_with_method` (hapus `reserved_quantity`)
+- Migration 035: Fix `get_products_by_location` — hapus filter `l.type = 'OUTLET'`
+
+**Files Changed:**
+- `/frontend/next.config.js` — disable next-pwa on Vercel
+- `/frontend/package.json` — Next.js 14.0.4→14.2.29, pin node 22.x
+- `/frontend/package-lock.json` — updated
+- `/frontend/src/app/kantin/[slug]/checkout/page.tsx` — fix RPC params
+- `/frontend/src/app/admin/suppliers/products/page.tsx` — Suspense wrap
+- `/frontend/src/app/admin/suppliers/shipments/page.tsx` — Suspense wrap
+- `/frontend/src/app/supplier/login/page.tsx` — Suspense wrap
+- `/backend/migrations/034_fix_checkout_remove_is_active.sql` — baru
+- `/backend/migrations/035_fix_get_products_by_location.sql` — baru
+- `/vercel.json` — tambah NODE_OPTIONS env
+
+**Migration Required:** ✅ Yes (034 & 035)  
+**Breaking Changes:** ❌ No
+
+---
 
 ### **v1.3.0** - 2025-12-02
 
