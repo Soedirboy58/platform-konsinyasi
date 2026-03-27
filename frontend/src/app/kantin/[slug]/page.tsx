@@ -136,77 +136,58 @@ export default function KantinPage() {
     try {
       const supabase = createClient()
       
-      console.log('🔍 Loading products for location:', locationSlug)
-      
       // Get location info first
-      const { data: locationData, error: locationError } = await supabase
+      const { data: locationData } = await supabase
         .from('locations')
         .select('id, name')
         .eq('qr_code', locationSlug)
         .single()
       
-      if (locationError && locationError.code !== 'PGRST116') {
-        console.warn('⚠️ Location lookup warning:', locationError)
-      }
-      
       if (locationData) {
-        console.log('✅ Location found:', locationData.name)
         setLocationId(locationData.id)
         setLocationName(locationData.name)
-      } else {
-        console.warn('⚠️ Location not found:', locationSlug)
-        setLocationName(locationSlug.replace(/_/g, ' ').toUpperCase())
       }
       
       // Get products by location QR code
-      console.log('📦 Calling RPC: get_products_by_location')
       const { data, error } = await supabase
         .rpc('get_products_by_location', { 
           location_qr_code: locationSlug 
         })
       
       if (error) {
-        console.error('❌ RPC Error Details:', {
-          message: error.message,
-          code: error.code,
-          hint: error.hint,
-          details: error.details,
-        })
-        
-        // Provide specific error message
-        let errorMessage = 'Gagal memuat produk.'
-        if (error.code === '42883') {
-          errorMessage += ' Function tidak ditemukan. Admin perlu menjalankan migrasi database.'
-        } else if (error.code === '42501') {
-          errorMessage += ' Permission denied. Check RLS policies.'
-        } else if (error.message?.includes('no rows returned')) {
-          errorMessage = 'Tidak ada produk di lokasi ini.'
-        }
-        
-        throw new Error(errorMessage)
+        console.error('RPC Error:', error)
+        throw error
       }
       
-      console.log('✅ RPC successful, products returned:', data?.length || 0)
+      // Get supplier_id for each product
+      if (data && data.length > 0) {
+        const productsWithSupplier = await Promise.all(
+          data.map(async (product: any) => {
+            const { data: productDetail } = await supabase
+              .from('products')
+              .select('supplier_id')
+              .eq('id', product.product_id)
+              .single()
+            
+            return {
+              ...product,
+              supplier_id: productDetail?.supplier_id,
+              location_id: locationData?.id
+            }
+          })
+        )
+        setProducts(productsWithSupplier)
+      } else {
+        setProducts(data || [])
+      }
       
-      // Process products directly - RPC already includes all needed data
-      // Don't make extra queries for supplier_id (causes timeout)
-      const processedProducts = (data || []).map((product: any) => ({
-        ...product,
-        // RPC already includes business_name (supplier name)
-        supplier_name: product.business_name,
-        // Ensure price is numeric for calculations
-        price: typeof product.price === 'string' 
-          ? parseFloat(product.price) 
-          : product.price,
-        // Add location_id if needed
-        location_id: locationData?.id
-      }))
-      
-      setProducts(processedProducts)
-      console.log('✅ Products processed and loaded:', processedProducts.length)
+      console.log('Products loaded:', data?.length || 0, 'items')
+      if (!locationData) {
+        setLocationName(locationSlug.replace(/_/g, ' ').toUpperCase())
+      }
     } catch (error: any) {
-      console.error('❌ Error loading products:', error)
-      toast.error(error.message || 'Gagal memuat produk. Hubungi administrator.')
+      console.error('Error loading products:', error)
+      toast.error(error.message || 'Gagal memuat produk. Pastikan function RPC sudah dijalankan di Supabase.')
     } finally {
       setLoading(false)
     }
