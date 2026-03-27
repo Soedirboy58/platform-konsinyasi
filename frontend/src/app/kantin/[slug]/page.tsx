@@ -159,27 +159,11 @@ export default function KantinPage() {
         throw error
       }
       
-      // Get supplier_id for each product
-      if (data && data.length > 0) {
-        const productsWithSupplier = await Promise.all(
-          data.map(async (product: any) => {
-            const { data: productDetail } = await supabase
-              .from('products')
-              .select('supplier_id')
-              .eq('id', product.product_id)
-              .single()
-            
-            return {
-              ...product,
-              supplier_id: productDetail?.supplier_id,
-              location_id: locationData?.id
-            }
-          })
-        )
-        setProducts(productsWithSupplier)
-      } else {
-        setProducts(data || [])
-      }
+      // Map products directly - no extra queries (fixes N+1 timeout issue)
+      setProducts((data || []).map((product: any) => ({
+        ...product,
+        location_id: locationData?.id
+      })))
       
       console.log('Products loaded:', data?.length || 0, 'items')
       if (!locationData) {
@@ -257,6 +241,22 @@ export default function KantinPage() {
     const matchSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase())
     return matchSearch
   })
+
+  async function openReportModal(product: Product) {
+    // Fetch supplier_id lazily (only when user actually opens report modal)
+    if (!product.supplier_id) {
+      const supabase = createClient()
+      const { data } = await supabase
+        .from('products')
+        .select('supplier_id')
+        .eq('id', product.product_id)
+        .single()
+      setSelectedProduct({ ...product, supplier_id: data?.supplier_id })
+    } else {
+      setSelectedProduct(product)
+    }
+    setIsReportModalOpen(true)
+  }
 
   function goToCheckout() {
     if (cart.length === 0) {
@@ -500,10 +500,7 @@ export default function KantinPage() {
                     
                     {/* Report button */}
                     <button
-                      onClick={() => {
-                        setSelectedProduct(product)
-                        setIsReportModalOpen(true)
-                      }}
+                      onClick={() => openReportModal(product)}
                       className="mt-2 w-full bg-white border-2 border-orange-300 text-orange-700 py-2 rounded-lg text-sm font-medium hover:bg-orange-50 active:scale-95 transition-all flex items-center justify-center gap-1"
                     >
                       <span className="text-base">😟</span>

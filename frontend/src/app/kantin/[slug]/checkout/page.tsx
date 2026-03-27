@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { useParams, useRouter, useSearchParams } from 'next/navigation'
+import { useEffect, useState, Suspense } from 'react'
+import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { ArrowLeft, Check, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -28,7 +28,6 @@ type CheckoutResult = {
 export default function CheckoutPage() {
   const params = useParams()
   const router = useRouter()
-  const searchParams = useSearchParams()
   const locationSlug = params.slug as string
   
   const [cart, setCart] = useState<CartItem[]>([])
@@ -87,10 +86,22 @@ async function processCheckout(paymentMethod: 'QRIS' | 'CASH') {
       }))
 
       // Call checkout function
+      // Get location id first
+      const { data: locationData } = await supabase
+        .from('locations')
+        .select('id')
+        .eq('qr_code', locationSlug)
+        .single()
+
+      if (!locationData) {
+        throw new Error('Lokasi tidak ditemukan')
+      }
+
       const { data, error } = await supabase
         .rpc('process_anonymous_checkout', {
-          p_location_slug: locationSlug,
-          p_items: items
+          p_location_id: locationData.id,
+          p_items: items,
+          p_total_amount: cart.reduce((sum, item) => sum + (item.price * item.quantity), 0)
         })
 
       if (error) throw error

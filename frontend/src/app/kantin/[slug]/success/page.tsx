@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { CheckCircle, Home, ArrowLeft, Loader2 } from 'lucide-react'
@@ -19,6 +19,18 @@ type TransactionDetail = {
 }
 
 export default function SuccessPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-primary-600" />
+      </div>
+    }>
+      <SuccessPageContent />
+    </Suspense>
+  )
+}
+
+function SuccessPageContent() {
   const params = useParams()
   const router = useRouter()
   const searchParams = useSearchParams()

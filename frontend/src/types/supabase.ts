@@ -61,7 +61,7 @@ export interface Database {
     }
     Functions: {
       get_products_by_location: {
-        Args: { qr_code_input: string }
+        Args: { location_qr_code: string }
         Returns: Array<{
           product_id: string
           name: string
