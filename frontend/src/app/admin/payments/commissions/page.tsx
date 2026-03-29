@@ -299,67 +299,54 @@ export default function CommissionsPage() {
         // Check if this supplier has been paid in this period
         const payments = paymentMap.get(supplierId) || []
         const totalPaid = payments.reduce((sum, p) => sum + (p.net_payment || p.amount || 0), 0)
-        
-        console.log(`💵 Payment calculation for ${supplier.business_name}:`, {
-          supplierId,
-          paymentsFound: payments.length,
-          payments: payments.map(p => ({
-            net_payment: p.net_payment,
-            amount: p.amount,
-            used: p.net_payment || p.amount || 0,
-            period: `${p.period_start} to ${p.period_end}`
-          })),
-          totalPaid,
-          totalRevenue
-        })
-        
+
+        // Tanggal pembayaran terakhir — untuk menentukan siklus baru
         const latestPayment = payments.length > 0 
-          ? payments.sort((a, b) => {
-              const dateA = new Date(b.payment_date || b.created_at).getTime()
-              const dateB = new Date(a.payment_date || a.created_at).getTime()
-              return dateA - dateB
-            })[0]
+          ? payments.sort((a, b) => new Date(b.payment_date || b.created_at).getTime() - new Date(a.payment_date || a.created_at).getTime())[0]
           : null
 
-        const unpaidAmount = totalRevenue - totalPaid
+        const lastPaidDate = latestPayment 
+          ? new Date(latestPayment.payment_date || latestPayment.created_at)
+          : null
+
+        // Hitung revenue hanya dari penjualan SETELAH pembayaran terakhir (siklus baru)
+        const newCycleSales = lastPaidDate
+          ? sales.filter((item: any) => {
+              const tx = item.sales_transactions
+              const txDate = new Date(Array.isArray(tx) ? tx[0]?.created_at : tx?.created_at)
+              return txDate > lastPaidDate
+            })
+          : sales  // Kalau belum pernah dibayar, semua penjualan dihitung
+
+        const newCycleTotalSales = newCycleSales.reduce((sum: number, item: any) => sum + (item.subtotal || 0), 0)
+        const newCycleRevenue = newCycleTotalSales * (1 - commissionRate / 100)
+
+        // unpaid = revenue siklus baru saja (bukan akumulasi - totalPaid)
+        const unpaidAmount = newCycleRevenue
 
         let status: 'UNPAID' | 'PAID' | 'PENDING' = 'UNPAID'
 
-        if (unpaidAmount > 0.01) {
+        if (unpaidAmount < 0.01) {
+          // Tidak ada penjualan baru setelah pembayaran terakhir
+          status = 'PAID'
+        } else {
           status = 'UNPAID'
         }
-        else if (unpaidAmount < -0.01) {
-          status = 'PAID'
-          console.warn(`⚠️ Over-payment detected for ${supplier.business_name}:`, {
-            totalRevenue,
-            totalPaid,
-            overpayment: Math.abs(unpaidAmount)
-          })
-        }
-        else if (pendingBalance > 0) {
-          status = 'PENDING'
-        }
-        else {
-          status = 'PAID'
-        }
-
-        console.log(`📊 Status for ${supplier.business_name}:`, {
-          totalRevenue,
-          totalPaid,
-          unpaidAmount,
-          status,
-          calculation: `${totalRevenue} - ${totalPaid} = ${unpaidAmount}`
-        })
 
         commissionsData.push({
           supplier_id: supplierId,
           supplier_name: supplier.business_name,
-          total_sales: totalSales,
-          commission_rate: totalSales > 0 ? totalCommission / totalSales : 0.10,
-          commission_amount: totalRevenue,
+          total_sales: newCycleTotalSales,
+          commission_rate: commissionRate / 100,
+          commission_amount: newCycleRevenue,
           unpaid_amount: unpaidAmount,
-          products_sold: productsSold,
-          transactions: uniqueTransactions,
+          products_sold: newCycleSales.reduce((sum: number, item: any) => sum + (item.quantity || 0), 0),
+          transactions: new Set(
+            newCycleSales.map((item: any) => {
+              const tx = item.sales_transactions
+              return Array.isArray(tx) ? tx[0]?.id : tx?.id
+            }).filter(Boolean)
+          ).size,
           status: status,
           payment_date: latestPayment?.payment_date || latestPayment?.period_start,
           payment_reference: latestPayment?.payment_reference,

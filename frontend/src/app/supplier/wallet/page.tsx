@@ -150,17 +150,28 @@ export default function WalletPage() {
         ) || 0
       }
 
-      // Calculate REAL available balance (deduct withdrawals and pending)
-      const totalWithdrawn = walletData?.total_withdrawn || 0
-      const pendingBalance = walletData?.pending_balance || 0
-      const realAvailableBalance = realTotalEarned - totalWithdrawn - pendingBalance
+      // Total sudah dibayarkan admin (transfer bank ke supplier)
+      const { data: paidData } = await supabase
+        .from('supplier_payments')
+        .select('net_payment, amount')
+        .eq('supplier_id', supplier.id)
+        .eq('status', 'COMPLETED')
 
-      // Update wallet with CORRECTED values
+      const totalPaidByAdmin = paidData?.reduce((sum, p) => 
+        sum + (p.net_payment || p.amount || 0), 0
+      ) || 0
+
+      // Saldo belum dibayarkan = total penjualan - sudah dibayar admin
+      const unpaidSalesBalance = Math.max(0, realTotalEarned - totalPaidByAdmin)
+
+      // Update wallet dengan logika baru:
+      // available_balance = uang yang SUDAH dikirim admin
+      // pending_balance   = penjualan yang BELUM dibayar admin
       if (walletData) {
+        walletData.available_balance = totalPaidByAdmin
+        walletData.pending_balance = unpaidSalesBalance
         walletData.total_earned = realTotalEarned
-        walletData.available_balance = realAvailableBalance  // ✅ FIX: Kurangi withdrawn & pending
-        walletData.total_withdrawn = totalWithdrawn
-        walletData.pending_balance = pendingBalance
+        walletData.total_withdrawn = walletData.total_withdrawn || 0
       }
 
       setWallet(walletData)
@@ -474,51 +485,50 @@ export default function WalletPage() {
         <div className="bg-gradient-to-br from-green-500 to-green-600 text-white rounded-lg shadow-lg p-4 sm:p-6">
           <div className="flex items-center justify-between mb-2">
             <Wallet className="w-6 h-6 sm:w-8 sm:h-8 opacity-80" />
-            <span className="text-xs bg-white/20 px-2 py-1 rounded">Tersedia</span>
+            <span className="text-xs bg-white/20 px-2 py-1 rounded">Sudah Dibayar</span>
           </div>
-          <p className="text-xs sm:text-sm opacity-90 mb-1">Saldo Tersedia</p>
+          <p className="text-xs sm:text-sm opacity-90 mb-1">Saldo Diterima dari Admin</p>
           <p className="text-2xl sm:text-3xl font-bold">
             Rp {wallet.available_balance.toLocaleString('id-ID')}
           </p>
-          <button
-            onClick={() => setShowWithdrawModal(true)}
-            className="mt-3 sm:mt-4 w-full bg-white text-green-600 px-3 sm:px-4 py-2 rounded-lg text-sm font-semibold hover:bg-green-50 transition-colors flex items-center justify-center gap-2"
-            disabled={wallet.available_balance < 50000}
-          >
-            <Send className="w-4 h-4" />
-            Tarik Dana
-          </button>
+          <p className="text-xs opacity-80 mt-2">Total transfer dari admin ke rekening Anda</p>
         </div>
 
-        <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+        <div className="bg-white rounded-lg shadow p-4 sm:p-6 border-2 border-yellow-200">
           <div className="flex items-center gap-3 mb-3 sm:mb-4">
             <div className="bg-yellow-100 text-yellow-600 p-2 sm:p-3 rounded-lg">
               <AlertCircle className="w-5 h-5 sm:w-6 sm:h-6" />
             </div>
           </div>
-          <p className="text-xs sm:text-sm text-gray-600 mb-1">Saldo Pending</p>
-          <p className="text-xl sm:text-2xl font-bold text-gray-900">
+          <p className="text-xs sm:text-sm text-gray-600 mb-1 font-semibold">Saldo Penjualan Belum Dibayarkan</p>
+          <p className="text-xl sm:text-2xl font-bold text-yellow-700">
             Rp {wallet.pending_balance.toLocaleString('id-ID')}
           </p>
-          <p className="text-xs text-gray-500 mt-1 mb-3">Menunggu approval admin untuk pencairan</p>
+          <p className="text-xs text-gray-500 mt-1 mb-3">Hasil penjualan produk yang belum ditransfer admin</p>
           
-          {/* ✅ NEW: Ajukan Pencairan Button */}
+          {/* Ajukan Pencairan Button */}
           <button
             onClick={handleRequestWithdrawalApproval}
             disabled={wallet.pending_balance < 50000 || isSubmittingRequest || Boolean(lastRequestTime && (Date.now() - lastRequestTime.getTime()) / (1000 * 60 * 60) < 24)}
             className="w-full bg-yellow-600 text-white px-3 sm:px-4 py-2 rounded-lg text-sm font-semibold hover:bg-yellow-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
             title={
               wallet.pending_balance < 50000 
-                ? 'Saldo pending minimum Rp 50.000' 
+                ? 'Minimum Rp 50.000 untuk pencairan' 
                 : lastRequestTime && (Date.now() - lastRequestTime.getTime()) / (1000 * 60 * 60) < 24
                 ? 'Mohon tunggu 24 jam dari permintaan terakhir'
-                : 'Ajukan pencairan saldo pending ke admin'
+                : 'Ajukan pencairan ke admin'
             }
           >
             <Send className="w-4 h-4" />
             {isSubmittingRequest ? 'Mengajukan...' : 'Ajukan Pencairan'}
           </button>
           
+          {wallet.pending_balance < 50000 && wallet.pending_balance > 0 && (
+            <p className="text-xs text-yellow-600 mt-2 text-center">
+              ⏳ Belum mencapai minimum Rp 50.000
+            </p>
+          )}
+
           {/* Cooldown indicator */}
           {lastRequestTime && (Date.now() - lastRequestTime.getTime()) / (1000 * 60 * 60) < 24 && (
             <p className="text-xs text-yellow-600 mt-2 text-center">
