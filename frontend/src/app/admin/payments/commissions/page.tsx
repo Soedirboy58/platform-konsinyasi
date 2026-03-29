@@ -178,18 +178,8 @@ export default function CommissionsPage() {
         wallets?.map(w => [w.supplier_id, w]) || []
       )
 
-      // Get payment records for the period to check who has been paid
-      const startDateStr = startDate.toISOString().split('T')[0]
-
-      console.log('🔍 Fetching payment records:', {
-        table: 'supplier_payments',
-        filter: {
-          period_start_gte: startDateStr,
-          status: 'COMPLETED'
-        },
-        periodFilter: periodFilter
-      })
-
+      // Get payment records for the period — filter by payment_date (bukan period_start)
+      // Ini memastikan payment ditemukan meski timezone berbeda atau period_start tersimpan berbeda
       const { data: paymentRecords, error: paymentError } = await supabase
         .from('supplier_payments')
         .select(`
@@ -198,35 +188,16 @@ export default function CommissionsPage() {
           amount,
           payment_date,
           period_start,
-          period_end,
           payment_reference,
           status,
           created_at
         `)
-        .gte('period_start', startDateStr)
+        .gte('payment_date', startDate.toISOString())
         .eq('status', 'COMPLETED')
-        .order('created_at', { ascending: false })
-
-      console.log('💰 Payment records fetched:', {
-        success: !paymentError,
-        count: paymentRecords?.length || 0,
-        error: paymentError?.message || null,
-        errorCode: paymentError?.code || null,
-        sampleData: paymentRecords?.slice(0, 3).map(p => ({
-          supplier_id: p.supplier_id,
-          net_payment: p.net_payment,
-          amount: p.amount,
-          period: `${p.period_start} to ${p.period_end}`
-        }))
-      })
+        .order('payment_date', { ascending: false })
 
       if (paymentError) {
-        console.error('❌ Payment query error:', {
-          message: paymentError.message,
-          code: paymentError.code,
-          details: paymentError.details,
-          hint: paymentError.hint
-        })
+        console.error('❌ Payment query error:', paymentError.message)
       }
 
       // Group payments by supplier
@@ -239,16 +210,6 @@ export default function CommissionsPage() {
           paymentMap.get(payment.supplier_id)!.push(payment)
         }
       }
-
-      console.log('📦 Payment map built:', {
-        totalSuppliers: paymentMap.size,
-        supplierIds: Array.from(paymentMap.keys()),
-        breakdown: Array.from(paymentMap.entries()).map(([supplierId, payments]) => ({
-          supplierId,
-          paymentCount: payments.length,
-          totalAmount: payments.reduce((sum, p) => sum + (p.net_payment || p.amount || 0), 0)
-        }))
-      })
 
       // Group by supplier
       const supplierSalesMap = new Map<string, any[]>()
@@ -293,62 +254,27 @@ export default function CommissionsPage() {
 
         // Get wallet info
         const wallet = walletMap.get(supplierId)
-        const walletBalance = wallet?.available_balance || 0
-        const pendingBalance = wallet?.pending_balance || 0
 
-        // Check if this supplier has been paid in this period
+        // Cumulative approach: unpaid = total period revenue - total paid in period
         const payments = paymentMap.get(supplierId) || []
         const totalPaid = payments.reduce((sum, p) => sum + (p.net_payment || p.amount || 0), 0)
+        const unpaidAmount = Math.max(0, totalRevenue - totalPaid)
 
-        // Tanggal pembayaran terakhir — untuk menentukan siklus baru
-        const latestPayment = payments.length > 0 
-          ? payments.sort((a, b) => new Date(b.payment_date || b.created_at).getTime() - new Date(a.payment_date || a.created_at).getTime())[0]
-          : null
+        const latestPayment = payments.length > 0 ? payments[0] : null // already sorted by payment_date desc
 
-        const lastPaidDate = latestPayment 
-          ? new Date(latestPayment.payment_date || latestPayment.created_at)
-          : null
-
-        // Hitung revenue hanya dari penjualan SETELAH pembayaran terakhir (siklus baru)
-        const newCycleSales = lastPaidDate
-          ? sales.filter((item: any) => {
-              const tx = item.sales_transactions
-              const txDate = new Date(Array.isArray(tx) ? tx[0]?.created_at : tx?.created_at)
-              return txDate > lastPaidDate
-            })
-          : sales  // Kalau belum pernah dibayar, semua penjualan dihitung
-
-        const newCycleTotalSales = newCycleSales.reduce((sum: number, item: any) => sum + (item.subtotal || 0), 0)
-        const newCycleRevenue = newCycleTotalSales * (1 - commissionRate / 100)
-
-        // unpaid = revenue siklus baru saja (bukan akumulasi - totalPaid)
-        const unpaidAmount = newCycleRevenue
-
-        let status: 'UNPAID' | 'PAID' | 'PENDING' = 'UNPAID'
-
-        if (unpaidAmount < 0.01) {
-          // Tidak ada penjualan baru setelah pembayaran terakhir
-          status = 'PAID'
-        } else {
-          status = 'UNPAID'
-        }
+        let status: 'UNPAID' | 'PAID' | 'PENDING' = unpaidAmount < 0.01 ? 'PAID' : 'UNPAID'
 
         commissionsData.push({
           supplier_id: supplierId,
           supplier_name: supplier.business_name,
-          total_sales: newCycleTotalSales,
+          total_sales: totalSales,
           commission_rate: commissionRate / 100,
-          commission_amount: newCycleRevenue,
+          commission_amount: totalRevenue,
           unpaid_amount: unpaidAmount,
-          products_sold: newCycleSales.reduce((sum: number, item: any) => sum + (item.quantity || 0), 0),
-          transactions: new Set(
-            newCycleSales.map((item: any) => {
-              const tx = item.sales_transactions
-              return Array.isArray(tx) ? tx[0]?.id : tx?.id
-            }).filter(Boolean)
-          ).size,
+          products_sold: productsSold,
+          transactions: uniqueTransactions,
           status: status,
-          payment_date: latestPayment?.payment_date || latestPayment?.period_start,
+          payment_date: latestPayment?.payment_date,
           payment_reference: latestPayment?.payment_reference,
           bank_name: supplier.bank_name,
           bank_account: supplier.bank_account_number,
@@ -356,21 +282,13 @@ export default function CommissionsPage() {
         })
       }
 
-      console.log('✅ Commission calculation complete:', {
-        totalSuppliers: commissionsData.length,
-        breakdown: {
-          unpaid: commissionsData.filter(c => c.status === 'UNPAID').length,
-          paid: commissionsData.filter(c => c.status === 'PAID').length,
-          pending: commissionsData.filter(c => c.status === 'PENDING').length,
-          overPayment: commissionsData.filter(c => c.unpaid_amount < -0.01).length
-        },
-        suppliers: commissionsData.map(c => ({
-          name: c.supplier_name,
-          revenue: c.commission_amount,
-          unpaid: c.unpaid_amount,
-          status: c.status
-        }))
-      })
+      console.log('✅ Commission calculation complete:', commissionsData.map(c => ({
+        name: c.supplier_name,
+        totalSales: c.total_sales,
+        revenue: c.commission_amount,
+        unpaid: c.unpaid_amount,
+        status: c.status
+      })))
 
       setCommissions(commissionsData)
       setLoading(false)
