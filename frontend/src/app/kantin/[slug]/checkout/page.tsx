@@ -1,12 +1,11 @@
 'use client'
 
-import { useEffect, useState, useRef, Suspense } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { ArrowLeft, Check, Loader2, RefreshCw } from 'lucide-react'
+import { ArrowLeft, Check, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import Image from 'next/image'
-import { QRCodeCanvas } from 'qrcode.react'
 
 type CartItem = {
   product_id: string
@@ -38,145 +37,11 @@ export default function CheckoutPage() {
   const [confirming, setConfirming] = useState(false)
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'QRIS' | 'CASH' | null>(null)
   const [hasProcessed, setHasProcessed] = useState(false)
-  const [showCashConfirm, setShowCashConfirm] = useState(false)
-
-  // State untuk Dynamic QRIS
-  const [dynamicQrString, setDynamicQrString] = useState<string | null>(null)
-  const [qrExpiresAt, setQrExpiresAt] = useState<Date | null>(null)
-  const [qrLoading, setQrLoading] = useState(false)
-  const [qrLoadingFailed, setQrLoadingFailed] = useState(false)
-  const [timeLeft, setTimeLeft] = useState(0)
-  const realtimeChannelRef = useRef<ReturnType<ReturnType<typeof createClient>['channel']> | null>(null)
-  const qrCanvasRef = useRef<HTMLCanvasElement>(null)
 
   useEffect(() => {
     // Load cart data
     loadCart()
   }, [])
-
-  // Generate dynamic QRIS setelah checkout QRIS berhasil
-  useEffect(() => {
-    if (checkoutResult && selectedPaymentMethod === 'QRIS' && !dynamicQrString && !qrLoading && !qrLoadingFailed) {
-      generateDynamicQr()
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [checkoutResult, selectedPaymentMethod])
-
-  // Countdown timer untuk QR
-  useEffect(() => {
-    if (!qrExpiresAt) return
-    const interval = setInterval(() => {
-      const diff = Math.floor((qrExpiresAt.getTime() - Date.now()) / 1000)
-      setTimeLeft(Math.max(0, diff))
-      if (diff <= 0) clearInterval(interval)
-    }, 1000)
-    return () => clearInterval(interval)
-  }, [qrExpiresAt])
-
-  // Cleanup Realtime saat unmount
-  useEffect(() => {
-    return () => {
-      realtimeChannelRef.current?.unsubscribe()
-    }
-  }, [])
-
-  async function generateDynamicQr() {
-    if (!checkoutResult) return
-    setQrLoading(true)
-    setQrLoadingFailed(false)
-    try {
-      const res = await fetch('/api/create-qris', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          transaction_id: checkoutResult.transaction_id,
-          amount: checkoutResult.total_amount,
-          transaction_code: checkoutResult.transaction_code,
-        }),
-      })
-      const resData = await res.json()
-      if (!res.ok) {
-        const errMsg = resData?.detail || resData?.error || `HTTP ${res.status}`
-        console.error('Dynamic QRIS error:', errMsg, resData)
-        toast.error(`Dynamic QRIS gagal: ${errMsg}. Menggunakan QR statis.`)
-        setQrLoadingFailed(true)
-        return
-      }
-      setDynamicQrString(resData.qr_string)
-      setQrExpiresAt(new Date(resData.expires_at))
-      setTimeLeft(Math.floor((new Date(resData.expires_at).getTime() - Date.now()) / 1000))
-      subscribeToPayment(checkoutResult.transaction_id)
-    } catch (err) {
-      console.error('Dynamic QRIS exception:', err)
-      toast.error('Dynamic QRIS gagal dihubungi. Menggunakan QR statis.')
-      setQrLoadingFailed(true)
-    } finally {
-      setQrLoading(false)
-    }
-  }
-
-  function downloadDynamicQR() {
-    const canvas = qrCanvasRef.current
-    if (!canvas) return
-    const url = canvas.toDataURL('image/png')
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `QRIS-${checkoutResult?.transaction_code}.png`
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    toast.success('QR berhasil disimpan!')
-  }
-
-  async function shareDynamicQR() {
-    const canvas = qrCanvasRef.current
-    if (!canvas) return
-    try {
-      canvas.toBlob(async (blob) => {
-        if (!blob) return
-        const file = new File([blob], `QRIS-${checkoutResult?.transaction_code}.png`, { type: 'image/png' })
-        if (navigator.share && navigator.canShare({ files: [file] })) {
-          await navigator.share({
-            title: 'Pembayaran QRIS',
-            text: `Bayar Rp ${checkoutResult?.total_amount.toLocaleString('id-ID')}`,
-            files: [file],
-          })
-        } else {
-          // Fallback: download jika share tidak tersedia
-          downloadDynamicQR()
-        }
-      })
-    } catch (err) {
-      downloadDynamicQR()
-    }
-  }
-
-  function subscribeToPayment(transactionId: string) {
-    const supabase = createClient()
-    const channel = supabase
-      .channel(`payment-${transactionId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'sales_transactions',
-          filter: `id=eq.${transactionId}`,
-        },
-        (payload) => {
-          if ((payload.new as any).status === 'PAID') {
-            channel.unsubscribe()
-            sessionStorage.removeItem(`cart_${locationSlug}`)
-            sessionStorage.removeItem(`checkout_processed_${locationSlug}`)
-            toast.success('Pembayaran berhasil! Terima kasih 🎉')
-            const code = checkoutResult?.transaction_code ?? ''
-            router.push(`/kantin/${locationSlug}/success?code=${code}`)
-          }
-        }
-      )
-      .subscribe()
-    realtimeChannelRef.current = channel
-  }
 
   function loadCart() {
     try {
@@ -355,216 +220,68 @@ async function processCheckout(paymentMethod: 'QRIS' | 'CASH') {
             </div>
           </div>
 
-          {/* QRIS Display */}
-          <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-6 mb-6">
-            <h2 className="text-center font-bold text-gray-900 mb-4">
-              Scan QRIS untuk Pembayaran
-            </h2>
-
-            {/* Loading: sedang generate QR dari Xendit */}
-            {qrLoading && (
-              <div className="bg-white p-8 rounded-lg mb-4 flex flex-col items-center gap-3">
-                <Loader2 className="w-10 h-10 animate-spin text-blue-600" />
-                <p className="text-sm text-gray-600">Membuat QR dinamis...</p>
+          {/* Static QRIS Display */}
+          <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-4 mb-4">
+            <h2 className="text-center font-bold text-gray-900 mb-3">Scan QRIS untuk Pembayaran</h2>
+            {checkoutResult.qris_image_url ? (
+              <div className="bg-white p-3 rounded-lg flex justify-center">
+                <Image
+                  src={checkoutResult.qris_image_url}
+                  alt="QRIS Code"
+                  width={280}
+                  height={280}
+                  className="w-full h-auto max-w-[280px]"
+                  priority
+                />
+              </div>
+            ) : (
+              <div className="bg-yellow-50 border border-yellow-200 rounded p-4 text-center">
+                <p className="text-sm text-yellow-800">QRIS belum tersedia. Silakan bayar di kasir.</p>
               </div>
             )}
-
-            {/* Dynamic QR dari Xendit */}
-            {!qrLoading && dynamicQrString && timeLeft > 0 && (
-              <>
-                <div className="bg-white p-4 rounded-lg mb-4 flex flex-col items-center">
-                  <QRCodeCanvas
-                    ref={qrCanvasRef}
-                    value={dynamicQrString}
-                    size={256}
-                    bgColor="#ffffff"
-                    fgColor="#000000"
-                    level="M"
-                  />
-                </div>
-                {/* Countdown timer */}
-                <div className="text-center mb-4">
-                  <p className="text-xs text-gray-500 mb-1">QR berlaku selama:</p>
-                  <p className={`text-2xl font-mono font-bold ${
-                    timeLeft < 60 ? 'text-red-500' : 'text-gray-800'
-                  }`}>
-                    {String(Math.floor(timeLeft / 60)).padStart(2, '0')}
-                    :{String(timeLeft % 60).padStart(2, '0')}
-                  </p>
-                </div>
-                {/* Tombol aksi */}
-                <div className="flex gap-2 mt-3 mb-3">
-                  <button
-                    onClick={downloadDynamicQR}
-                    className="flex-1 bg-gray-100 text-gray-700 py-2 rounded-lg text-sm font-medium hover:bg-gray-200 transition flex items-center justify-center gap-1"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                    </svg>
-                    Simpan QR
-                  </button>
-                  <button
-                    onClick={shareDynamicQR}
-                    className="flex-1 bg-blue-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition flex items-center justify-center gap-1"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
-                    </svg>
-                    Bagikan QR
-                  </button>
-                </div>
-
-                {/* Tombol buka aplikasi pembayaran */}
-                <div className="mb-3">
-                  <p className="text-xs text-gray-500 text-center mb-2">Atau buka langsung di aplikasi:</p>
-                  <div className="grid grid-cols-2 gap-2">
-                    <a
-                      href={`gojek://qr?data=${encodeURIComponent(dynamicQrString)}`}
-                      className="bg-green-50 border border-green-200 text-green-800 py-2 px-3 rounded-lg text-xs font-medium text-center hover:bg-green-100 transition"
-                    >
-                      💚 GoPay
-                    </a>
-                    <a
-                      href={`shopeepay://qr?data=${encodeURIComponent(dynamicQrString)}`}
-                      className="bg-orange-50 border border-orange-200 text-orange-800 py-2 px-3 rounded-lg text-xs font-medium text-center hover:bg-orange-100 transition"
-                    >
-                      🧡 ShopeePay
-                    </a>
-                    <a
-                      href={`dana://qr?data=${encodeURIComponent(dynamicQrString)}`}
-                      className="bg-blue-50 border border-blue-200 text-blue-800 py-2 px-3 rounded-lg text-xs font-medium text-center hover:bg-blue-100 transition"
-                    >
-                      💙 DANA
-                    </a>
-                    <a
-                      href={`ovo://qr?data=${encodeURIComponent(dynamicQrString)}`}
-                      className="bg-purple-50 border border-purple-200 text-purple-800 py-2 px-3 rounded-lg text-xs font-medium text-center hover:bg-purple-100 transition"
-                    >
-                      💜 OVO
-                    </a>
-                  </div>
-                  <p className="text-xs text-gray-400 text-center mt-1">*Jika tidak terbuka, gunakan Simpan QR lalu scan dari galeri</p>
-                </div>
-
-                {/* Menunggu konfirmasi otomatis */}
-                <div className="flex items-center justify-center gap-2 text-sm text-blue-700 bg-blue-100 rounded-lg p-3">
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Menunggu konfirmasi pembayaran otomatis...</span>
-                </div>
-              </>
-            )}
-
-            {/* QR expired */}
-            {!qrLoading && dynamicQrString && timeLeft === 0 && (
-              <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4 text-center">
-                <p className="text-red-700 font-semibold mb-3">QR Code sudah expired.</p>
-                <button
-                  onClick={() => {
-                    setDynamicQrString(null)
-                    setQrExpiresAt(null)
-                    setQrLoadingFailed(false)
-                  }}
-                  className="text-blue-600 underline text-sm flex items-center gap-1 mx-auto"
-                >
-                  <RefreshCw className="w-4 h-4" /> Generate ulang
-                </button>
-              </div>
-            )}
-
-            {/* Fallback: Xendit gagal → tampil static QRIS */}
-            {!qrLoading && qrLoadingFailed && (
-              <>
-                {checkoutResult.qris_image_url ? (
-                  <div className="bg-white p-4 rounded-lg mb-4">
-                    <Image
-                      src={checkoutResult.qris_image_url}
-                      alt="QRIS Code"
-                      width={300}
-                      height={300}
-                      className="w-full h-auto"
-                      priority
-                      id="qris-image"
-                    />
-                  </div>
-                ) : (
-                  <div className="bg-yellow-50 border border-yellow-200 rounded p-4">
-                    <p className="text-sm text-yellow-800 text-center">
-                      QRIS belum tersedia. Silakan bayar di kasir.
-                    </p>
-                  </div>
-                )}
-                <div className="text-center mb-3">
-                  <p className="text-xs text-orange-600">⚠️ Menggunakan QR statis. Konfirmasi manual diperlukan.</p>
-                </div>
-              </>
-            )}
+            <div className="mt-3 bg-orange-50 border border-orange-200 rounded-lg p-3 text-center">
+              <p className="text-sm font-bold text-orange-800">Masukkan nominal:</p>
+              <p className="text-2xl font-bold text-orange-700">
+                Rp {checkoutResult.total_amount.toLocaleString('id-ID')}
+              </p>
+            </div>
           </div>
 
-          {/* Instruksi pembayaran */}
-          {!qrLoading && (dynamicQrString || qrLoadingFailed) && (
-            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-4">
-              <h3 className="font-semibold text-gray-900 mb-2 text-sm">Cara Pembayaran:</h3>
-              <ol className="text-xs text-gray-700 space-y-1 list-decimal list-inside">
-                {dynamicQrString && timeLeft > 0 ? (
-                  <>
-                    <li>Buka aplikasi bank atau e-wallet</li>
-                    <li>Pilih &quot;Bayar QRIS&quot; atau &quot;Scan QR&quot;</li>
-                    <li>Scan QR di atas</li>
-                    <li>Jumlah otomatis terisi: <strong>Rp {checkoutResult.total_amount.toLocaleString('id-ID')}</strong></li>
-                    <li>Konfirmasi di aplikasi bank Anda</li>
-                    <li>Halaman ini akan otomatis update</li>
-                  </>
-                ) : (
-                  <>
-                    <li>Download QRIS atau screenshot layar</li>
-                    <li>Buka aplikasi bank / e-wallet</li>
-                    <li>Pilih &quot;Bayar QRIS&quot; atau &quot;Scan QR&quot;</li>
-                    <li>Upload QRIS dari galeri</li>
-                    <li>Input: <strong>Rp {checkoutResult.total_amount.toLocaleString('id-ID')}</strong></li>
-                    <li>Konfirmasi pembayaran</li>
-                  </>
-                )}
-              </ol>
-            </div>
-          )}
-        </div>
+          {/* Cara Pembayaran */}
+          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-4">
+            <h3 className="font-semibold text-gray-900 mb-2 text-sm">Cara Pembayaran:</h3>
+            <ol className="text-xs text-gray-700 space-y-1 list-decimal list-inside">
+              <li>Buka aplikasi bank atau e-wallet</li>
+              <li>Pilih &quot;Bayar QRIS&quot; atau &quot;Scan QR&quot;</li>
+              <li>Scan QR di atas</li>
+              <li>Masukkan nominal: <strong>Rp {checkoutResult.total_amount.toLocaleString('id-ID')}</strong></li>
+              <li>Konfirmasi pembayaran di aplikasi</li>
+              <li>Klik tombol &quot;Sudah Bayar&quot; di bawah</li>
+            </ol>
+          </div>
 
-        {/* Tombol konfirmasi manual — hanya tampil saat fallback atau QR gagal */}
-        {(qrLoadingFailed || (dynamicQrString && timeLeft === 0)) && (
-          <>
-            {qrLoadingFailed && checkoutResult.qris_image_url && (
-              <button
-                onClick={downloadQRIS}
-                className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition flex items-center justify-center gap-2 mb-3"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                </svg>
-                📥 Download QRIS
-              </button>
+          {/* Konfirmasi manual */}
+          <button
+            onClick={() => confirmPayment('QRIS')}
+            disabled={confirming}
+            className="w-full bg-green-600 text-white py-4 rounded-xl font-bold text-lg hover:bg-green-700 transition disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg"
+          >
+            {confirming ? (
+              <>
+                <Loader2 className="w-6 h-6 animate-spin" />
+                Memproses...
+              </>
+            ) : (
+              <>
+                <Check className="w-6 h-6" />
+                ✅ Sudah Bayar
+              </>
             )}
-            <button
-              onClick={() => confirmPayment('QRIS')}
-              disabled={confirming}
-              className="w-full bg-green-600 text-white py-4 rounded-lg font-semibold hover:bg-green-700 transition disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-            >
-              {confirming ? (
-                <>
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                  Memproses...
-                </>
-              ) : (
-                <>
-                  <Check className="w-5 h-5" />
-                  ✅ Verifikasi Bayar QRIS (Manual)
-                </>
-              )}
-            </button>
-            <p className="text-xs text-gray-500 text-center mt-2">
-              Klik verifikasi hanya setelah pembayaran berhasil.
-            </p>
-          </>
-        )}
+          </button>
+          <p className="text-xs text-gray-500 text-center mt-2">
+            Klik tombol ini hanya setelah pembayaran berhasil.
+          </p>
+        </div>
       </div>
     )
   }
