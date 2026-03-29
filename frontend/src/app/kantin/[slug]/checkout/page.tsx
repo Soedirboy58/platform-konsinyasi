@@ -11,7 +11,8 @@ type CartItem = {
   product_id: string
   name: string
   price: number
-  quantity: number
+  quantity: number       // stock level dari DB
+  cartQuantity?: number  // jumlah yang user masukkan ke keranjang
   supplier_name: string
 }
 
@@ -77,10 +78,10 @@ async function processCheckout(paymentMethod: 'QRIS' | 'CASH') {
     try {
       const supabase = createClient()
 
-      // Format items for function
+      // Format items for function — gunakan cartQuantity (jumlah beli), bukan quantity (stok)
       const items = cart.map(item => ({
         product_id: item.product_id,
-        quantity: item.quantity,
+        quantity: item.cartQuantity ?? item.quantity,
         price: item.price
       }))
 
@@ -212,110 +213,75 @@ async function processCheckout(paymentMethod: 'QRIS' | 'CASH') {
   // Show QRIS payment screen after checkout (only for QRIS payment)
   if (checkoutResult && selectedPaymentMethod === 'QRIS') {
     return (
-      <div className="min-h-screen bg-gray-50 py-8 px-4">
-        <div className="max-w-md mx-auto bg-white rounded-lg shadow-lg p-6">
-          <div className="text-center mb-6">
-            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Check className="w-8 h-8 text-green-600" />
-            </div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">Checkout Berhasil!</h1>
-            <p className="text-sm text-gray-600 mb-1">Kode Transaksi:</p>
-            <p className="text-lg font-mono font-bold text-primary-600">{checkoutResult.transaction_code}</p>
-          </div>
+      <div className="min-h-screen bg-gray-50 py-6 px-4">
+        <div className="max-w-md mx-auto space-y-4">
 
-          <div className="border-t border-b py-4 mb-6">
-            <div className="flex justify-between text-sm mb-2">
-              <span className="text-gray-600">Total Item:</span>
-              <span className="font-semibold">{totalItems} item</span>
+          {/* Header transaksi */}
+          <div className="bg-white rounded-xl shadow p-5 text-center">
+            <div className="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
+              <Check className="w-7 h-7 text-green-600" />
             </div>
-            <div className="flex justify-between text-lg font-bold">
-              <span>Total Bayar:</span>
-              <span className="text-primary-600">
-                Rp {checkoutResult.total_amount.toLocaleString('id-ID')}
-              </span>
+            <h1 className="text-xl font-bold text-gray-900">Checkout Berhasil!</h1>
+            <p className="text-xs text-gray-500 mt-1">Kode: <span className="font-mono font-bold text-primary-600">{checkoutResult.transaction_code}</span></p>
+            <div className="flex justify-between mt-3 pt-3 border-t text-sm">
+              <span className="text-gray-500">Total Bayar</span>
+              <span className="font-bold text-lg text-primary-600">Rp {checkoutResult.total_amount.toLocaleString('id-ID')}</span>
             </div>
           </div>
 
-          {/* Static QRIS Display */}
-          <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-4 mb-4">
-            <h2 className="text-center font-bold text-gray-900 mb-3">Scan QRIS untuk Pembayaran</h2>
-            {checkoutResult.qris_image_url ? (
-              <div className="bg-white p-3 rounded-lg flex justify-center">
+          {/* QRIS */}
+          {checkoutResult.qris_image_url && (
+            <div className="bg-white rounded-xl shadow p-4">
+              <h2 className="text-center font-semibold text-gray-700 text-sm mb-3">Scan QRIS untuk Membayar</h2>
+              <div className="flex justify-center bg-gray-50 rounded-lg p-2">
                 <Image
                   src={checkoutResult.qris_image_url}
                   alt="QRIS Code"
-                  width={280}
-                  height={280}
-                  className="w-full h-auto max-w-[280px]"
+                  width={260}
+                  height={260}
+                  className="w-full h-auto max-w-[260px]"
                   priority
                 />
               </div>
-            ) : (
-              <div className="bg-yellow-50 border border-yellow-200 rounded p-4 text-center">
-                <p className="text-sm text-yellow-800">QRIS belum tersedia. Silakan bayar di kasir.</p>
+              <div className="mt-3 bg-orange-50 border border-orange-200 rounded-lg p-2.5 text-center">
+                <p className="text-xs text-orange-700">Masukkan nominal</p>
+                <p className="text-2xl font-bold text-orange-700">Rp {checkoutResult.total_amount.toLocaleString('id-ID')}</p>
               </div>
-            )}
-            <div className="mt-3 bg-orange-50 border border-orange-200 rounded-lg p-3 text-center">
-              <p className="text-sm font-bold text-orange-800">Masukkan nominal:</p>
-              <p className="text-2xl font-bold text-orange-700">
-                Rp {checkoutResult.total_amount.toLocaleString('id-ID')}
-              </p>
-            </div>
-            {/* Download & Share buttons */}
-            {checkoutResult.qris_image_url && (
               <div className="flex gap-2 mt-3">
-                <button
-                  onClick={downloadQRIS}
-                  className="flex-1 bg-gray-100 text-gray-700 py-2.5 rounded-lg text-sm font-medium hover:bg-gray-200 transition flex items-center justify-center gap-2"
-                >
-                  <Download className="w-4 h-4" />
-                  Simpan QR
+                <button onClick={downloadQRIS} className="flex-1 bg-gray-100 text-gray-700 py-2.5 rounded-lg text-sm font-medium hover:bg-gray-200 transition flex items-center justify-center gap-1.5">
+                  <Download className="w-4 h-4" /> Simpan QR
                 </button>
-                <button
-                  onClick={shareQRIS}
-                  className="flex-1 bg-blue-600 text-white py-2.5 rounded-lg text-sm font-medium hover:bg-blue-700 transition flex items-center justify-center gap-2"
-                >
-                  <Share2 className="w-4 h-4" />
-                  Bagikan QR
+                <button onClick={shareQRIS} className="flex-1 bg-blue-600 text-white py-2.5 rounded-lg text-sm font-medium hover:bg-blue-700 transition flex items-center justify-center gap-1.5">
+                  <Share2 className="w-4 h-4" /> Bagikan QR
                 </button>
               </div>
-            )}
+            </div>
+          )}
+
+          {/* Verifikasi — bagian utama, paling mencolok */}
+          <div className="bg-red-50 border-2 border-red-400 rounded-xl shadow p-5">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-8 h-8 bg-red-500 rounded-full flex items-center justify-center flex-shrink-0">
+                <span className="text-white text-lg font-bold">!</span>
+              </div>
+              <h2 className="text-red-700 font-bold text-base uppercase tracking-wide">Wajib Verifikasi Pengiriman</h2>
+            </div>
+            <p className="text-sm text-red-600 mb-4">
+              Setelah pembayaran selesai di aplikasi bank/e-wallet, klik tombol di bawah untuk konfirmasi. Pesanan dibatalkan otomatis jika tidak dikonfirmasi dalam <strong>2 menit</strong>.
+            </p>
+            <button
+              onClick={() => confirmPayment('QRIS')}
+              disabled={confirming}
+              className="w-full bg-red-600 text-white py-4 rounded-xl font-bold text-lg hover:bg-red-700 active:scale-95 transition-all disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-md"
+            >
+              {confirming ? (
+                <><Loader2 className="w-6 h-6 animate-spin" /> Memproses...</>
+              ) : (
+                <><Check className="w-6 h-6" /> Sudah Bayar — Konfirmasi Sekarang</>
+              )}
+            </button>
           </div>
 
-          {/* Cara Pembayaran */}
-          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-4">
-            <h3 className="font-semibold text-gray-900 mb-2 text-sm">Cara Pembayaran:</h3>
-            <ol className="text-xs text-gray-700 space-y-1 list-decimal list-inside">
-              <li>Buka aplikasi bank atau e-wallet</li>
-              <li>Pilih &quot;Bayar QRIS&quot; atau &quot;Scan QR&quot;</li>
-              <li>Scan QR di atas</li>
-              <li>Masukkan nominal: <strong>Rp {checkoutResult.total_amount.toLocaleString('id-ID')}</strong></li>
-              <li>Konfirmasi pembayaran di aplikasi</li>
-              <li>Klik tombol &quot;Sudah Bayar&quot; di bawah</li>
-            </ol>
-          </div>
-
-          {/* Konfirmasi manual */}
-          <button
-            onClick={() => confirmPayment('QRIS')}
-            disabled={confirming}
-            className="w-full bg-green-600 text-white py-4 rounded-xl font-bold text-lg hover:bg-green-700 transition disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg"
-          >
-            {confirming ? (
-              <>
-                <Loader2 className="w-6 h-6 animate-spin" />
-                Memproses...
-              </>
-            ) : (
-              <>
-                <Check className="w-6 h-6" />
-                ✅ Sudah Bayar
-              </>
-            )}
-          </button>
-          <p className="text-xs text-gray-500 text-center mt-2">
-            Klik tombol ini hanya setelah pembayaran berhasil.
-          </p>
         </div>
       </div>
     )
