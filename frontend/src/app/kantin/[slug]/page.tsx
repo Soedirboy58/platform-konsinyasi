@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { ShoppingCart, Truck, Scan, Plus, Minus, Search, Filter, X, AlertTriangle, Store } from 'lucide-react'
+import { ShoppingCart, Scan, Plus, Minus, Search, Filter, X, AlertTriangle, Store } from 'lucide-react'
 import { toast } from 'sonner'
 import ReportProductModal from '@/components/ReportProductModal'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
@@ -304,29 +304,13 @@ export default function KantinPage() {
             <div className="flex items-center gap-3">
               <Store className="w-8 h-8" />
               <div>
-                <h1 className="text-2xl font-bold">Store Bisnis & Partnership</h1>
+                <h1 className="text-2xl font-bold">Bisnis & Partnership</h1>
                 <p className="text-sm text-red-100">{locationName || 'Belanja mudah, bayar jujur'}</p>
               </div>
             </div>
             
             {/* Action Icons */}
             <div className="flex items-center gap-2 sm:gap-3">
-              {/* Delivery Icon - Coming Soon */}
-              <button
-                onClick={() => {
-                  toast.info('🚚 Fitur kirim pesanan coming soon!\n\nCocok untuk kebutuhan:\n• Arisan\n• Katering\n• Pesanan Grup\n• Event', {
-                    duration: 5000
-                  })
-                }}
-                className="relative p-1.5 sm:p-2 hover:bg-white/10 rounded-lg transition-colors active:scale-95"
-                title="Kirim Pesanan (Coming Soon)"
-              >
-                <Truck className="w-6 h-6 sm:w-7 sm:h-7" />
-                <span className="absolute -top-0.5 -right-0.5 sm:-top-1 sm:-right-1 bg-yellow-400 text-yellow-900 text-[9px] sm:text-[10px] font-bold px-1 sm:px-1.5 py-0.5 rounded-full">
-                  SOON
-                </span>
-              </button>
-
               {/* Cart Icon */}
               <button
                 onClick={() => setShowCart(!showCart)}

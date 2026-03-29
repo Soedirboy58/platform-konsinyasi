@@ -64,10 +64,27 @@ export default function Settings() {
   useEffect(() => {
     loadProfile()
     loadPaymentSettings()
+    loadCommissionRate()
     if (activeTab === 'outlets') {
       loadOutlets()
     }
   }, [activeTab])
+
+  const loadCommissionRate = async () => {
+    try {
+      const supabase = createClient()
+      const { data } = await supabase
+        .from('platform_settings')
+        .select('value')
+        .eq('key', 'commission_rate')
+        .single()
+      if (data) {
+        setCommissionRate(parseFloat(data.value))
+      }
+    } catch (error) {
+      console.warn('Could not load commission rate, using default')
+    }
+  }
 
   const loadProfile = async () => {
     const supabase = createClient()
@@ -109,6 +126,11 @@ export default function Settings() {
     try {
       setLoading(true)
       const supabase = createClient()
+      
+      // Save commission rate to platform_settings
+      await supabase
+        .from('platform_settings')
+        .upsert({ key: 'commission_rate', value: commissionRate.toString() }, { onConflict: 'key' })
       
       const { error } = await supabase
         .from('payment_settings')
@@ -375,7 +397,7 @@ export default function Settings() {
               <p className="text-gray-600 mt-1">Kelola konfigurasi sistem</p>
             </div>
             {activeTab !== 'backup' && (
-              <button onClick={() => alert('Saved')} className="px-4 py-2 bg-blue-600 text-white rounded-lg flex items-center gap-2">
+              <button onClick={savePaymentSettings} className="px-4 py-2 bg-blue-600 text-white rounded-lg flex items-center gap-2">
                 <Save className="w-4 h-4" />Simpan
               </button>
             )}
