@@ -4,10 +4,6 @@ import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { History, Download, Eye, Search, Calendar, Filter, X, FileText, Building, CreditCard } from 'lucide-react'
 
-// ✅ Disable ALL caching for this page
-export const dynamic = 'force-dynamic'
-export const revalidate = 0
-
 interface PaymentHistory {
   id: string
   supplier_id: string
