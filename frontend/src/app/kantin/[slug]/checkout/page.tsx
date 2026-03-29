@@ -3,7 +3,7 @@
 import { useEffect, useState, Suspense } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { ArrowLeft, Check, Loader2 } from 'lucide-react'
+import { ArrowLeft, Check, Loader2, Download, Share2 } from 'lucide-react'
 import { toast } from 'sonner'
 import Image from 'next/image'
 
@@ -157,7 +157,6 @@ async function processCheckout(paymentMethod: 'QRIS' | 'CASH') {
 
   async function downloadQRIS() {
     if (!checkoutResult?.qris_image_url) return
-
     try {
       const response = await fetch(checkoutResult.qris_image_url)
       const blob = await response.blob()
@@ -173,6 +172,29 @@ async function processCheckout(paymentMethod: 'QRIS' | 'CASH') {
     } catch (error) {
       console.error('Download error:', error)
       toast.error('Gagal download QRIS. Silakan screenshot layar.')
+    }
+  }
+
+  async function shareQRIS() {
+    if (!checkoutResult?.qris_image_url) return
+    try {
+      const response = await fetch(checkoutResult.qris_image_url)
+      const blob = await response.blob()
+      const file = new File([blob], `QRIS-${checkoutResult.transaction_code}.png`, { type: 'image/png' })
+      if (navigator.share && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          title: 'Pembayaran QRIS',
+          text: `Scan QRIS untuk bayar Rp ${checkoutResult.total_amount.toLocaleString('id-ID')}`,
+          files: [file],
+        })
+      } else {
+        // Fallback: copy URL
+        await navigator.clipboard.writeText(checkoutResult.qris_image_url)
+        toast.success('Link QRIS disalin ke clipboard!')
+      }
+    } catch (error) {
+      // Fallback: download
+      downloadQRIS()
     }
   }
 
@@ -239,6 +261,25 @@ async function processCheckout(paymentMethod: 'QRIS' | 'CASH') {
                 Rp {checkoutResult.total_amount.toLocaleString('id-ID')}
               </p>
             </div>
+            {/* Download & Share buttons */}
+            {checkoutResult.qris_image_url && (
+              <div className="flex gap-2 mt-3">
+                <button
+                  onClick={downloadQRIS}
+                  className="flex-1 bg-gray-100 text-gray-700 py-2.5 rounded-lg text-sm font-medium hover:bg-gray-200 transition flex items-center justify-center gap-2"
+                >
+                  <Download className="w-4 h-4" />
+                  Simpan QR
+                </button>
+                <button
+                  onClick={shareQRIS}
+                  className="flex-1 bg-blue-600 text-white py-2.5 rounded-lg text-sm font-medium hover:bg-blue-700 transition flex items-center justify-center gap-2"
+                >
+                  <Share2 className="w-4 h-4" />
+                  Bagikan QR
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Cara Pembayaran */}

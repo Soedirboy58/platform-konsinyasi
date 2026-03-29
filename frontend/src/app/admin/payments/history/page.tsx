@@ -7,8 +7,6 @@ import { History, Download, Eye, Search, Calendar, Filter, X, FileText, Building
 // ✅ Disable ALL caching for this page
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
-export const fetchCache = 'force-no-store'
-export const runtime = 'edge'
 
 interface PaymentHistory {
   id: string
