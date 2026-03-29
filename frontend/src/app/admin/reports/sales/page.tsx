@@ -12,7 +12,9 @@ import {
   Package,
   ChevronLeft,
   ChevronRight,
-  FileText
+  FileText,
+  ImageIcon,
+  X
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
@@ -31,6 +33,7 @@ interface SalesData {
   supplier_revenue: number
   created_at: string
   payment_method?: string
+  payment_proof_url?: string | null
 }
 
 export default function SalesReport() {
@@ -56,6 +59,7 @@ export default function SalesReport() {
   })
 
   const [suppliers, setSuppliers] = useState<Array<{ id: string; name: string }>>([])
+  const [previewProof, setPreviewProof] = useState<string | null>(null)
 
   useEffect(() => {
     loadData()
@@ -105,6 +109,7 @@ export default function SalesReport() {
             created_at,
             status,
             payment_method,
+            payment_proof_url,
             location_id
           )
         `)
@@ -141,7 +146,8 @@ export default function SalesReport() {
         commission_amount: item.commission_amount || 0,
         supplier_revenue: item.supplier_revenue || 0,
         created_at: item.sales_transactions?.created_at || new Date().toISOString(),
-        payment_method: item.sales_transactions?.payment_method || 'QRIS'
+        payment_method: item.sales_transactions?.payment_method || 'QRIS',
+        payment_proof_url: item.sales_transactions?.payment_proof_url || null
       })) || []
 
       setSalesData(transformedData)
@@ -428,9 +434,19 @@ export default function SalesReport() {
                           📍 {item.location_name}
                         </div>
                       </div>
-                      <span className="px-2.5 py-1 text-xs rounded-full bg-blue-100 text-blue-800 font-semibold">
-                        {item.payment_method || 'QRIS'}
-                      </span>
+                      <div className="flex flex-col items-end gap-1">
+                        <span className="px-2.5 py-1 text-xs rounded-full bg-blue-100 text-blue-800 font-semibold">
+                          {item.payment_method || 'QRIS'}
+                        </span>
+                        {item.payment_proof_url && (
+                          <button
+                            onClick={() => setPreviewProof(item.payment_proof_url!)}
+                            className="flex items-center gap-1 text-xs text-green-600 hover:underline"
+                          >
+                            <ImageIcon className="w-3 h-3" /> Bukti
+                          </button>
+                        )}
+                      </div>
                     </div>
                     
                     <div className="grid grid-cols-2 gap-3 mb-3">
@@ -490,18 +506,21 @@ export default function SalesReport() {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Payment
                   </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Bukti
+                  </th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {loading ? (
                   <tr>
-                    <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
+                    <td colSpan={8} className="px-6 py-12 text-center text-gray-500">
                       Loading data...
                     </td>
                   </tr>
                 ) : currentItems.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-6 py-12 text-center">
+                    <td colSpan={8} className="px-6 py-12 text-center">
                       <FileText className="w-12 h-12 text-gray-300 mx-auto mb-4" />
                       <p className="text-gray-500">Tidak ada data penjualan</p>
                     </td>
@@ -538,6 +557,18 @@ export default function SalesReport() {
                         <span className="px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-800">
                           {item.payment_method || 'QRIS'}
                         </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {item.payment_proof_url ? (
+                          <button
+                            onClick={() => setPreviewProof(item.payment_proof_url!)}
+                            className="flex items-center gap-1.5 text-xs text-green-700 bg-green-50 border border-green-200 rounded-lg px-2 py-1 hover:bg-green-100 transition"
+                          >
+                            <ImageIcon className="w-3.5 h-3.5" /> Lihat Bukti
+                          </button>
+                        ) : (
+                          <span className="text-xs text-gray-400">—</span>
+                        )}
                       </td>
                     </tr>
                   ))
@@ -603,6 +634,35 @@ export default function SalesReport() {
           )}
         </div>
       </main>
+
+      {/* Lightbox: preview bukti bayar customer */}
+      {previewProof && (
+        <div
+          className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4"
+          onClick={() => setPreviewProof(null)}
+        >
+          <div className="relative bg-white rounded-xl shadow-2xl max-w-lg w-full p-4" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+                <ImageIcon className="w-4 h-4 text-green-600" /> Bukti Pembayaran Customer
+              </h3>
+              <button onClick={() => setPreviewProof(null)} className="text-gray-400 hover:text-gray-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={previewProof} alt="Bukti Bayar" className="w-full rounded-lg object-contain max-h-[70vh]" />
+            <a
+              href={previewProof}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block mt-3 text-center text-sm text-blue-600 hover:underline"
+            >
+              Buka di tab baru ↗
+            </a>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

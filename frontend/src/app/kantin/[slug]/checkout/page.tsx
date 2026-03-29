@@ -3,7 +3,7 @@
 import { useEffect, useState, Suspense } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { ArrowLeft, Check, Loader2, Download, Share2 } from 'lucide-react'
+import { ArrowLeft, Check, Loader2, Download, Share2, Upload, Clock, AlertCircle, ImageIcon } from 'lucide-react'
 import { toast } from 'sonner'
 import Image from 'next/image'
 
@@ -39,6 +39,12 @@ export default function CheckoutPage() {
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'QRIS' | 'CASH' | null>(null)
   const [hasProcessed, setHasProcessed] = useState(false)
 
+  // Timer + proof upload states
+  const [timerSeconds, setTimerSeconds] = useState(0)
+  const [proofFile, setProofFile] = useState<File | null>(null)
+  const [proofPreview, setProofPreview] = useState<string | null>(null)
+  const [uploadingProof, setUploadingProof] = useState(false)
+
   useEffect(() => {
     // Load cart data
     loadCart()
@@ -64,7 +70,60 @@ export default function CheckoutPage() {
     }
   }
 
-async function processCheckout(paymentMethod: 'QRIS' | 'CASH') {
+  // Countdown timer: starts at 45s when QRIS screen appears
+  useEffect(() => {
+    if (!checkoutResult || selectedPaymentMethod !== 'QRIS') return
+    setTimerSeconds(45)
+    const interval = setInterval(() => {
+      setTimerSeconds(prev => {
+        if (prev <= 1) { clearInterval(interval); return 0 }
+        return prev - 1
+      })
+    }, 1000)
+    return () => clearInterval(interval)
+  }, [checkoutResult])
+
+  function handleProofSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Ukuran file maksimal 5MB')
+      return
+    }
+    setProofFile(file)
+    const reader = new FileReader()
+    reader.onload = ev => setProofPreview(ev.target?.result as string)
+    reader.readAsDataURL(file)
+  }
+
+  async function uploadProofAndConfirm() {
+    if (!proofFile || !checkoutResult) return
+    setUploadingProof(true)
+    try {
+      const supabase = createClient()
+      const ext = proofFile.name.split('.').pop() || 'jpg'
+      const filePath = `customer-proofs/${checkoutResult.transaction_code}_${Date.now()}.${ext}`
+
+      const { error: uploadError } = await supabase.storage
+        .from('payment-proofs')
+        .upload(filePath, proofFile, { cacheControl: '3600', upsert: false })
+
+      if (uploadError) throw uploadError
+
+      const { data: urlData } = supabase.storage
+        .from('payment-proofs')
+        .getPublicUrl(filePath)
+
+      await confirmPayment('QRIS', urlData.publicUrl)
+    } catch (err) {
+      console.error('Upload proof error:', err)
+      toast.error('Gagal upload bukti bayar. Coba lagi.')
+    } finally {
+      setUploadingProof(false)
+    }
+  }
+
+  async function processCheckout(paymentMethod: 'QRIS' | 'CASH') {
     if (cart.length === 0) return
 
     // Prevent double submission
@@ -121,7 +180,7 @@ async function processCheckout(paymentMethod: 'QRIS' | 'CASH') {
     }
   }
 
-  async function confirmPayment(paymentMethod: 'CASH' | 'QRIS' = 'QRIS') {
+  async function confirmPayment(paymentMethod: 'CASH' | 'QRIS' = 'QRIS', proofUrl?: string) {
     if (!checkoutResult?.transaction_id) return
 
     setConfirming(true)
@@ -131,7 +190,8 @@ async function processCheckout(paymentMethod: 'QRIS' | 'CASH') {
       const { data, error } = await supabase
         .rpc('confirm_payment_with_method', {
           p_transaction_id: checkoutResult.transaction_id,
-          p_payment_method: paymentMethod
+          p_payment_method: paymentMethod,
+          p_proof_url: proofUrl || null
         })
 
       if (error) throw error
@@ -258,28 +318,86 @@ async function processCheckout(paymentMethod: 'QRIS' | 'CASH') {
             </div>
           )}
 
-          {/* Verifikasi — bagian utama, paling mencolok */}
-          <div className="bg-red-50 border-2 border-red-400 rounded-xl shadow p-5">
-            <div className="flex items-center gap-2 mb-3">
+          {/* Verifikasi — timer + upload bukti */}
+          <div className="bg-white rounded-xl shadow border border-gray-200 p-5 space-y-4">
+            <div className="flex items-center gap-2">
               <div className="w-8 h-8 bg-red-500 rounded-full flex items-center justify-center flex-shrink-0">
-                <span className="text-white text-lg font-bold">!</span>
+                <AlertCircle className="w-5 h-5 text-white" />
               </div>
-              <h2 className="text-red-700 font-bold text-base uppercase tracking-wide">Wajib Verifikasi Pengiriman</h2>
+              <h2 className="text-red-700 font-bold text-base uppercase tracking-wide">Wajib Verifikasi Pembayaran</h2>
             </div>
-            <p className="text-sm text-red-600 mb-4">
-              Setelah pembayaran selesai di aplikasi bank/e-wallet, klik tombol di bawah untuk konfirmasi. Pesanan dibatalkan otomatis jika tidak dikonfirmasi dalam <strong>2 menit</strong>.
-            </p>
+
+            {/* Step 1: Bayar via QR */}
+            <div className="flex items-start gap-3 bg-blue-50 rounded-lg p-3">
+              <span className="w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">1</span>
+              <p className="text-sm text-blue-800">Scan & bayar QRIS di aplikasi bank / e-wallet kamu</p>
+            </div>
+
+            {/* Step 2: Tunggu timer */}
+            {timerSeconds > 0 ? (
+              <div className="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-lg p-3">
+                <Clock className="w-5 h-5 text-amber-600 shrink-0 animate-pulse" />
+                <div>
+                  <p className="text-sm font-semibold text-amber-800">Tunggu konfirmasi bank...</p>
+                  <p className="text-xs text-amber-600 mt-0.5">Upload bukti tersedia dalam <span className="font-bold text-lg">{timerSeconds}</span> detik</p>
+                </div>
+              </div>
+            ) : (
+              /* Step 2: Upload bukti */
+              <div className="space-y-3">
+                <div className="flex items-start gap-3 bg-green-50 rounded-lg p-3">
+                  <span className="w-6 h-6 rounded-full bg-green-600 text-white text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">2</span>
+                  <p className="text-sm text-green-800">Upload screenshot <strong>bukti pembayaran sukses</strong> dari aplikasi bank / e-wallet kamu</p>
+                </div>
+
+                {proofPreview ? (
+                  <div className="relative rounded-lg overflow-hidden border-2 border-green-400">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={proofPreview} alt="Bukti bayar" className="w-full max-h-48 object-contain bg-gray-50" />
+                    <button
+                      onClick={() => { setProofFile(null); setProofPreview(null) }}
+                      className="absolute top-2 right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold"
+                    >×</button>
+                    <div className="bg-green-100 text-green-700 text-xs text-center py-1 font-medium">
+                      ✓ Bukti bayar dipilih — {proofFile?.name}
+                    </div>
+                  </div>
+                ) : (
+                  <label className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-gray-300 rounded-xl p-6 cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-colors">
+                    <ImageIcon className="w-8 h-8 text-gray-400" />
+                    <span className="text-sm font-medium text-gray-600">Ketuk untuk pilih foto bukti bayar</span>
+                    <span className="text-xs text-gray-400">JPG, PNG, PDF — Maks 5MB</span>
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp,application/pdf"
+                      className="hidden"
+                      onChange={handleProofSelect}
+                    />
+                  </label>
+                )}
+              </div>
+            )}
+
+            {/* Confirm button */}
             <button
-              onClick={() => confirmPayment('QRIS')}
-              disabled={confirming}
-              className="w-full bg-red-600 text-white py-4 rounded-xl font-bold text-lg hover:bg-red-700 active:scale-95 transition-all disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-md"
+              onClick={uploadProofAndConfirm}
+              disabled={timerSeconds > 0 || !proofFile || confirming || uploadingProof}
+              className="w-full bg-red-600 text-white py-4 rounded-xl font-bold text-base hover:bg-red-700 active:scale-95 transition-all disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow"
             >
-              {confirming ? (
-                <><Loader2 className="w-6 h-6 animate-spin" /> Memproses...</>
+              {confirming || uploadingProof ? (
+                <><Loader2 className="w-5 h-5 animate-spin" /> {uploadingProof ? 'Mengupload bukti...' : 'Memproses...'}</>
+              ) : timerSeconds > 0 ? (
+                <><Clock className="w-5 h-5" /> Tunggu {timerSeconds} detik...</>
+              ) : !proofFile ? (
+                <><Upload className="w-5 h-5" /> Upload Bukti Bayar Dulu</>
               ) : (
-                <><Check className="w-6 h-6" /> Sudah Bayar — Konfirmasi Sekarang</>
+                <><Check className="w-5 h-5" /> Konfirmasi Pembayaran</>
               )}
             </button>
+
+            <p className="text-xs text-gray-400 text-center">
+              Transaksi dibatalkan otomatis jika tidak dikonfirmasi dalam 2 menit
+            </p>
           </div>
 
         </div>
