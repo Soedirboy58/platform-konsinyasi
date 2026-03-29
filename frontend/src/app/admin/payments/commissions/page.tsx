@@ -121,13 +121,14 @@ export default function CommissionsPage() {
         startDate = new Date(2020, 0, 1) // All time
       }
 
-      // Get commission rate from platform settings
+      // Get commission rate from platform settings (key-value format)
       const { data: platformSettings } = await supabase
         .from('platform_settings')
-        .select('commission_rate')
+        .select('value')
+        .eq('key', 'commission_rate')
         .single()
       
-      const commissionRate = platformSettings?.commission_rate || 10 // Default 10%
+      const commissionRate = platformSettings?.value ? parseFloat(platformSettings.value) : 10 // Default 10%
       console.log('💰 Commission rate:', commissionRate + '%')
 
       // OPTIMIZED: Single query with JOIN instead of loop
