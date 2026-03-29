@@ -32,7 +32,7 @@ export default function FinancialReport() {
   const [totalSales, setTotalSales] = useState(0)
   const [platformIncome, setPlatformIncome] = useState(0)
   const [supplierPayables, setSupplierPayables] = useState(0)
-  const [commissionRate] = useState(0.10) // 10% - will be dynamic later
+  const [commissionRate, setCommissionRate] = useState(0.10)
   
   // Expenses data
   const [expenses, setExpenses] = useState<Expense[]>([])
@@ -68,6 +68,15 @@ export default function FinancialReport() {
     const supabase = createClient()
 
     try {
+      // Load commission rate from platform_settings
+      const { data: rateData } = await supabase
+        .from('platform_settings')
+        .select('value')
+        .eq('key', 'commission_rate')
+        .single()
+      const rate = rateData?.value ? parseFloat(rateData.value) / 100 : 0.10
+      setCommissionRate(rate)
+
       // Calculate date range
       const now = new Date()
       let startDate = new Date()
@@ -106,12 +115,17 @@ export default function FinancialReport() {
       if (salesItems && salesItems.length > 0) {
         // Calculate totals from actual transaction data
         const totalSalesAmount = salesItems.reduce((sum, item) => sum + (item.subtotal || 0), 0)
-        const totalCommission = salesItems.reduce((sum, item) => sum + (item.commission_amount || 0), 0)
-        const totalSupplierRevenue = salesItems.reduce((sum, item) => sum + (item.supplier_revenue || 0), 0)
+        // Use stored columns if available, otherwise calculate from current rate
+        const totalCommission = salesItems.some(item => item.commission_amount)
+          ? salesItems.reduce((sum, item) => sum + (item.commission_amount || 0), 0)
+          : totalSalesAmount * rate
+        const totalSupplierRevenue = salesItems.some(item => item.supplier_revenue)
+          ? salesItems.reduce((sum, item) => sum + (item.supplier_revenue || 0), 0)
+          : totalSalesAmount * (1 - rate)
         
         setTotalSales(totalSalesAmount)
-        setPlatformIncome(totalCommission)  // Actual commission from sales
-        setSupplierPayables(totalSupplierRevenue)  // What we owe to suppliers
+        setPlatformIncome(totalCommission)
+        setSupplierPayables(totalSupplierRevenue)
         
         console.log('📊 Financial Data Loaded:', {
           period: dateRange,
