@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, Suspense } from 'react'
-import { Package, Check, X, Search, Edit, Trash2, Eye, Image as ImageIcon } from 'lucide-react'
+import { Package, Check, X, Search, Edit, Trash2, Eye, Image as ImageIcon, Clock } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useSearchParams } from 'next/navigation'
 import ConfirmDialog from '@/components/admin/ConfirmDialog'
@@ -18,6 +18,7 @@ interface Product {
   category_id: string
   photo_url: string
   created_at: string
+  expiry_duration_days: number | null
 }
 
 interface Supplier {
@@ -906,6 +907,41 @@ function ProductsApprovalContent() {
                   <label className="text-xs sm:text-sm font-medium text-gray-700">Supplier</label>
                   <p className="text-sm sm:text-base text-gray-900 mt-1">{getSupplierName(selectedProduct.supplier_id)}</p>
                 </div>
+
+                {/* Expiry Info */}
+                {selectedProduct.expiry_duration_days && (
+                  <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
+                    <label className="text-xs sm:text-sm font-medium text-orange-700 flex items-center gap-1">
+                      <Clock className="w-4 h-4" /> Informasi Kedaluwarsa
+                    </label>
+                    <div className="mt-2 grid grid-cols-2 gap-2 text-sm">
+                      <div>
+                        <p className="text-gray-500 text-xs">Durasi</p>
+                        <p className="font-semibold text-gray-800">{selectedProduct.expiry_duration_days} hari</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-500 text-xs">Kedaluwarsa pada</p>
+                        {(() => {
+                          const expiryDate = new Date(selectedProduct.created_at)
+                          expiryDate.setDate(expiryDate.getDate() + selectedProduct.expiry_duration_days!)
+                          const now = new Date()
+                          const isExpired = expiryDate < now
+                          const daysLeft = Math.ceil((expiryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+                          return (
+                            <>
+                              <p className={`font-semibold ${isExpired ? 'text-red-600' : daysLeft <= 7 ? 'text-orange-600' : 'text-gray-800'}`}>
+                                {expiryDate.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })}
+                              </p>
+                              <p className={`text-xs mt-0.5 ${isExpired ? 'text-red-500 font-bold' : daysLeft <= 7 ? 'text-orange-500' : 'text-gray-500'}`}>
+                                {isExpired ? '⚠️ Sudah kedaluwarsa' : daysLeft <= 7 ? `⏳ ${daysLeft} hari lagi` : `${daysLeft} hari lagi`}
+                              </p>
+                            </>
+                          )
+                        })()}
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 <div>
                   <label className="text-xs sm:text-sm font-medium text-gray-700">Status</label>

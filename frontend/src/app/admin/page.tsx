@@ -17,7 +17,8 @@ import {
   AlertTriangle,
   MapPin,
   Eye,
-  ArrowRight
+  ArrowRight,
+  X
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
@@ -68,6 +69,8 @@ export default function AdminDashboard() {
   const [recentSales, setRecentSales] = useState<RecentSale[]>([])
   const [loading, setLoading] = useState(true)
   const [userName, setUserName] = useState('Admin')
+  const [outlets, setOutlets] = useState<{ id: string; name: string; qr_code: string }[]>([])
+  const [showOutletPicker, setShowOutletPicker] = useState<'etalase' | 'katalog' | null>(null)
 
   useEffect(() => {
     loadDashboardData()
@@ -89,6 +92,14 @@ export default function AdminDashboard() {
           setUserName(profile.full_name)
         }
       }
+
+      // Get active outlets
+      const { data: outletsData } = await supabase
+        .from('locations')
+        .select('id, name, qr_code')
+        .eq('is_active', true)
+        .order('name')
+      setOutlets(outletsData || [])
 
       // Get suppliers data
       const { data: suppliers } = await supabase.from('suppliers').select('*')
@@ -146,7 +157,12 @@ export default function AdminDashboard() {
         .select('transaction_id, quantity, subtotal, commission_amount, product_id')
         .in('transaction_id', transactionIds)
       
-      const expiredCount = 0
+      const expiredCount = products?.filter(p => {
+        if (!p.expiry_duration_days || p.status !== 'APPROVED') return false
+        const expiryDate = new Date(p.created_at)
+        expiryDate.setDate(expiryDate.getDate() + p.expiry_duration_days)
+        return expiryDate < new Date()
+      }).length || 0
       const dailyRevenue = salesItems?.reduce((sum, item) => sum + (item.subtotal || 0), 0) || 0
       const dailyCommission = salesItems?.reduce((sum, item) => sum + (item.commission_amount || 0), 0) || 0
       
@@ -349,9 +365,17 @@ export default function AdminDashboard() {
             </div>
             <p className="text-sm text-gray-600 mb-1">Produk di Etalase</p>
             <p className="text-2xl font-bold text-indigo-600 mb-1">{stats.productsDisplayed}</p>
-            <a href="/kantin/outlet_lobby_a" target="_blank" rel="noopener noreferrer" className="text-xs text-indigo-600 hover:underline flex items-center gap-1">
-              Lihat etalase 🔗
-            </a>
+            {outlets.length === 1 ? (
+              <a href={`/kantin/${outlets[0].qr_code}`} target="_blank" rel="noopener noreferrer" className="text-xs text-indigo-600 hover:underline flex items-center gap-1">
+                Lihat etalase ({outlets[0].name}) 🔗
+              </a>
+            ) : outlets.length > 1 ? (
+              <button onClick={() => setShowOutletPicker('etalase')} className="text-xs text-indigo-600 hover:underline flex items-center gap-1">
+                Lihat etalase →
+              </button>
+            ) : (
+              <span className="text-xs text-gray-400">Tidak ada outlet aktif</span>
+            )}
           </div>
 
           {/* Products In Stock */}
@@ -363,9 +387,17 @@ export default function AdminDashboard() {
             </div>
             <p className="text-sm text-gray-600 mb-1">Produk Stok Tersedia</p>
             <p className="text-2xl font-bold text-teal-600 mb-1">{stats.productsInStock} <span className="text-sm text-gray-600">pcs</span></p>
-            <a href="/kantin/outlet_lobby_a" target="_blank" rel="noopener noreferrer" className="text-xs text-teal-600 hover:underline">
-              Monitor katalog 🔗
-            </a>
+            {outlets.length === 1 ? (
+              <a href={`/kantin/${outlets[0].qr_code}`} target="_blank" rel="noopener noreferrer" className="text-xs text-teal-600 hover:underline">
+                Monitor katalog ({outlets[0].name}) 🔗
+              </a>
+            ) : outlets.length > 1 ? (
+              <button onClick={() => setShowOutletPicker('katalog')} className="text-xs text-teal-600 hover:underline">
+                Monitor katalog →
+              </button>
+            ) : (
+              <span className="text-xs text-gray-400">Tidak ada outlet aktif</span>
+            )}
           </div>
 
           {/* Expired/Stale Products */}
@@ -570,20 +602,35 @@ export default function AdminDashboard() {
                 </Link>
               )}
 
-              <a 
-                href="/kantin/outlet_lobby_a"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block p-4 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors"
-              >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium text-gray-900">Lihat Etalase Produk 🔗</p>
-                    <p className="text-sm text-gray-600">{stats.productsDisplayed} produk ready dijual</p>
+              {outlets.length === 1 ? (
+                <a
+                  href={`/kantin/${outlets[0].qr_code}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block p-4 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors"
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium text-gray-900">Lihat Etalase Produk 🔗</p>
+                      <p className="text-sm text-gray-600">{outlets[0].name} — {stats.productsDisplayed} produk ready</p>
+                    </div>
+                    <Archive className="h-6 w-6 text-indigo-600" />
                   </div>
-                  <Archive className="h-6 w-6 text-indigo-600" />
-                </div>
-              </a>
+                </a>
+              ) : outlets.length > 1 ? (
+                <button
+                  onClick={() => setShowOutletPicker('etalase')}
+                  className="w-full block p-4 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors text-left"
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium text-gray-900">Lihat Etalase Produk 🔗</p>
+                      <p className="text-sm text-gray-600">{outlets.length} outlet — {stats.productsDisplayed} produk ready</p>
+                    </div>
+                    <Archive className="h-6 w-6 text-indigo-600" />
+                  </div>
+                </button>
+              ) : null}
 
               <Link 
                 href="/admin/reports"
@@ -601,6 +648,41 @@ export default function AdminDashboard() {
           </div>
         </div>
       </main>
+
+      {/* Outlet Picker Modal */}
+      {showOutletPicker && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-sm w-full p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-gray-900">
+                {showOutletPicker === 'etalase' ? '🏪 Pilih Outlet — Etalase' : '📦 Pilih Outlet — Katalog'}
+              </h3>
+              <button onClick={() => setShowOutletPicker(null)} className="text-gray-400 hover:text-gray-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <p className="text-sm text-gray-500 mb-4">Pilih outlet yang ingin dilihat:</p>
+            <div className="space-y-2">
+              {outlets.map(outlet => (
+                <a
+                  key={outlet.id}
+                  href={`/kantin/${outlet.qr_code}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => setShowOutletPicker(null)}
+                  className="flex items-center justify-between p-3 border rounded-lg hover:bg-indigo-50 hover:border-indigo-300 transition-colors group"
+                >
+                  <div className="flex items-center gap-2">
+                    <MapPin className="w-4 h-4 text-indigo-500" />
+                    <span className="font-medium text-gray-800 group-hover:text-indigo-700">{outlet.name}</span>
+                  </div>
+                  <ArrowRight className="w-4 h-4 text-gray-400 group-hover:text-indigo-500" />
+                </a>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
