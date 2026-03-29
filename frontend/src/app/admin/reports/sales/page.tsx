@@ -115,7 +115,6 @@ export default function SalesReport() {
         `)
         .eq('sales_transactions.status', 'COMPLETED')
         .gte('sales_transactions.created_at', startDate.toISOString())
-        .order('sales_transactions(created_at)', { ascending: false })
 
       if (error) {
         console.error('Error loading sales:', error)
@@ -149,6 +148,9 @@ export default function SalesReport() {
         payment_method: item.sales_transactions?.payment_method || 'QRIS',
         payment_proof_url: item.sales_transactions?.payment_proof_url || null
       })) || []
+
+      // Sort by date descending in JS (avoid non-standard PostgREST order syntax)
+      transformedData.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
 
       setSalesData(transformedData)
 
