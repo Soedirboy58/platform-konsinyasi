@@ -105,13 +105,13 @@ export default function CheckoutPage() {
       const filePath = `customer-proofs/${checkoutResult.transaction_code}_${Date.now()}.${ext}`
 
       const { error: uploadError } = await supabase.storage
-        .from('payment-proofs')
+        .from('customer-proofs')
         .upload(filePath, proofFile, { cacheControl: '3600', upsert: false })
 
       if (uploadError) throw uploadError
 
       const { data: urlData } = supabase.storage
-        .from('payment-proofs')
+        .from('customer-proofs')
         .getPublicUrl(filePath)
 
       await confirmPayment('QRIS', urlData.publicUrl)

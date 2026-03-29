@@ -1,12 +1,17 @@
 -- ============================================================
 -- Migration 039: Update confirm_payment_with_method
+-- - Tambah kolom payment_proof_url ke sales_transactions
 -- - Tambah parameter p_proof_url untuk bukti bayar customer
 -- - Set paid_at saat konfirmasi
--- - Tambah storage policy untuk upload anon
+-- - Buat bucket customer-proofs (public) untuk anon upload
 -- Jalankan di Supabase SQL Editor
 -- ============================================================
 
--- Drop old signature (2 params)
+-- 1. Tambah kolom payment_proof_url ke sales_transactions (jika belum ada)
+ALTER TABLE sales_transactions
+ADD COLUMN IF NOT EXISTS payment_proof_url TEXT;
+
+-- 2. Drop old signature (2 params)
 DROP FUNCTION IF EXISTS confirm_payment_with_method(UUID, TEXT);
 
 -- Recreate with 3rd optional param: proof URL
@@ -54,30 +59,32 @@ GRANT EXECUTE ON FUNCTION confirm_payment_with_method(UUID, TEXT, TEXT) TO anon;
 GRANT EXECUTE ON FUNCTION confirm_payment_with_method(UUID, TEXT, TEXT) TO authenticated;
 
 -- ============================================================
--- Storage: izinkan anon upload bukti bayar customer
--- Bucket 'payment-proofs' sudah ada, tambah policy untuk anon
+-- 3. Storage: buat bucket customer-proofs (PUBLIC) untuk anon upload
 -- ============================================================
 
--- Drop existing anon policy if any (safe to re-run)
-DROP POLICY IF EXISTS "Anon can upload customer payment proofs" ON storage.objects;
+-- Buat bucket customer-proofs sebagai PUBLIC agar anon bisa upload & baca
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES (
+  'customer-proofs',
+  'customer-proofs',
+  TRUE,
+  5242880, -- 5 MB
+  ARRAY['image/jpeg', 'image/png', 'image/webp', 'application/pdf']
+)
+ON CONFLICT (id) DO UPDATE SET public = TRUE;
 
+-- Policy: anon bisa upload ke customer-proofs
+DROP POLICY IF EXISTS "Anon can upload customer payment proofs" ON storage.objects;
 CREATE POLICY "Anon can upload customer payment proofs"
 ON storage.objects FOR INSERT
-TO anon
-WITH CHECK (
-    bucket_id = 'payment-proofs'
-    AND (storage.foldername(name))[1] = 'customer-proofs'
-);
+TO anon, authenticated
+WITH CHECK (bucket_id = 'customer-proofs');
 
--- Anon can read back their own upload (for preview)
-DROP POLICY IF EXISTS "Anon can read customer payment proofs" ON storage.objects;
-
-CREATE POLICY "Anon can read customer payment proofs"
+-- Policy: siapapun bisa membaca (public bucket, tapi tambah policy eksplisit)
+DROP POLICY IF EXISTS "Public can read customer proofs" ON storage.objects;
+CREATE POLICY "Public can read customer proofs"
 ON storage.objects FOR SELECT
-TO anon
-USING (
-    bucket_id = 'payment-proofs'
-    AND (storage.foldername(name))[1] = 'customer-proofs'
-);
+TO anon, authenticated
+USING (bucket_id = 'customer-proofs');
 
-SELECT 'Migration 039 COMPLETE: confirm_payment_with_method now accepts proof URL' AS status;
+SELECT 'Migration 039 COMPLETE: payment_proof_url column added, customer-proofs bucket created' AS status;

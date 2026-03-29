@@ -109,7 +109,6 @@ export default function SalesReport() {
             created_at,
             status,
             payment_method,
-            payment_proof_url,
             location_id
           )
         `)
@@ -121,14 +120,28 @@ export default function SalesReport() {
         throw error
       }
 
-      // Get location names separately to avoid ambiguous relationship
+      // Get location names separately
       const locationIds = Array.from(new Set(salesItems?.map((s: any) => s.sales_transactions?.location_id).filter(Boolean)))
       const { data: locationsData } = await supabase
         .from('locations')
         .select('id, name')
         .in('id', locationIds)
-      
       const locationMap = new Map(locationsData?.map(l => [l.id, l.name]) || [])
+
+      // Get payment_proof_url separately (column may not exist yet before migration 039)
+      const transactionIds = Array.from(new Set(salesItems?.map((s: any) => s.sales_transactions?.id).filter(Boolean)))
+      const proofMap = new Map<string, string | null>()
+      if (transactionIds.length > 0) {
+        try {
+          const { data: txProofs } = await supabase
+            .from('sales_transactions')
+            .select('id, payment_proof_url')
+            .in('id', transactionIds)
+          txProofs?.forEach(tx => proofMap.set(tx.id, tx.payment_proof_url || null))
+        } catch {
+          // column may not exist yet, ignore
+        }
+      }
 
       // Transform data
       const transformedData: SalesData[] = salesItems?.map((item: any) => ({
@@ -146,10 +159,10 @@ export default function SalesReport() {
         supplier_revenue: item.supplier_revenue || 0,
         created_at: item.sales_transactions?.created_at || new Date().toISOString(),
         payment_method: item.sales_transactions?.payment_method || 'QRIS',
-        payment_proof_url: item.sales_transactions?.payment_proof_url || null
+        payment_proof_url: proofMap.get(item.sales_transactions?.id) || null
       })) || []
 
-      // Sort by date descending in JS (avoid non-standard PostgREST order syntax)
+      // Sort by date descending
       transformedData.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
 
       setSalesData(transformedData)
