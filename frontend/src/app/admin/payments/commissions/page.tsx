@@ -56,6 +56,14 @@ export default function CommissionsPage() {
   const [paymentNotes, setPaymentNotes] = useState('')
   const [paymentProof, setPaymentProof] = useState<File | null>(null)
 
+  // Toast notifications
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'warning' | 'info' } | null>(null)
+
+  function showToast(message: string, type: 'success' | 'error' | 'warning' | 'info' = 'success') {
+    setToast({ message, type })
+    setTimeout(() => setToast(null), 4000)
+  }
+
   useEffect(() => {
     loadCommissions()
     loadPaymentSettings()
@@ -349,7 +357,7 @@ export default function CommissionsPage() {
     if (!selectedCommission) return
     
     if (!paymentReference.trim()) {
-      alert('Masukkan nomor referensi pembayaran')
+      showToast('Masukkan nomor referensi pembayaran', 'warning')
       return
     }
 
@@ -382,7 +390,7 @@ export default function CommissionsPage() {
       // Get current user (admin)
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) {
-        alert('Session expired. Please login again.')
+        showToast('Sesi telah berakhir, silakan login kembali.', 'error')
         return
       }
 
@@ -454,7 +462,7 @@ export default function CommissionsPage() {
 
       if (error) {
         console.error('Error saving payment:', error)
-        alert(`Gagal menyimpan pembayaran: ${error.message}`)
+        showToast(`Gagal menyimpan pembayaran: ${error.message}`, 'error')
         return
       }
 
@@ -475,7 +483,7 @@ export default function CommissionsPage() {
 
           if (uploadError) {
             console.error('Error uploading proof:', uploadError)
-            alert('Pembayaran tersimpan tapi gagal upload bukti transfer')
+            showToast('Pembayaran tersimpan, namun gagal upload bukti transfer.', 'warning')
           } else {
             // Get public URL
             const { data } = supabase.storage
@@ -506,13 +514,13 @@ export default function CommissionsPage() {
 
       setCommissions(updatedCommissions)
       setShowPaymentModal(false)
-      alert('Pembayaran berhasil dicatat!')
+      showToast('Pembayaran berhasil dicatat!')
       
       // Reload to get fresh data
       loadCommissions()
     } catch (error) {
       console.error('Error submitting payment:', error)
-      alert('Terjadi kesalahan. Silakan coba lagi.')
+      showToast('Terjadi kesalahan. Silakan coba lagi.', 'error')
     }
   }
 
@@ -552,12 +560,12 @@ export default function CommissionsPage() {
 
   function handleBatchPayment() {
     if (readyToPaySuppliers.length === 0) {
-      alert('Tidak ada supplier yang ready untuk dibayar')
+      showToast('Tidak ada supplier yang ready untuk dibayar', 'info')
       return
     }
     
     // TODO: Implement batch payment modal
-    alert(`Batch payment untuk ${readyToPaySuppliers.length} supplier (Total: Rp ${stats.totalReadyToPay.toLocaleString('id-ID')})`)
+    showToast(`Batch payment untuk ${readyToPaySuppliers.length} supplier (Total: Rp ${stats.totalReadyToPay.toLocaleString('id-ID')})`, 'info')
   }
 
   if (loading) {
@@ -568,8 +576,38 @@ export default function CommissionsPage() {
     )
   }
 
+  const toastStyles = {
+    success: 'bg-emerald-600 text-white',
+    error: 'bg-red-600 text-white',
+    warning: 'bg-amber-500 text-white',
+    info: 'bg-blue-600 text-white',
+  }
+  const toastIcons = {
+    success: '✓',
+    error: '✕',
+    warning: '⚠',
+    info: 'ℹ',
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Toast Notification */}
+      {toast && (
+        <div className={`fixed top-4 right-4 z-[9999] flex items-center gap-3 px-5 py-3.5 rounded-xl shadow-xl transition-all duration-300 max-w-sm ${
+          toastStyles[toast.type]
+        }`}>
+          <span className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center text-sm font-bold shrink-0">
+            {toastIcons[toast.type]}
+          </span>
+          <p className="text-sm font-medium leading-snug">{toast.message}</p>
+          <button
+            onClick={() => setToast(null)}
+            className="ml-1 shrink-0 opacity-70 hover:opacity-100 transition-opacity text-lg leading-none"
+          >
+            ×
+          </button>
+        </div>
+      )}
       <header className="bg-white shadow">
         <div className="max-w-7xl mx-auto px-4 py-4 sm:py-6 sm:px-6 lg:px-8">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -894,7 +932,7 @@ export default function CommissionsPage() {
                   )}
                   {commission.status === 'PENDING' && (
                     <button
-                      onClick={() => alert('Verifikasi pembayaran')}
+                      onClick={() => showToast('Fitur verifikasi pembayaran segera hadir.', 'info')}
                       className="flex-1 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-xs font-medium flex items-center justify-center gap-1"
                     >
                       <Check className="w-3 h-3" />
