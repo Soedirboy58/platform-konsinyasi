@@ -107,14 +107,8 @@ async function processCheckout(paymentMethod: 'QRIS' | 'CASH') {
           message: 'Checkout berhasil'
         })
         
-        // Show different message based on payment method
-        if (paymentMethod === 'CASH') {
-          toast.success('Checkout berhasil! Memproses pembayaran tunai...')
-          // Show cash confirmation modal
-          setShowCashConfirm(true)
-        } else {
-          toast.success('Checkout berhasil! Silakan scan QRIS untuk pembayaran')
-        }
+        // Show success message
+        toast.success('Checkout berhasil! Silakan scan QRIS untuk pembayaran')
       } else {
         toast.error('Tidak ada data transaksi')
       }
