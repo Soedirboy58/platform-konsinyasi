@@ -5,6 +5,8 @@ import { createClient } from '@/lib/supabase/client'
 import { ArrowLeft, Package, AlertTriangle, Upload, X, Search } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { toast } from 'sonner'
+import ConfirmDialog from '@/components/admin/ConfirmDialog'
 
 interface Product {
   id: string
@@ -59,6 +61,20 @@ export default function CreateReturnPage() {
   
   // Return items cart
   const [returnItems, setReturnItems] = useState<ReturnItem[]>([])
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean
+    title: string
+    message: string
+    onConfirm: () => void | Promise<void>
+    variant?: 'primary' | 'danger' | 'warning' | 'success'
+    icon?: 'warning' | 'danger' | 'success' | 'package'
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {},
+    variant: 'danger'
+  })
 
   useEffect(() => {
     loadProducts()
@@ -104,7 +120,7 @@ export default function CreateReturnPage() {
       setFilteredProducts(productsWithInventory as Product[])
     } catch (error) {
       console.error('Error loading products:', error)
-      alert('Gagal memuat produk')
+      toast.error('Gagal memuat produk')
     } finally {
       setLoading(false)
     }
@@ -136,7 +152,7 @@ export default function CreateReturnPage() {
 
   function handleAddToCart() {
     if (!selectedProduct || !selectedLocation || !reason.trim()) {
-      alert('Lengkapi semua field')
+      toast.error('Lengkapi semua field');
       return
     }
 
@@ -145,12 +161,12 @@ export default function CreateReturnPage() {
     )
 
     if (!locationData) {
-      alert('Lokasi tidak valid')
+      toast.error('Lokasi tidak valid')
       return
     }
 
     if (quantity <= 0 || quantity > locationData.quantity) {
-      alert(`Quantity tidak valid. Stok tersedia: ${locationData.quantity}`)
+      toast.error(`Quantity tidak valid. Stok tersedia: ${locationData.quantity}`)
       return
     }
 
@@ -176,19 +192,29 @@ export default function CreateReturnPage() {
 
   async function handleSubmitReturn() {
     if (returnItems.length === 0) {
-      alert('Tambahkan minimal 1 produk untuk retur')
+      toast.error('Tambahkan minimal 1 produk untuk retur')
       return
     }
 
-    if (!confirm(`Ajukan ${returnItems.length} retur produk ke supplier?`)) return
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Ajukan Retur',
+      message: `Ajukan ${returnItems.length} retur produk ke supplier? Supplier akan mendapat notifikasi untuk ditinjau.`,
+      variant: 'warning',
+      icon: 'warning',
+      onConfirm: () => submitReturn()
+    })
+  }
 
+  async function submitReturn() {
     setProcessing(true)
     try {
       const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
       
       if (!user) {
-        alert('Session expired. Please login.')
+        toast.error('Sesi telah berakhir, silakan login kembali.')
+        router.push('/admin/login')
         return
       }
 
@@ -246,18 +272,17 @@ export default function CreateReturnPage() {
         }
       }
 
-      alert('✅ Permintaan retur berhasil diajukan!')
+      toast.success('Permintaan retur berhasil diajukan!')
       router.push('/admin/returns/list')
     } catch (error: any) {
       console.error('Error submitting return:', error)
       
-      // Check for specific errors
       if (error.message?.includes('relation') || error.message?.includes('does not exist')) {
-        alert('❌ Tabel shipment_returns belum dibuat di database.\n\nSilakan jalankan file:\n- CREATE-SHIPMENT-RETURNS.sql\n- CREATE-RETURN-RPC-FUNCTIONS.sql\n\ndi Supabase SQL Editor')
+        toast.error('Tabel retur belum dibuat. Hubungi administrator database.')
       } else if (error.code === '42501' || error.message?.includes('permission')) {
-        alert('❌ Permission denied. RLS policy mungkin blocking.\n\nError: ' + error.message)
+        toast.error('Akses ditolak: ' + error.message)
       } else {
-        alert('❌ Gagal mengajukan retur:\n' + (error.message || 'Unknown error'))
+        toast.error('Gagal mengajukan retur: ' + (error.message || 'Unknown error'))
       }
     } finally {
       setProcessing(false)
@@ -550,6 +575,17 @@ export default function CreateReturnPage() {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        onClose={() => setConfirmDialog(prev => ({ ...prev, isOpen: false }))}
+        onConfirm={confirmDialog.onConfirm}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        variant={confirmDialog.variant}
+        icon={confirmDialog.icon}
+        confirmLoading={processing}
+      />
     </div>
   )
 }
