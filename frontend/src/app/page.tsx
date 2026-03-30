@@ -308,7 +308,7 @@ export default function Home() {
             <div>
               <h4 className="font-semibold mb-4">Kontak</h4>
               <ul className="space-y-2 text-gray-400">
-                <li>Email: support@katalara.com</li>
+                <li>Email: katalaraofficial@gmail.com</li>
                 <li>Senin – Jumat, 08.00 – 17.00 WIB</li>
               </ul>
             </div>
