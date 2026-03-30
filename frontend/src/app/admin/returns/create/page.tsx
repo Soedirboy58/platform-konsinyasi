@@ -67,7 +67,7 @@ export default function CreateReturnPage() {
     message: string
     onConfirm: () => void | Promise<void>
     variant?: 'primary' | 'danger' | 'warning' | 'success'
-    icon?: 'warning' | 'danger' | 'success' | 'package'
+    icon?: 'warning' | 'danger' | 'success' | 'info'
   }>({
     isOpen: false,
     title: '',
