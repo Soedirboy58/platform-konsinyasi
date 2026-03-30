@@ -309,15 +309,14 @@ export default function Home() {
               <h4 className="font-semibold mb-4">Kontak</h4>
               <ul className="space-y-2 text-gray-400">
                 <li>Email: support@katalara.com</li>
-                <li>GitHub: Soedirboy58</li>
-                <li>Vercel: platform-konsinyasi</li>
+                <li>Senin – Jumat, 08.00 – 17.00 WIB</li>
               </ul>
             </div>
           </div>
 
           <div className="border-t border-gray-800 pt-8 text-center text-gray-400">
-            <p>&copy; 2024 Katalara. All rights reserved.</p>
-            <p className="text-sm mt-2">Built with ❤️ using Next.js & Supabase</p>
+            <p>&copy; 2026 Katalara. All rights reserved.</p>
+            <p className="text-sm mt-2">Katalara — hadir untuk membuat bisnis konsinyasi Anda lebih mudah, lebih rapi, dan lebih menguntungkan.</p>
           </div>
         </div>
       </footer>
