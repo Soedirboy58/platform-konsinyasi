@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useState, useEffect } from 'react'
-import { ChevronLeft, ChevronRight, Store, Package, Settings, ShoppingCart, BarChart3, Shield, Zap, Users, Smartphone } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Package, Settings, ShoppingCart, BarChart3, Shield, Zap, Users, Smartphone, QrCode } from 'lucide-react'
 
 export default function Home() {
   const [currentSlide, setCurrentSlide] = useState(0)
@@ -172,25 +172,7 @@ export default function Home() {
             <p className="text-xl text-gray-600">Pilih portal sesuai kebutuhan Anda</p>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-8">
-            {/* Customer Portal */}
-            <Link 
-              href="/customer"
-              className="group relative bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden"
-            >
-              <div className="absolute inset-0 bg-gradient-to-br from-emerald-500 to-teal-600 opacity-0 group-hover:opacity-10 transition-opacity" />
-              <div className="p-8 text-center">
-                <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-emerald-100 text-emerald-600 mb-6 group-hover:scale-110 transition-transform">
-                  <Store className="w-10 h-10" />
-                </div>
-                <h3 className="text-2xl font-bold text-gray-900 mb-3">Kantin PWA</h3>
-                <p className="text-gray-600 mb-6">Self-checkout untuk pelanggan</p>
-                <div className="inline-flex items-center text-emerald-600 font-semibold group-hover:gap-2 transition-all">
-                  Mulai Belanja
-                  <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                </div>
-              </div>
-            </Link>
+          <div className="max-w-3xl mx-auto grid md:grid-cols-2 gap-8">
 
             {/* Supplier Portal */}
             <Link 
@@ -229,6 +211,14 @@ export default function Home() {
                 </div>
               </div>
             </Link>
+          </div>
+
+          {/* Customer note */}
+          <div className="mt-12 flex flex-col items-center gap-3 text-gray-500">
+            <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-full px-6 py-3 shadow-sm">
+              <QrCode className="w-5 h-5 text-emerald-600" />
+              <span className="text-sm">Pelanggan? Scan QR code di meja / pintu masuk outlet untuk belanja langsung</span>
+            </div>
           </div>
         </div>
       </section>
@@ -309,9 +299,9 @@ export default function Home() {
             <div>
               <h4 className="font-semibold mb-4">Platform</h4>
               <ul className="space-y-2 text-gray-400">
-                <li><Link href="/customer" className="hover:text-white transition-colors">Kantin PWA</Link></li>
                 <li><Link href="/supplier" className="hover:text-white transition-colors">Supplier Portal</Link></li>
                 <li><Link href="/admin" className="hover:text-white transition-colors">Admin Dashboard</Link></li>
+                <li className="text-xs">🛒 Pelanggan akses via QR code outlet</li>
               </ul>
             </div>
 
