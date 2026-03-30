@@ -2,7 +2,7 @@
 
 > **Dokumentasi lengkap struktur database Platform Konsinyasi**  
 > **Database:** PostgreSQL via Supabase  
-> **Last Updated:** 2 Desember 2025
+> **Last Updated:** 30 Maret 2026
 
 ---
 
@@ -128,6 +128,10 @@ CREATE TABLE locations (
   qris_code TEXT,
   qris_image_url TEXT,
   is_active BOOLEAN DEFAULT TRUE,
+  logo_url TEXT,                                        -- URL logo outlet (outlet-media/logos/)
+  brand_name TEXT,                                      -- Nama merek kustom outlet
+  header_color_from TEXT DEFAULT '#dc2626',             -- Warna gradient kiri (default red-600)
+  header_color_to TEXT DEFAULT '#ea580c',               -- Warna gradient kanan (default orange-600)
   admin_user_id UUID REFERENCES profiles(id), -- PLANNED: Location admin
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
@@ -142,6 +146,10 @@ CREATE TABLE locations (
 - `qris_code` - QRIS payment code
 - `qris_image_url` - URL to QRIS image in storage
 - `is_active` - Enable/disable location
+- `logo_url` - URL logo outlet di bucket `outlet-media/logos/`
+- `brand_name` - Nama merek kustom untuk header halaman customer
+- `header_color_from` - Warna gradient kiri header (default: `#dc2626`)
+- `header_color_to` - Warna gradient kanan header (default: `#ea580c`)
 - `admin_user_id` - Dedicated admin for this location (PLANNED)
 
 **Indexes:**
@@ -171,6 +179,7 @@ CREATE TABLE products (
   barcode TEXT,
   status TEXT NOT NULL DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'APPROVED', 'REJECTED')),
   is_active BOOLEAN DEFAULT TRUE,
+  expiry_duration_days INTEGER DEFAULT 30,  -- Masa kadaluarsa produk dalam hari
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -183,10 +192,11 @@ CREATE TABLE products (
 - `description` - Product description
 - `price` - Selling price (must be >= 0)
 - `image_url` - URL to product image
-- `category` - Product category (e.g., "Makanan", "Minuman")
+- `category` - Product category — preset: `Makanan, Minuman, Snack, Makanan Ringan, Kue & Roti, Buah Segar, Frozen Food, Lainnya`
 - `barcode` - Optional barcode
 - `status` - Approval status
 - `is_active` - Visibility control
+- `expiry_duration_days` - Masa kadaluarsa produk dalam hari (default 30)
 
 **Indexes:**
 ```sql
@@ -328,11 +338,12 @@ CREATE TABLE sales_transactions (
   customer_phone TEXT,
   total_amount DECIMAL(15,2) NOT NULL CHECK (total_amount >= 0),
   payment_method TEXT CHECK (payment_method IN ('CASH', 'QRIS', 'PENDING')),
-  payment_proof_url TEXT,
+  payment_proof_url TEXT,            -- URL bukti bayar dari customer
+  payment_provider TEXT,             -- 'XENDIT', 'MIDTRANS', 'MANUAL' (NULL = belum via gateway)
   status TEXT NOT NULL DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'PAID', 'CANCELLED')),
   created_by UUID REFERENCES profiles(id),
   created_at TIMESTAMPTZ DEFAULT NOW(),
-  paid_at TIMESTAMPTZ
+  paid_at TIMESTAMPTZ                -- Diisi saat payment dikonfirmasi
 );
 ```
 
@@ -344,10 +355,11 @@ CREATE TABLE sales_transactions (
 - `customer_phone` - Optional customer phone
 - `total_amount` - Total transaction value
 - `payment_method` - Payment type (CASH, QRIS, PENDING)
-- `payment_proof_url` - URL to payment proof image
+- `payment_proof_url` - URL to payment proof image (uploaded by customer)
+- `payment_provider` - Payment gateway: `XENDIT`, `MIDTRANS`, `MANUAL`, atau NULL
 - `status` - Transaction status
 - `created_by` - User who created (null for self-checkout)
-- `paid_at` - Payment confirmation timestamp
+- `paid_at` - Payment confirmation timestamp (filled by `confirm_payment_with_method`)
 
 **Indexes:**
 ```sql
@@ -567,7 +579,139 @@ CREATE TABLE payment_settings (
 
 ---
 
-### **14. withdrawal_requests** (PLANNED)
+### **14. outlet_page_views**
+**Purpose:** Traffic analytics per outlet (page views, cart adds, checkout starts)
+
+```sql
+CREATE TABLE outlet_page_views (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  location_id UUID REFERENCES locations(id) ON DELETE CASCADE,
+  event_type TEXT NOT NULL CHECK (event_type IN ('page_view', 'cart_add', 'checkout_start')),
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+**Columns:**
+- `id` - Unique event ID
+- `location_id` - Outlet yang dikunjungi
+- `event_type` - Jenis event:
+  - `page_view` - Customer buka halaman outlet
+  - `cart_add` - Customer tambah produk ke keranjang
+  - `checkout_start` - Customer mulai checkout
+- `created_at` - Waktu event
+
+**RLS Policies:**
+- `anon` dan `authenticated` dapat INSERT (tracking dari halaman customer tanpa login)
+- `authenticated` dapat SELECT (admin lihat statistik)
+
+**Index:**
+```sql
+CREATE INDEX idx_outlet_page_views_location_date
+  ON outlet_page_views(location_id, created_at);
+```
+
+---
+
+### **15. outlet_carousel_slides**
+**Purpose:** Slide gambar karousel per outlet di halaman self-checkout customer
+
+```sql
+CREATE TABLE outlet_carousel_slides (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  location_id UUID REFERENCES locations(id) ON DELETE CASCADE,
+  image_url TEXT NOT NULL,     -- URL di bucket outlet-media/slides/
+  title TEXT,
+  subtitle TEXT,
+  link_url TEXT,
+  is_active BOOLEAN DEFAULT true,
+  sort_order INT DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+**Columns:**
+- `id` - Unique slide ID
+- `location_id` - Outlet pemilik slide
+- `image_url` - URL gambar slide di bucket `outlet-media/slides/`
+- `title` - Judul slide (opsional)
+- `subtitle` - Subjudul slide (opsional)
+- `link_url` - URL tujuan klik (opsional)
+- `is_active` - Tampilkan/sembunyikan slide
+- `sort_order` - Urutan tampil
+
+**RLS Policies:**
+- `anon` dapat SELECT slide yang `is_active = true`
+- `authenticated` dapat SELECT/INSERT/UPDATE/DELETE (admin kelola slide)
+
+---
+
+### **16. homepage_banners** — Migration 043
+**Purpose:** Banner iklan berjalan di carousel halaman utama platform (dikelola admin)
+
+```sql
+CREATE TABLE homepage_banners (
+  id            UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  title         TEXT NOT NULL,
+  subtitle      TEXT,
+  image_url     TEXT,                              -- URL gambar di outlet-media/banners/
+  link_url      TEXT,                              -- URL tujuan tombol CTA
+  button_text   TEXT DEFAULT 'Selengkapnya',
+  badge_text    TEXT,                              -- Pill kecil di atas judul
+  bg_color_from TEXT DEFAULT '#10b981',            -- Warna gradient kiri
+  bg_color_to   TEXT DEFAULT '#059669',            -- Warna gradient kanan
+  is_active     BOOLEAN DEFAULT true,
+  sort_order    INT DEFAULT 0,
+  created_at    TIMESTAMPTZ DEFAULT NOW(),
+  updated_at    TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+**Columns:**
+- `id` - Unique banner ID
+- `title` - Judul besar di carousel (wajib)
+- `subtitle` - Teks deskripsi di bawah judul
+- `image_url` - URL gambar background (jika kosong → pakai gradient)
+- `link_url` - URL tombol CTA (jika kosong → tombol tidak tampil)
+- `button_text` - Label tombol CTA (default: 'Selengkapnya')
+- `badge_text` - Pill kecil di atas judul (contoh: "🏪 Outlet Virtual", "PROMO")
+- `bg_color_from` / `bg_color_to` - Warna gradient background
+- `is_active` - Tampilkan di carousel atau tidak
+- `sort_order` - Urutan tampil (ascending)
+
+**RLS Policies:**
+- `anon` dapat SELECT banner yang `is_active = true` (untuk homepage publik)
+- `authenticated` dapat ALL (admin kelola banner)
+
+**Index:**
+```sql
+CREATE INDEX idx_homepage_banners_sort ON homepage_banners(sort_order, created_at);
+```
+
+**Perilaku Homepage:**
+- Jika tabel kosong atau tidak ada banner aktif → tampil 3 slide intro Katalara (hardcoded)
+- Jika ada ≥1 banner aktif → tampil semua banner aktif + outlet aktif otomatis di-append
+
+---
+
+### **Storage Buckets**
+
+| Bucket | Visibility | Max Size | Types | Paths |
+|---|---|---|---|---|
+| `products` | Public | 5MB | JPEG, PNG | `products/` |
+| `outlet-media` | Public | 5MB | JPEG, PNG, GIF, WebP | `logos/`, `slides/`, `qris/`, `banners/` |
+| `customer-proofs` | Public | 5MB | JPEG, PNG | `payment-proofs/` |
+
+**Notes:**
+- `outlet-media/logos/{outletId}.{ext}` — logo outlet
+- `outlet-media/slides/{random}.{ext}` — gambar slide karousel outlet
+- `outlet-media/qris/{outletId}.{ext}` — gambar QRIS per outlet
+- `outlet-media/banners/{timestamp}-{random}.{ext}` — gambar banner homepage
+- `customer-proofs/payment-proofs/{transactionId}.{ext}` — bukti bayar customer
+
+---
+
+### **16. withdrawal_requests** (PLANNED)
 **Purpose:** Supplier withdrawal requests
 
 ```sql
@@ -592,14 +736,57 @@ CREATE TABLE withdrawal_requests (
 
 ## ⚙️ RPC FUNCTIONS
 
+### **0. get_products_by_location**
+**Purpose:** Ambil daftar produk yang tersedia di outlet untuk halaman self-checkout customer
+
+```sql
+CREATE OR REPLACE FUNCTION get_products_by_location(location_qr_code TEXT)
+RETURNS TABLE (
+    product_id UUID,
+    name TEXT,
+    description TEXT,
+    photo_url TEXT,
+    price DECIMAL(10,2),
+    quantity INTEGER,
+    barcode TEXT,
+    supplier_name TEXT,
+    category TEXT
+)
+```
+
+**Input:** `location_qr_code TEXT` — nilai dari `locations.qr_code`
+
+**Output (per row):**
+- `product_id` - UUID produk
+- `name` - Nama produk
+- `description` - Deskripsi
+- `photo_url` - URL foto produk
+- `price` - Harga jual
+- `quantity` - Stok tersedia
+- `barcode` - Barcode (opsional)
+- `supplier_name` - Nama bisnis supplier
+- `category` - Kategori produk (Makanan, Minuman, dll.)
+
+**Filter:**
+- `il.quantity > 0` — hanya produk ada stok
+- `p.status = 'APPROVED'` — hanya produk approved
+- `l.is_active = TRUE` — hanya outlet aktif
+
+**Order:** Produk diurutkan: null category last, lalu `p.category ASC`, lalu `p.name ASC`
+
+**Security:** SECURITY DEFINER, GRANT EXECUTE TO anon, authenticated
+
+**Migration:** 042 — ditambahkan kolom `category` ke return value
+
+---
+
 ### **1. process_anonymous_checkout**
 **Purpose:** Create transaction from self-checkout cart
 
 ```sql
 CREATE OR REPLACE FUNCTION process_anonymous_checkout(
-  p_location_id UUID,
+  p_location_slug TEXT,
   p_items JSONB,
-  p_total_amount DECIMAL,
   p_customer_name TEXT DEFAULT NULL,
   p_customer_phone TEXT DEFAULT NULL
 )

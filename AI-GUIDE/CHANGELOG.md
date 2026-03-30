@@ -1,7 +1,7 @@
 # 📝 CHANGELOG & VERSION HISTORY
 
 > **Catatan perubahan dan riwayat versi Platform Konsinyasi**  
-> **Last Updated:** 28 Maret 2026
+> **Last Updated:** 30 Maret 2026
 
 ---
 
@@ -16,6 +16,237 @@ Format: `MAJOR.MINOR.PATCH`
 ---
 
 ## 🚀 LATEST VERSION
+
+### **v1.9.0** - 2026-03-30
+
+**Type:** Feature + UX Release  
+**Status:** ✅ Production
+
+**New Features:**
+
+#### 🎠 Homepage Dynamic Carousel + Admin Banner Management
+- Carousel halaman utama kini dinamis — dikelola dari tab "Banner Utama" di `/admin/settings`
+- **Default behavior:** Tampil 3 slide intro Katalara saat belum ada banner dari admin
+- **Mode dinamis:** Aktif saat admin menambah ≥1 banner aktif → tampil banner admin + kartu outlet aktif otomatis (auto-appended)
+- Tabel baru `homepage_banners` (Migration 043) untuk menyimpan konten banner
+- Upload gambar banner tersimpan di `outlet-media/banners/`
+- Quick-add shortcut: klik outlet aktif → form otomatis terisi dengan branding outlet
+- Color picker gradient + live preview di form banner
+
+#### 🔐 Admin Email Protection di Supplier Login
+- Akun ADMIN/SUPER_ADMIN tidak bisa login di halaman `/supplier/login`
+- Jika admin mencoba login → `signOut()` dipanggil + toast error ditampilkan
+- Berlaku juga di flow registrasi supplier
+
+#### 🏠 Homepage Portal Restructuring
+- Removed "Kantin PWA" card dari homepage — kini hanya 2 portal: Supplier + Admin
+- Pelanggan diarahkan via QR code fisik toko
+- Ditambahkan info hint QR code di bawah portal
+
+#### 📱 Per-Outlet PWA Manifest
+- Setiap outlet punya manifest PWA sendiri → install ke homescreen langsung buka outlet tersebut
+- `start_url = /kantin/[slug]`, `scope = /kantin/[slug]`, `theme_color` dari `header_color_from`
+- Route baru: `GET /api/kantin-manifest/[slug]` (server-side, fetch Supabase)
+- Layout baru: `/kantin/[slug]/layout.tsx` override `<link rel="manifest">`
+
+#### 🔧 Footer & Branding Cleanup
+- Removed referensi GitHub dan Vercel dari footer
+- Tambah jam operasional: Senin–Jumat 08.00–17.00 WIB
+- Tagline ramah pengguna menggantikan "Built with Next.js & Supabase"
+- Copyright year diperbaiki: 2024 → 2026
+- Email kontak diupdate: `katalaraofficial@gmail.com`
+
+**Database Migrations:**
+- Migration 043: Tabel `homepage_banners` + RLS anon/authenticated + index sort + storage policy `outlet_media_banner_insert`
+
+**Files Changed:**
+- `/frontend/src/app/page.tsx` — Dynamic carousel, STATIC_SLIDES default (3 intro Katalara), fetch logic
+- `/frontend/src/app/admin/settings/page.tsx` — Tab "Banner Utama" dengan CRUD lengkap + quick-add outlet
+- `/frontend/src/app/supplier/login/page.tsx` — Blokir ADMIN/SUPER_ADMIN login di supplier portal
+- `/frontend/src/app/kantin/[slug]/layout.tsx` — **NEW:** Per-outlet metadata + dynamic manifest link
+- `/frontend/src/app/api/kantin-manifest/[slug]/route.ts` — **NEW:** Dynamic PWA manifest per outlet
+- `/backend/migrations/043_homepage_banners.sql` — **NEW:** homepage_banners table
+
+**Migration Required:** ✅ Yes (043)  
+**Breaking Changes:** ❌ No
+
+---
+
+### **v1.8.0** - 2026-03-30
+
+**Type:** UI/UX Polish Release  
+**Status:** ✅ Production
+
+**Improvements:**
+
+#### 🎨 Admin Alert → Toast + ConfirmDialog (All Admin Pages)
+- **Root Cause:** `alert()` dan `confirm()` native browser tidak sesuai design system — blokir UI, tidak bisa dimodifikasi
+- **Fix:** Semua admin pages kini pakai `toast` dari Sonner + `ConfirmDialog` komponen
+- **Pattern:** Semua konfirmasi destruktif (delete, bulk delete) wajib pakai `ConfirmDialog` dengan `variant="danger"`
+- **Affected Pages:**
+  - `/admin/suppliers/page.tsx` — approve, reject, delete supplier + bulk approve/reject/delete
+  - `/admin/suppliers/shipments/page.tsx` — mark as returned (ReturnsTab)
+  - `/admin/settings/page.tsx` — hapus slide karousel, hapus outlet
+
+#### 📊 Sales Report — Hapus Horizontal Scroll
+- **Root Cause:** Tabel menggunakan `overflow-x-auto` + `min-w-full` → muncul scrollbar horizontal di desktop
+- **Fix:** Ganti ke `w-full table-fixed` + setiap `<th>` dapat lebar persentase eksplisit
+- **Column widths:** Tanggal 13%, Produk 30%, Supplier 13%, Qty 5%, Harga 10%, Total 10%, Payment 9%, Bukti 10%
+- **File:** `/frontend/src/app/admin/reports/sales/page.tsx`
+
+#### 🎨 Kantin — Warna Produk Dinamis
+- **Root Cause:** Button dan elemen di halaman outlet masih menggunakan warna hardcoded `red-600`, `orange-600`
+- **Fix:** Cart badge, harga, counter, tombol Tambah, dan border "Ada Masalah?" kini pakai `headerColorFrom`/`headerColorTo` dari settings outlet
+- **File:** `/frontend/src/app/kantin/[slug]/page.tsx`
+
+**Database Migrations:**
+- Tidak ada migrasi baru di versi ini
+
+**Files Changed:**
+- `/frontend/src/app/admin/suppliers/page.tsx` — toast + ConfirmDialog
+- `/frontend/src/app/admin/suppliers/shipments/page.tsx` — toast + ConfirmDialog (ReturnsTab)
+- `/frontend/src/app/admin/settings/page.tsx` — ConfirmDialog untuk hapus slide & outlet
+- `/frontend/src/app/admin/reports/sales/page.tsx` — table-fixed layout
+- `/frontend/src/app/kantin/[slug]/page.tsx` — dynamic header colors
+
+**Migration Required:** ❌ No  
+**Breaking Changes:** ❌ No
+
+---
+
+### **v1.7.0** - 2026-03-29
+
+**Type:** Feature Release  
+**Status:** ✅ Production
+
+**New Features:**
+
+#### 🏷️ Category System
+- **Admin Products:** Dropdown kategori saat tambah/edit produk (preset: Makanan, Minuman, Snack, Makanan Ringan, Kue & Roti, Buah Segar, Frozen Food, Lainnya)
+- **Supplier Products:** Dropdown kategori yang sama di supplier panel
+- **Outlet Self-Checkout:** Filter chip kategori di halaman produk customer (`/kantin/[slug]`)
+- **RPC Update:** `get_products_by_location` kini return kolom `category` dan sort berdasarkan kategori
+- **Migration 042:** Recreate `get_products_by_location` dengan `category` + ORDER BY `p.category, p.name`
+
+#### 🖼️ QRIS Upload per Outlet
+- Upload gambar QRIS langsung di settings outlet (bukan global)
+- Gambar tersimpan di `outlet-media/qris/{outletId}.{ext}`
+- Tampil di halaman self-checkout customer
+
+#### 🎨 Outlet Button Color Theming
+- Tombol aksi di card outlet (di halaman settings) menggunakan warna gradient dari `header_color_from`/`header_color_to`
+- Konsisten dengan branding outlet di halaman customer
+
+**Database Migrations:**
+- Migration 042: `get_products_by_location` returns `category`, ordered by category
+
+**Files Changed:**
+- `/frontend/src/app/admin/suppliers/products/page.tsx` — tambah category dropdown
+- `/frontend/src/app/supplier/products/page.tsx` — tambah category dropdown
+- `/frontend/src/app/kantin/[slug]/page.tsx` — filter chip kategori, QRIS dari outlet
+- `/frontend/src/app/admin/settings/page.tsx` — QRIS upload button per outlet
+- `/backend/migrations/042_add_category_to_products_rpc.sql` — baru
+
+**Migration Required:** ✅ Yes (042)  
+**Breaking Changes:** ❌ No
+
+---
+
+### **v1.6.0** - 2026-03-29
+
+**Type:** Feature Release  
+**Status:** ✅ Production
+
+**New Features:**
+
+#### 🏪 Outlet Customization
+- **Logo outlet:** Upload logo per outlet, tersimpan di `outlet-media/logos/`
+- **Brand name:** Nama merek custom untuk outlet (tampil di header halaman customer)
+- **Header gradient:** Pilih warna gradient header (`header_color_from`, `header_color_to`)
+- **Default colors:** `#dc2626` (red-600) → `#ea580c` (orange-600)
+
+#### 🎠 Carousel Slide Management
+- Admin bisa tambah/edit/hapus slide gambar per outlet
+- Konfigurasi: title, subtitle, link_url, sort_order, is_active
+- Slide tampil di atas produk halaman customer
+- Gambar tersimpan di `outlet-media/slides/`
+
+#### 📊 Traffic Analytics
+- Track page_view, cart_add, checkout_start per outlet
+- Tabel `outlet_page_views` menyimpan event anonim dari halaman customer
+- Accessible dari admin panel (per outlet stats)
+
+#### 🗄️ Storage Bucket outlet-media
+- Public bucket `outlet-media` dibuat otomatis via migration 041
+- File size limit: 5MB
+- Supported types: JPEG, PNG, GIF, WebP
+- Paths: `logos/`, `slides/`, `qris/`
+
+**Database Migrations:**
+- Migration 041: Kolom kustomisasi di `locations`, tabel `outlet_page_views`, tabel `outlet_carousel_slides`, bucket `outlet-media`, RLS policies
+
+**Files Changed:**
+- `/frontend/src/app/admin/settings/page.tsx` — outlet customization UI, carousel management
+- `/frontend/src/app/kantin/[slug]/page.tsx` — tampilkan carousel, gunakan brand name & header gradient
+- `/backend/migrations/041_outlet_customization_carousel_traffic.sql` — baru
+
+**Migration Required:** ✅ Yes (041)  
+**Breaking Changes:** ❌ No
+
+---
+
+### **v1.5.0** - 2026-03-28
+
+**Type:** Feature Release  
+**Status:** ✅ Production
+
+**New Features:**
+
+#### 💳 Dynamic QRIS per Transaksi (Migration 036)
+- Mendukung integrasi payment gateway (Xendit, Midtrans, Manual)
+- Kolom baru di `sales_transactions`: `payment_provider`, `xendit_invoice_id`, `xendit_qr_id`, `xendit_callback_token`, `xendit_expiry_at`
+- Fondasi untuk Xendit Dynamic QRIS per transaksi
+
+#### ⏰ Auto-Cancel Pending Transactions (Migration 037)
+- Transaksi PENDING yang tidak dibayar dalam 5 menit otomatis di-cancel
+- Function `cancel_expired_pending_transactions()` — dipanggil via cron (pg_cron atau Edge Function)
+- Stok otomatis dikembalikan saat cancel
+
+#### 📅 Product Expiry Duration (Migration 038)
+- Kolom `expiry_duration_days INTEGER DEFAULT 30` di tabel `products`
+- Admin & supplier bisa set masa kadaluarsa produk
+- Digunakan untuk alert stok kadaluarsa
+
+#### 📸 Payment Proof Required (Migration 039)
+- Kolom `payment_proof_url TEXT` di `sales_transactions`
+- Function `confirm_payment_with_method` diupdate untuk simpan bukti bayar
+- Bucket `customer-proofs` dibuat untuk upload bukti bayar anonim
+
+#### 🕐 paid_at Timestamp (Migration 040)
+- Kolom `paid_at TIMESTAMPTZ` di `sales_transactions`
+- Diisi otomatis saat payment dikonfirmasi
+- Digunakan untuk laporan penjualan dan analitik
+
+**Database Migrations:**
+- Migration 036: Kolom payment gateway di sales_transactions
+- Migration 037: Function auto-cancel + function cancel_single_transaction
+- Migration 038: Kolom expiry_duration_days di products
+- Migration 039: Kolom payment_proof_url + update confirm_payment_with_method + bucket customer-proofs
+- Migration 040: Kolom paid_at + fix confirm_payment_with_method
+
+**Files Changed:**
+- `/frontend/src/app/kantin/[slug]/checkout/page.tsx` — QRIS timer 30 menit, countdown
+- `/frontend/src/app/kantin/[slug]/payment/[id]/page.tsx` — upload bukti bayar
+- `/backend/migrations/036_add_payment_gateway_columns.sql` — baru
+- `/backend/migrations/037_auto_cancel_pending_transactions.sql` — baru
+- `/backend/migrations/038_add_expiry_duration_days_to_products.sql` — baru
+- `/backend/migrations/039_confirm_payment_require_proof.sql` — baru
+- `/backend/migrations/040_add_paid_at_to_sales_transactions.sql` — baru
+
+**Migration Required:** ✅ Yes (036–040)  
+**Breaking Changes:** ❌ No
+
+---
 
 ### **v1.4.0** - 2026-03-28
 

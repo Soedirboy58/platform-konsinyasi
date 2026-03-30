@@ -1,8 +1,8 @@
 # 🤖 AI AGENT GUIDE - Platform Konsinyasi
 
 > **Panduan lengkap untuk AI Agent dalam membangun dan maintain Platform Konsinyasi**  
-> **Last Updated:** 28 Maret 2026  
-> **Version:** 1.4.0
+> **Last Updated:** 30 Maret 2026  
+> **Version:** 1.9.0
 
 ---
 
@@ -164,6 +164,10 @@ konsinyasi/
 - qris_code: TEXT (payment)
 - qris_image_url: TEXT
 - is_active: BOOLEAN
+- logo_url: TEXT         -- URL logo outlet (outlet-media/logos/)
+- brand_name: TEXT       -- Nama merek kustom outlet
+- header_color_from: TEXT DEFAULT '#dc2626'  -- Warna gradient kiri
+- header_color_to: TEXT DEFAULT '#ea580c'    -- Warna gradient kanan
 - admin_user_id: UUID (FK → profiles) -- PLANNED
 - created_at: TIMESTAMPTZ
 ```
@@ -221,8 +225,50 @@ konsinyasi/
 - customer_name: TEXT
 - total_amount: DECIMAL(15,2)
 - payment_method: TEXT ('CASH', 'QRIS', 'PENDING')
+- payment_proof_url: TEXT    -- URL bukti bayar customer
+- payment_provider: TEXT     -- 'XENDIT', 'MIDTRANS', 'MANUAL' (NULL = belum)
 - status: TEXT ('PENDING', 'PAID', 'CANCELLED')
+- paid_at: TIMESTAMPTZ       -- Diisi saat payment dikonfirmasi
 - created_at: TIMESTAMPTZ
+```
+
+#### **13. outlet_page_views** (Traffic Analytics Outlet)
+```sql
+- id: UUID (PK)
+- location_id: UUID (FK → locations)
+- event_type: TEXT ('page_view', 'cart_add', 'checkout_start')
+- created_at: TIMESTAMPTZ
+```
+
+#### **14. outlet_carousel_slides** (Slide Karousel Outlet)
+```sql
+- id: UUID (PK)
+- location_id: UUID (FK → locations)
+- image_url: TEXT NOT NULL   -- URL gambar di outlet-media/slides/
+- title: TEXT
+- subtitle: TEXT
+- link_url: TEXT
+- is_active: BOOLEAN DEFAULT true
+- sort_order: INT DEFAULT 0
+- created_at: TIMESTAMPTZ
+- updated_at: TIMESTAMPTZ
+```
+
+#### **15. homepage_banners** (Banner Carousel Halaman Utama) — Migration 043
+```sql
+- id: UUID (PK)
+- title: TEXT NOT NULL            -- Judul banner (tampil besar di carousel)
+- subtitle: TEXT                  -- Teks deskripsi
+- image_url: TEXT                 -- URL gambar background (opsional, outlet-media/banners/)
+- link_url: TEXT                  -- URL tujuan tombol CTA
+- button_text: TEXT DEFAULT 'Selengkapnya'
+- badge_text: TEXT                -- Pill kecil di atas judul (contoh: "🏪 Outlet Virtual")
+- bg_color_from: TEXT DEFAULT '#10b981'  -- Warna gradient kiri
+- bg_color_to: TEXT DEFAULT '#059669'    -- Warna gradient kanan
+- is_active: BOOLEAN DEFAULT true
+- sort_order: INT DEFAULT 0
+- created_at: TIMESTAMPTZ
+- updated_at: TIMESTAMPTZ
 ```
 
 #### **9. sales_transaction_items** (Detail Item per Transaksi)
@@ -377,6 +423,142 @@ Sale → pending_balance (menunggu konfirmasi)
 - Admin: Create return request
 - Supplier: Approve/reject/confirm pickup
 - Auto-deduct from supplier wallet on approval
+
+### **7. Outlet Customization**
+
+**Fitur:**
+- Upload logo per outlet (disimpan di `outlet-media/logos/`)
+- Brand name kustom (tampil di header halaman customer)
+- Warna gradient header (`header_color_from`, `header_color_to`)
+- Upload gambar QRIS per outlet (`outlet-media/qris/`)
+- Kelola karousel slide gambar per outlet (`outlet-media/slides/`)
+
+**Storage Bucket `outlet-media`:**
+- Public bucket, 5MB limit
+- Types: JPEG, PNG, GIF, WebP
+- Paths: `logos/`, `slides/`, `qris/`, `banners/`
+
+### **8. Category System**
+
+**Preset Kategori:**
+```
+Makanan | Minuman | Snack | Makanan Ringan | Kue & Roti | Buah Segar | Frozen Food | Lainnya
+```
+- Admin & supplier bisa pilih kategori saat tambah/edit produk
+- Filter chip kategori tampil di halaman self-checkout customer
+- RPC `get_products_by_location` mengembalikan `category` dan sort by kategori
+
+### **9. Toast + ConfirmDialog Pattern (Admin Pages)**
+
+**Aturan wajib:**
+- JANGAN gunakan `alert()` atau `confirm()` native browser di admin pages
+- Semua success/error feedback harus pakai `toast` dari Sonner
+- Semua konfirmasi destruktif WAJIB pakai `ConfirmDialog` dengan `variant="danger"`
+
+```typescript
+// ✅ Pattern yang benar
+import { toast } from 'sonner'
+import ConfirmDialog from '@/components/admin/ConfirmDialog'
+
+// State
+const [confirmDialog, setConfirmDialog] = useState({
+  isOpen: false, title: '', message: '', onConfirm: () => {}, variant: 'danger' as const, icon: '🗑️'
+})
+
+// Trigger
+function handleDelete(id: string) {
+  setConfirmDialog({
+    isOpen: true,
+    title: 'Hapus Item',
+    message: 'Yakin ingin menghapus?',
+    onConfirm: () => doDelete(id),
+    variant: 'danger',
+    icon: '🗑️'
+  })
+}
+
+// Feedback
+async function doDelete(id: string) {
+  try {
+    // ... delete
+    toast.success('Berhasil dihapus')
+  } catch { toast.error('Gagal menghapus') }
+}
+
+// JSX
+<ConfirmDialog
+  isOpen={confirmDialog.isOpen}
+  onClose={() => setConfirmDialog(prev => ({ ...prev, isOpen: false }))}
+  onConfirm={confirmDialog.onConfirm}
+  title={confirmDialog.title}
+  message={confirmDialog.message}
+  variant={confirmDialog.variant}
+  icon={confirmDialog.icon}
+/>
+```
+
+### **10. Homepage Dynamic Carousel**
+
+**Behavior:**
+- **Default (belum ada banner):** Tampil 3 slide intro platform Katalara (hardcoded `STATIC_SLIDES`)
+- **Mode dinamis:** Aktif saat admin menambah ≥1 banner aktif di tabel `homepage_banners` → tampil semua banner aktif + outlet aktif otomatis di-append sebagai kartu
+
+```typescript
+// Logika fetch di page.tsx
+const { data: banners } = await supabase.from('homepage_banners')
+  .select('*').eq('is_active', true).order('sort_order')
+
+if (!banners || banners.length === 0) return // tetap STATIC_SLIDES
+
+// Lanjut fetch outlets → buat items: banners + outlet cards
+```
+
+**CarouselItem type:**
+```typescript
+type CarouselItem = {
+  id: string; type: 'banner' | 'outlet'
+  title: string; subtitle: string | null
+  imageUrl: string | null; linkUrl: string | null
+  buttonText: string; badgeText: string | null
+  bgFrom: string; bgTo: string
+  logoUrl?: string | null  // khusus outlet
+}
+```
+
+**Storage banner:** `outlet-media/banners/`
+
+### **11. Per-Outlet PWA Manifest**
+
+**Tujuan:** Install shortcut ke homescreen langsung buka outlet tertentu (bukan homepage)
+
+**Files:**
+- `/kantin/[slug]/layout.tsx` — override `<link rel="manifest">` dengan URL dinamis
+- `/api/kantin-manifest/[slug]/route.ts` — return JSON manifest dengan `start_url`, `scope`, `theme_color` dari outlet
+
+```typescript
+// Contoh response manifest
+{
+  name: "SMart Alley",
+  start_url: "/kantin/smart-alley",
+  scope: "/kantin/smart-alley",
+  display: "standalone",
+  theme_color: "#dc2626"  // dari header_color_from outlet
+}
+```
+
+### **12. Admin Email Protection**
+
+**Masalah sebelumnya:** Admin yang login via `/supplier/login` bisa menimpa role menjadi SUPPLIER.
+
+**Fix di `/supplier/login/page.tsx`:**
+```typescript
+// Setelah getProfile:
+if (['ADMIN', 'SUPER_ADMIN'].includes(profile.role)) {
+  await supabase.auth.signOut()
+  toast.error('Akun admin tidak bisa login di sini')
+  return
+}
+```
 
 ---
 
@@ -632,6 +814,30 @@ await supabase.rpc('process_anonymous_checkout', {
 })
 ```
 
+#### **10. Halaman admin masih pakai alert()/confirm() native**
+**Aturan:** SELALU gunakan `toast` dari Sonner untuk feedback dan `ConfirmDialog` untuk konfirmasi destruktif  
+**Fix:** Lihat pola di bagian **Key Features → Toast + ConfirmDialog Pattern**  
+**Komponen:** `@/components/admin/ConfirmDialog` — props: `isOpen, onClose, onConfirm, title, message, variant, icon, confirmText, cancelText, confirmLoading`
+
+#### **11. Tabel admin punya scrollbar horizontal (desktop)**
+**Cause:** Menggunakan `overflow-x-auto` + `min-w-full` tanpa lebar fixed per kolom  
+**Fix:** Ganti ke `w-full table-fixed` dan beri setiap `<th>` lebar persentase eksplisit:  
+```tsx
+<table className="w-full table-fixed">
+  <thead>
+    <tr>
+      <th className="w-[13%] px-3 py-3">Tanggal</th>
+      <th className="w-[30%] px-3 py-3">Produk</th>
+      {/* dst */}
+    </tr>
+  </thead>
+</table>
+```
+
+#### **12. get_products_by_location tidak return category**
+**Cause:** RPC versi lama tidak meng-SELECT `p.category`  
+**Fix:** Jalankan Migration 042 di Supabase SQL Editor (`backend/migrations/042_add_category_to_products_rpc.sql`)
+
 ---
 
 ## 📈 PERFORMANCE BEST PRACTICES
@@ -694,6 +900,13 @@ await supabase.rpc('process_anonymous_checkout', {
    - Order history tracking
    - Loyalty points
    - Digital receipts
+
+5. **Push Notifications**
+   - Status: 📋 Planning
+   - Web Audio API: notifikasi suara saat transaksi baru (in-page, no permission needed)
+   - Web Push API: notifikasi background ke perangkat mobile/desktop (butuh user permission + Supabase Realtime)
+   - Vibration API: vibrasi di mobile saat alert (in-page)
+   - Supabase Realtime: subscribe ke channel transaksi baru untuk trigger notifikasi admin
 
 ---
 

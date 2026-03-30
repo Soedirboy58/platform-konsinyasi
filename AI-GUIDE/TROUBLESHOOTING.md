@@ -1,7 +1,7 @@
 # 🐛 TROUBLESHOOTING & DEBUGGING GUIDE
 
 > **Panduan lengkap untuk troubleshooting issues di Platform Konsinyasi**  
-> **Last Updated:** 2 Desember 2025
+> **Last Updated:** 30 Maret 2026
 
 ---
 
@@ -776,6 +776,58 @@ SELECT * FROM products WHERE supplier_id = 'uuid';
 **Status:** 📋 Planned  
 **Workaround:** Use smaller images  
 **Planned:** Add progress bar
+
+---
+
+## ⚠️ ATURAN & BEST PRACTICES WAJIB
+
+### **Rule 1: Jangan gunakan alert() / confirm() di admin pages**
+**Alasan:** Native browser dialog tidak bisa dikustomisasi, blokir UI, tidak konsisten dengan design system  
+**Wajib pakai:**
+- `toast.success/error/warning` dari Sonner untuk feedback
+- `ConfirmDialog` dari `@/components/admin/ConfirmDialog` untuk konfirmasi destruktif
+
+```typescript
+// ❌ DILARANG
+alert('Berhasil!')
+if (confirm('Hapus?')) { ... }
+
+// ✅ WAJIB
+try {
+  // ... action
+  toast.success('Berhasil!')
+} catch { toast.error('Gagal') }
+
+// Konfirmasi hapus
+setConfirmDialog({ isOpen: true, title: 'Hapus', message: '...', onConfirm: doDelete, variant: 'danger', icon: '🗑️' })
+```
+
+### **Rule 2: Tabel admin tidak boleh punya horizontal scroll di desktop**
+**Wajib pattern:**
+```tsx
+{/* ❌ Jangan */}
+<div className="overflow-x-auto">
+  <table className="min-w-full">
+
+{/* ✅ Harus */}
+<div>  {/* Tanpa overflow-x-auto */}
+  <table className="w-full table-fixed">
+    <thead><tr>
+      <th className="w-[15%] px-3 py-3">Kolom A</th>
+      <th className="w-[25%] px-3 py-3">Kolom B</th>
+      {/* Total semua lebar harus 100% */}
+    </tr></thead>
+```
+
+### **Rule 3: Warna outlet harus dinamis di halaman kantin**
+**Alasan:** Setiap outlet punya branding warna sendiri dari `header_color_from`/`header_color_to`  
+**Wajib:** Semua elemen button, badge, harga, counter di `/kantin/[slug]/page.tsx` pakai inline style:
+```tsx
+style={{ background: headerColorFrom }}
+style={{ color: headerColorFrom }}
+style={{ borderColor: headerColorFrom + '60' }}
+```
+**Jangan hardcode:** `className="bg-red-600"`, `className="text-orange-600"`
 
 ---
 
