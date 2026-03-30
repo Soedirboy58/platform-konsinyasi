@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { Save, Info, DollarSign, Calculator, User, Bell, Database, Eye, EyeOff, Lock, Mail, Camera, MapPin, QrCode, Plus, Trash2, Edit, Download, Printer, Upload, Image, Layers, ChevronDown, ChevronUp, GripVertical } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
+import ConfirmDialog from '@/components/admin/ConfirmDialog'
 import dynamic from 'next/dynamic'
 
 // Dynamic imports to avoid SSR issues
@@ -69,6 +70,21 @@ export default function Settings() {
   const [uploadingLogo, setUploadingLogo] = useState(false)
   const [uploadingQris, setUploadingQris] = useState(false)
   const [showBarcodeModal, setShowBarcodeModal] = useState(false)
+
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean
+    title: string
+    message: string
+    onConfirm: () => void | Promise<void>
+    variant?: 'primary' | 'danger' | 'warning' | 'success'
+    icon?: 'warning' | 'danger' | 'info' | 'success'
+    confirmText?: string
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {}
+  })
   const [selectedOutletForBarcode, setSelectedOutletForBarcode] = useState<Location | null>(null)
   const qrCanvasRef = useRef<HTMLCanvasElement>(null)
   
@@ -397,16 +413,25 @@ export default function Settings() {
   }
 
   const handleDeleteSlide = async (slideId: string) => {
-    if (!confirm('Hapus slide ini?')) return
-    try {
-      const supabase = createClient()
-      const { error } = await supabase.from('outlet_carousel_slides').delete().eq('id', slideId)
-      if (error) throw error
-      toast.success('Slide dihapus!')
-      if (carouselOutletId) loadCarouselSlides(carouselOutletId)
-    } catch (error: any) {
-      toast.error('Gagal hapus slide: ' + error.message)
-    }
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Hapus Slide',
+      message: 'Yakin ingin menghapus slide carousel ini?',
+      variant: 'danger',
+      icon: 'danger',
+      confirmText: 'Hapus',
+      onConfirm: async () => {
+        try {
+          const supabase = createClient()
+          const { error } = await supabase.from('outlet_carousel_slides').delete().eq('id', slideId)
+          if (error) throw error
+          toast.success('Slide dihapus!')
+          if (carouselOutletId) loadCarouselSlides(carouselOutletId)
+        } catch (error: any) {
+          toast.error('Gagal hapus slide: ' + error.message)
+        }
+      }
+    })
   }
 
   const handleToggleSlide = async (slide: CarouselSlide) => {
@@ -424,24 +449,29 @@ export default function Settings() {
   }
 
   const handleDeleteOutlet = async (id: string) => {
-    if (!confirm('Yakin ingin menghapus outlet ini? Semua data terkait akan terhapus.')) {
-      return
-    }
-
-    try {
-      const supabase = createClient()
-      const { error } = await supabase
-        .from('locations')
-        .delete()
-        .eq('id', id)
-
-      if (error) throw error
-      toast.success('Outlet berhasil dihapus!')
-      loadOutlets()
-    } catch (error: any) {
-      console.error('Error deleting outlet:', error)
-      toast.error(error.message || 'Gagal menghapus outlet')
-    }
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Hapus Outlet',
+      message: 'Yakin ingin menghapus outlet ini? Semua data terkait (carousel, pengaturan) akan ikut terhapus.',
+      variant: 'danger',
+      icon: 'danger',
+      confirmText: 'Hapus Outlet',
+      onConfirm: async () => {
+        try {
+          const supabase = createClient()
+          const { error } = await supabase
+            .from('locations')
+            .delete()
+            .eq('id', id)
+          if (error) throw error
+          toast.success('Outlet berhasil dihapus!')
+          loadOutlets()
+        } catch (error: any) {
+          console.error('Error deleting outlet:', error)
+          toast.error(error.message || 'Gagal menghapus outlet')
+        }
+      }
+    })
   }
 
   const handleToggleActive = async (outlet: Location) => {
@@ -1530,6 +1560,17 @@ export default function Settings() {
           }
         }
       `}</style>
+
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        onClose={() => setConfirmDialog({ ...confirmDialog, isOpen: false })}
+        onConfirm={confirmDialog.onConfirm}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        variant={confirmDialog.variant}
+        icon={confirmDialog.icon}
+        confirmText={confirmDialog.confirmText}
+      />
     </div>
   )
 }
