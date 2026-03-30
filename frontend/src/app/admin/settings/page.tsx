@@ -67,6 +67,7 @@ export default function Settings() {
   const [newSlide, setNewSlide] = useState({ title: '', subtitle: '', image_url: '' })
   const [uploadingSlide, setUploadingSlide] = useState(false)
   const [uploadingLogo, setUploadingLogo] = useState(false)
+  const [uploadingQris, setUploadingQris] = useState(false)
   const [showBarcodeModal, setShowBarcodeModal] = useState(false)
   const [selectedOutletForBarcode, setSelectedOutletForBarcode] = useState<Location | null>(null)
   const qrCanvasRef = useRef<HTMLCanvasElement>(null)
@@ -283,6 +284,25 @@ export default function Settings() {
       header_color_to: outlet.header_color_to || '#ea580c'
     })
     setShowOutletForm(true)
+  }
+
+  const handleQrisImageUpload = async (file: File) => {
+    if (!file) return
+    setUploadingQris(true)
+    try {
+      const supabase = createClient()
+      const ext = file.name.split('.').pop()
+      const path = `qris/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+      const { error: uploadError } = await supabase.storage.from('outlet-media').upload(path, file)
+      if (uploadError) throw uploadError
+      const { data: { publicUrl } } = supabase.storage.from('outlet-media').getPublicUrl(path)
+      setOutletForm(prev => ({ ...prev, qris_image_url: publicUrl }))
+      toast.success('Gambar QRIS berhasil diupload!')
+    } catch (error: any) {
+      toast.error('Gagal upload QRIS: ' + error.message)
+    } finally {
+      setUploadingQris(false)
+    }
   }
 
   const handleLogoUpload = async (file: File) => {
@@ -802,15 +822,37 @@ export default function Settings() {
 
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        QRIS Image URL <span className="text-gray-500 text-xs">(optional)</span>
+                        QRIS Image <span className="text-gray-500 text-xs">(optional)</span>
                       </label>
-                      <input
-                        type="text"
-                        value={outletForm.qris_image_url}
-                        onChange={(e) => setOutletForm({ ...outletForm, qris_image_url: e.target.value })}
-                        placeholder="https://..."
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      />
+                      <div className="flex items-center gap-3">
+                        {outletForm.qris_image_url && (
+                          <img src={outletForm.qris_image_url} alt="QRIS" className="w-16 h-16 object-contain rounded-lg border border-gray-200 bg-white p-1" />
+                        )}
+                        <label className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-400 cursor-pointer transition-colors">
+                          <Upload className="w-4 h-4 text-gray-500" />
+                          <span className="text-sm text-gray-600">
+                            {uploadingQris ? 'Mengupload...' : outletForm.qris_image_url ? 'Ganti Gambar QRIS' : 'Upload Gambar QRIS'}
+                          </span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            disabled={uploadingQris}
+                            onChange={(e) => {
+                              const file = e.target.files?.[0]
+                              if (file) handleQrisImageUpload(file)
+                            }}
+                          />
+                        </label>
+                        {outletForm.qris_image_url && (
+                          <button
+                            onClick={() => setOutletForm(prev => ({ ...prev, qris_image_url: '' }))}
+                            className="text-red-500 hover:text-red-700 text-xs"
+                          >
+                            Hapus
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
 
@@ -1038,7 +1080,8 @@ export default function Settings() {
                           {/* Generate Barcode Button */}
                           <button
                             onClick={() => handleShowBarcode(outlet)}
-                            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 font-medium shadow-md hover:shadow-lg transition-all"
+                            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-white rounded-lg font-medium shadow-md hover:shadow-lg transition-all"
+                            style={{ background: `linear-gradient(to right, ${outlet.header_color_from || '#dc2626'}, ${outlet.header_color_to || '#ea580c'})` }}
                           >
                             <QrCode className="w-5 h-5" />
                             Generate QR & Barcode
@@ -1048,18 +1091,24 @@ export default function Settings() {
                           <div className="flex gap-2">
                             <button
                               onClick={() => handleEditOutlet(outlet)}
-                              className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm border border-gray-300 rounded hover:bg-gray-50"
+                              className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm rounded border transition-colors"
+                              style={{ borderColor: outlet.header_color_from || '#dc2626', color: outlet.header_color_from || '#dc2626' }}
                             >
                               <Edit className="w-4 h-4" />
                               Edit
                             </button>
                             <button
                               onClick={() => handleToggleActive(outlet)}
-                              className={`flex-1 px-3 py-2 text-sm rounded ${
-                                outlet.is_active
-                                  ? 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200'
-                                  : 'bg-green-100 text-green-700 hover:bg-green-200'
-                              }`}
+                              className="flex-1 px-3 py-2 text-sm rounded text-white transition-colors"
+                              style={{
+                                background: outlet.is_active
+                                  ? `${outlet.header_color_from || '#dc2626'}22`
+                                  : `${outlet.header_color_from || '#dc2626'}`,
+                                color: outlet.is_active
+                                  ? outlet.header_color_from || '#dc2626'
+                                  : 'white',
+                                border: `1px solid ${outlet.header_color_from || '#dc2626'}44`
+                              }}
                             >
                               {outlet.is_active ? 'Nonaktifkan' : 'Aktifkan'}
                             </button>
@@ -1074,7 +1123,8 @@ export default function Settings() {
                           {/* Carousel Toggle Button */}
                           <button
                             onClick={() => handleToggleCarousel(outlet.id)}
-                            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-orange-500 to-pink-500 text-white rounded-lg hover:from-orange-600 hover:to-pink-600 font-medium transition-all"
+                            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-white rounded-lg font-medium transition-all"
+                            style={{ background: `linear-gradient(to right, ${outlet.header_color_to || '#ea580c'}, ${outlet.header_color_from || '#dc2626'})` }}
                           >
                             <Layers className="w-4 h-4" />
                             Kelola Slide Carousel

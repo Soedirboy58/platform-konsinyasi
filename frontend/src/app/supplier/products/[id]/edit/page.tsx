@@ -474,14 +474,22 @@ export default function EditProductPage() {
                       <Tag className="w-4 h-4 inline mr-1" />
                       Kategori
                     </label>
-                    <input
-                      type="text"
+                    <select
                       value={formData.category}
                       onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                      placeholder="Contoh: Makanan Ringan, Minuman, Snack"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">Membantu admin mengelompokkan produk</p>
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white"
+                    >
+                      <option value="">-- Pilih Kategori --</option>
+                      <option value="Makanan">Makanan</option>
+                      <option value="Minuman">Minuman</option>
+                      <option value="Snack">Snack</option>
+                      <option value="Makanan Ringan">Makanan Ringan</option>
+                      <option value="Kue & Roti">Kue &amp; Roti</option>
+                      <option value="Buah Segar">Buah Segar</option>
+                      <option value="Frozen Food">Frozen Food</option>
+                      <option value="Lainnya">Lainnya</option>
+                    </select>
+                    <p className="text-xs text-gray-500 mt-1">Membantu admin mengelompokkan dan customer mencari produk</p>
                   </div>
 
                   <div>

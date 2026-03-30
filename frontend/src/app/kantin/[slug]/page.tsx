@@ -20,6 +20,7 @@ type Product = {
   location_id?: string
   total_sales?: number
   sort_priority?: number
+  category?: string | null
 }
 
 type CartItem = Product & { cartQuantity: number }
@@ -304,11 +305,17 @@ export default function KantinPage() {
   
   const totalItems = cart.reduce((sum, item) => sum + (item.cartQuantity || 0), 0)
 
-  // Filter products by search only (no category filter)
+  // Filter products by search and category
   const filteredProducts = products.filter(product => {
     const matchSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase())
-    return matchSearch
+    const matchCategory = selectedCategory === 'all' || product.category === selectedCategory
+    return matchSearch && matchCategory
   })
+
+  // Derive available categories from products
+  const availableCategories = Array.from(
+    new Set(products.map(p => p.category).filter(Boolean))
+  ) as string[]
 
   async function openReportModal(product: Product) {
     // Fetch supplier_id lazily (only when user actually opens report modal)
@@ -464,7 +471,7 @@ export default function KantinPage() {
         </section>
       )}
 
-      {/* Search Bar */}
+      {/* Search + Category Filter Bar */}
       <div className="sticky top-[72px] z-10 bg-white shadow-md">
         <div className="max-w-7xl mx-auto px-4 py-3">
           <div className="relative">
@@ -485,10 +492,38 @@ export default function KantinPage() {
               </button>
             )}
           </div>
+          {/* Category Filter Chips */}
+          {availableCategories.length > 0 && (
+            <div className="flex gap-2 mt-2 overflow-x-auto pb-1 scrollbar-none">
+              <button
+                onClick={() => setSelectedCategory('all')}
+                className="flex-shrink-0 px-4 py-1.5 rounded-full text-sm font-medium transition-all"
+                style={selectedCategory === 'all'
+                  ? { background: `linear-gradient(to right, ${headerColorFrom}, ${headerColorTo})`, color: 'white' }
+                  : { background: '#f3f4f6', color: '#374151' }
+                }
+              >
+                Semua
+              </button>
+              {availableCategories.map(cat => (
+                <button
+                  key={cat}
+                  onClick={() => setSelectedCategory(cat)}
+                  className="flex-shrink-0 px-4 py-1.5 rounded-full text-sm font-medium transition-all"
+                  style={selectedCategory === cat
+                    ? { background: `linear-gradient(to right, ${headerColorFrom}, ${headerColorTo})`, color: 'white' }
+                    : { background: '#f3f4f6', color: '#374151' }
+                  }
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Products Grid - Remove Category Filter */}
+      {/* Products Grid */}
       <main className="max-w-7xl mx-auto px-4 py-6 mt-4">
         {loading ? (
           <div className="text-center py-12">
@@ -498,14 +533,14 @@ export default function KantinPage() {
         ) : filteredProducts.length === 0 ? (
           <div className="text-center py-12">
             <p className="text-gray-500 text-lg mb-2">
-              {searchQuery ? '🔍 Produk tidak ditemukan' : '📦 Belum ada produk tersedia'}
+              {searchQuery || selectedCategory !== 'all' ? '🔍 Produk tidak ditemukan' : '📦 Belum ada produk tersedia'}
             </p>
-            {searchQuery && (
+            {(searchQuery || selectedCategory !== 'all') && (
               <button
-                onClick={() => setSearchQuery('')}
+                onClick={() => { setSearchQuery(''); setSelectedCategory('all') }}
                 className="text-red-600 hover:text-red-700 font-medium"
               >
-                Hapus pencarian
+                Hapus filter
               </button>
             )}
           </div>
@@ -513,7 +548,7 @@ export default function KantinPage() {
           <>
             {/* Products Count */}
             <div className="mb-4 text-sm text-gray-600">
-              Menampilkan {filteredProducts.length} produk
+              Menampilkan {filteredProducts.length} produk{selectedCategory !== 'all' ? ` — ${selectedCategory}` : ''}
             </div>
 
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
