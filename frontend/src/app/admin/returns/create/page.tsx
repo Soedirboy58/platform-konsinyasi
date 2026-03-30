@@ -523,7 +523,7 @@ export default function CreateReturnPage() {
                   <option value="Lainnya">Lainnya</option>
                 </select>
                 <textarea
-                  value={reason.startsWith('Produk rusak') || reason.startsWith('Produk expired') || reason.startsWith('Produk tidak') || reason.startsWith('Kualitas') ? reason : ''}
+                  value={reason}
                   onChange={(e) => setReason(e.target.value)}
                   placeholder="Jelaskan detail alasan retur..."
                   rows={3}
