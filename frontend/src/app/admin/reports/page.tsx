@@ -7,7 +7,12 @@ import {
   TrendingUp,
   Package,
   ArrowRight,
-  DollarSign
+  DollarSign,
+  Eye,
+  ShoppingCart,
+  CreditCard,
+  CheckCircle,
+  MapPin
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
@@ -24,9 +29,20 @@ interface WeeklySales {
   sales: number
 }
 
+interface OutletTraffic {
+  location_id: string
+  name: string
+  page_views: number
+  cart_adds: number
+  checkout_starts: number
+  transactions_completed: number
+}
+
 export default function ReportsAnalytics() {
   const [loading, setLoading] = useState(true)
   const [period, setPeriod] = useState<'week' | 'month' | 'quarter' | 'semester' | 'year'>('month')
+  const [trafficData, setTrafficData] = useState<OutletTraffic[]>([])
+  const [trafficLoading, setTrafficLoading] = useState(true)
   
   // Top 5 Products for Pie Chart
   const [topProducts, setTopProducts] = useState<ProductSales[]>([])
@@ -40,6 +56,69 @@ export default function ReportsAnalytics() {
   useEffect(() => {
     loadChartData()
   }, [period])
+
+  useEffect(() => {
+    loadTrafficData()
+  }, [])
+
+  const loadTrafficData = async () => {
+    setTrafficLoading(true)
+    const supabase = createClient()
+    try {
+      // Today's date range (local midnight → next midnight)
+      const todayStart = new Date()
+      todayStart.setHours(0, 0, 0, 0)
+      const todayEnd = new Date()
+      todayEnd.setHours(23, 59, 59, 999)
+
+      // Load all active outlets
+      const { data: outlets } = await supabase
+        .from('locations')
+        .select('id, name')
+        .eq('type', 'OUTLET')
+        .eq('is_active', true)
+
+      if (!outlets || outlets.length === 0) {
+        setTrafficData([])
+        return
+      }
+
+      // Load page_view events today
+      const { data: views } = await supabase
+        .from('outlet_page_views')
+        .select('location_id, event_type')
+        .gte('created_at', todayStart.toISOString())
+        .lte('created_at', todayEnd.toISOString())
+
+      // Load completed transactions today
+      const { data: txns } = await supabase
+        .from('sales_transactions')
+        .select('location_id')
+        .eq('status', 'COMPLETED')
+        .gte('paid_at', todayStart.toISOString())
+        .lte('paid_at', todayEnd.toISOString())
+
+      // Aggregate per outlet
+      const result: OutletTraffic[] = outlets.map(outlet => {
+        const outletViews = views?.filter(v => v.location_id === outlet.id) || []
+        const outletTxns = txns?.filter(t => t.location_id === outlet.id) || []
+        return {
+          location_id: outlet.id,
+          name: outlet.name,
+          page_views: outletViews.filter(v => v.event_type === 'page_view').length,
+          cart_adds: outletViews.filter(v => v.event_type === 'cart_add').length,
+          checkout_starts: outletViews.filter(v => v.event_type === 'checkout_start').length,
+          transactions_completed: outletTxns.length
+        }
+      })
+
+      setTrafficData(result)
+    } catch (error) {
+      console.error('Error loading traffic data:', error)
+    } finally {
+      setTrafficLoading(false)
+    }
+  }
 
   const loadChartData = async () => {
     setLoading(true)
@@ -203,6 +282,104 @@ export default function ReportsAnalytics() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 py-8">
+
+        {/* === TRAFFIC HARI INI === */}
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                <Eye className="w-5 h-5 text-indigo-600" />
+                Trafik Outlet — Hari Ini
+              </h2>
+              <p className="text-sm text-gray-500 mt-0.5">Kunjungan, keranjang, dan transaksi dalam 24 jam terakhir</p>
+            </div>
+            <button
+              onClick={loadTrafficData}
+              className="text-sm text-indigo-600 hover:text-indigo-800 font-medium"
+            >
+              ↻ Refresh
+            </button>
+          </div>
+
+          {trafficLoading ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {[1,2,3].map(i => (
+                <div key={i} className="bg-white rounded-xl border border-gray-200 p-5 animate-pulse">
+                  <div className="h-4 bg-gray-200 rounded w-3/4 mb-3" />
+                  <div className="grid grid-cols-4 gap-2">
+                    {[1,2,3,4].map(j => <div key={j} className="h-10 bg-gray-100 rounded" />)}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : trafficData.length === 0 ? (
+            <div className="bg-white rounded-xl border border-gray-200 p-8 text-center">
+              <MapPin className="w-10 h-10 text-gray-300 mx-auto mb-3" />
+              <p className="text-gray-500 text-sm">Belum ada outlet aktif atau data trafik belum tersedia.</p>
+              <p className="text-gray-400 text-xs mt-1">Pastikan migration 041 sudah dijalankan di Supabase.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {trafficData.map(outlet => {
+                const conversionRate = outlet.page_views > 0
+                  ? Math.round((outlet.transactions_completed / outlet.page_views) * 100)
+                  : 0
+                return (
+                  <div key={outlet.location_id} className="bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow p-5">
+                    <div className="flex items-center gap-2 mb-4">
+                      <div className="w-8 h-8 bg-indigo-100 rounded-lg flex items-center justify-center">
+                        <MapPin className="w-4 h-4 text-indigo-600" />
+                      </div>
+                      <h3 className="font-semibold text-gray-900 text-sm truncate">{outlet.name}</h3>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      {/* Page Views */}
+                      <div className="bg-blue-50 rounded-lg p-3">
+                        <div className="flex items-center gap-1.5 mb-1">
+                          <Eye className="w-3.5 h-3.5 text-blue-600" />
+                          <span className="text-xs text-blue-700 font-medium">Kunjungan</span>
+                        </div>
+                        <p className="text-2xl font-bold text-blue-800">{outlet.page_views}</p>
+                      </div>
+                      {/* Cart Adds */}
+                      <div className="bg-amber-50 rounded-lg p-3">
+                        <div className="flex items-center gap-1.5 mb-1">
+                          <ShoppingCart className="w-3.5 h-3.5 text-amber-600" />
+                          <span className="text-xs text-amber-700 font-medium">Klik Keranjang</span>
+                        </div>
+                        <p className="text-2xl font-bold text-amber-800">{outlet.cart_adds}</p>
+                      </div>
+                      {/* Checkout Starts */}
+                      <div className="bg-purple-50 rounded-lg p-3">
+                        <div className="flex items-center gap-1.5 mb-1">
+                          <CreditCard className="w-3.5 h-3.5 text-purple-600" />
+                          <span className="text-xs text-purple-700 font-medium">Lanjut Bayar</span>
+                        </div>
+                        <p className="text-2xl font-bold text-purple-800">{outlet.checkout_starts}</p>
+                      </div>
+                      {/* Completed Transactions */}
+                      <div className="bg-green-50 rounded-lg p-3">
+                        <div className="flex items-center gap-1.5 mb-1">
+                          <CheckCircle className="w-3.5 h-3.5 text-green-600" />
+                          <span className="text-xs text-green-700 font-medium">Transaksi Selesai</span>
+                        </div>
+                        <p className="text-2xl font-bold text-green-800">{outlet.transactions_completed}</p>
+                      </div>
+                    </div>
+                    {/* Conversion indicator */}
+                    <div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-between">
+                      <span className="text-xs text-gray-500">Konversi kunjungan → transaksi</span>
+                      <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${conversionRate >= 20 ? 'bg-green-100 text-green-700' : conversionRate >= 10 ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-600'}`}>
+                        {conversionRate}%
+                      </span>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+
         {/* Charts Section */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
           {/* Pie Chart - Top 5 Products */}

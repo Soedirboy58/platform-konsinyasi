@@ -1,7 +1,7 @@
 ﻿'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { Save, Info, DollarSign, Calculator, User, Bell, Database, Eye, EyeOff, Lock, Mail, Camera, MapPin, QrCode, Plus, Trash2, Edit, Download, Printer } from 'lucide-react'
+import { Save, Info, DollarSign, Calculator, User, Bell, Database, Eye, EyeOff, Lock, Mail, Camera, MapPin, QrCode, Plus, Trash2, Edit, Download, Printer, Upload, Image, Layers, ChevronDown, ChevronUp, GripVertical } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import dynamic from 'next/dynamic'
@@ -20,6 +20,22 @@ type Location = {
   type: string
   is_active: boolean
   created_at: string
+  // Kustomisasi tampilan outlet
+  logo_url?: string | null
+  brand_name?: string | null
+  header_color_from?: string | null
+  header_color_to?: string | null
+}
+
+type CarouselSlide = {
+  id: string
+  location_id: string
+  image_url: string
+  title: string | null
+  subtitle: string | null
+  link_url: string | null
+  is_active: boolean
+  sort_order: number
 }
 
 export default function Settings() {
@@ -38,8 +54,19 @@ export default function Settings() {
     address: '',
     qr_code: '',
     qris_code: '',
-    qris_image_url: ''
+    qris_image_url: '',
+    logo_url: '',
+    brand_name: '',
+    header_color_from: '#dc2626',
+    header_color_to: '#ea580c'
   })
+  // Carousel state
+  const [carouselOutletId, setCarouselOutletId] = useState<string | null>(null)
+  const [carouselSlides, setCarouselSlides] = useState<CarouselSlide[]>([])
+  const [carouselLoading, setCarouselLoading] = useState(false)
+  const [newSlide, setNewSlide] = useState({ title: '', subtitle: '', image_url: '' })
+  const [uploadingSlide, setUploadingSlide] = useState(false)
+  const [uploadingLogo, setUploadingLogo] = useState(false)
   const [showBarcodeModal, setShowBarcodeModal] = useState(false)
   const [selectedOutletForBarcode, setSelectedOutletForBarcode] = useState<Location | null>(null)
   const qrCanvasRef = useRef<HTMLCanvasElement>(null)
@@ -199,6 +226,10 @@ export default function Settings() {
             qr_code: qrSlug,
             qris_code: outletForm.qris_code || null,
             qris_image_url: outletForm.qris_image_url || null,
+            logo_url: outletForm.logo_url || null,
+            brand_name: outletForm.brand_name || null,
+            header_color_from: outletForm.header_color_from || '#dc2626',
+            header_color_to: outletForm.header_color_to || '#ea580c',
             updated_at: new Date().toISOString()
           })
           .eq('id', editingOutlet.id)
@@ -215,6 +246,10 @@ export default function Settings() {
             qr_code: qrSlug,
             qris_code: outletForm.qris_code || null,
             qris_image_url: outletForm.qris_image_url || null,
+            logo_url: outletForm.logo_url || null,
+            brand_name: outletForm.brand_name || null,
+            header_color_from: outletForm.header_color_from || '#dc2626',
+            header_color_to: outletForm.header_color_to || '#ea580c',
             type: 'OUTLET',
             is_active: true
           })
@@ -224,7 +259,7 @@ export default function Settings() {
       }
 
       // Reset form
-      setOutletForm({ name: '', address: '', qr_code: '', qris_code: '', qris_image_url: '' })
+      setOutletForm({ name: '', address: '', qr_code: '', qris_code: '', qris_image_url: '', logo_url: '', brand_name: '', header_color_from: '#dc2626', header_color_to: '#ea580c' })
       setShowOutletForm(false)
       setEditingOutlet(null)
       loadOutlets()
@@ -241,9 +276,131 @@ export default function Settings() {
       address: outlet.address,
       qr_code: outlet.qr_code,
       qris_code: outlet.qris_code || '',
-      qris_image_url: outlet.qris_image_url || ''
+      qris_image_url: outlet.qris_image_url || '',
+      logo_url: outlet.logo_url || '',
+      brand_name: outlet.brand_name || '',
+      header_color_from: outlet.header_color_from || '#dc2626',
+      header_color_to: outlet.header_color_to || '#ea580c'
     })
     setShowOutletForm(true)
+  }
+
+  const handleLogoUpload = async (file: File) => {
+    if (!file) return
+    setUploadingLogo(true)
+    try {
+      const supabase = createClient()
+      const ext = file.name.split('.').pop()
+      const path = `logos/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+      const { error: uploadError } = await supabase.storage.from('outlet-media').upload(path, file)
+      if (uploadError) throw uploadError
+      const { data: { publicUrl } } = supabase.storage.from('outlet-media').getPublicUrl(path)
+      setOutletForm(prev => ({ ...prev, logo_url: publicUrl }))
+      toast.success('Logo berhasil diupload!')
+    } catch (error: any) {
+      toast.error('Gagal upload logo: ' + error.message)
+    } finally {
+      setUploadingLogo(false)
+    }
+  }
+
+  const loadCarouselSlides = async (locationId: string) => {
+    setCarouselLoading(true)
+    try {
+      const supabase = createClient()
+      const { data, error } = await supabase
+        .from('outlet_carousel_slides')
+        .select('*')
+        .eq('location_id', locationId)
+        .order('sort_order', { ascending: true })
+      if (error) throw error
+      setCarouselSlides(data || [])
+    } catch (error: any) {
+      toast.error('Gagal memuat slide: ' + error.message)
+    } finally {
+      setCarouselLoading(false)
+    }
+  }
+
+  const handleToggleCarousel = (outletId: string) => {
+    if (carouselOutletId === outletId) {
+      setCarouselOutletId(null)
+      setCarouselSlides([])
+    } else {
+      setCarouselOutletId(outletId)
+      loadCarouselSlides(outletId)
+    }
+  }
+
+  const handleSlideImageUpload = async (file: File): Promise<string> => {
+    const supabase = createClient()
+    const ext = file.name.split('.').pop()
+    const path = `slides/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+    const { error } = await supabase.storage.from('outlet-media').upload(path, file)
+    if (error) throw error
+    const { data: { publicUrl } } = supabase.storage.from('outlet-media').getPublicUrl(path)
+    return publicUrl
+  }
+
+  const handleAddSlide = async (file: File | null) => {
+    if (!carouselOutletId) return
+    setUploadingSlide(true)
+    try {
+      const supabase = createClient()
+      let imageUrl = newSlide.image_url
+      if (file) {
+        imageUrl = await handleSlideImageUpload(file)
+      }
+      if (!imageUrl) {
+        toast.error('Pilih gambar untuk slide')
+        setUploadingSlide(false)
+        return
+      }
+      const maxOrder = carouselSlides.length > 0 ? Math.max(...carouselSlides.map(s => s.sort_order)) + 1 : 0
+      const { error } = await supabase.from('outlet_carousel_slides').insert({
+        location_id: carouselOutletId,
+        image_url: imageUrl,
+        title: newSlide.title || null,
+        subtitle: newSlide.subtitle || null,
+        is_active: true,
+        sort_order: maxOrder
+      })
+      if (error) throw error
+      toast.success('Slide berhasil ditambahkan!')
+      setNewSlide({ title: '', subtitle: '', image_url: '' })
+      loadCarouselSlides(carouselOutletId)
+    } catch (error: any) {
+      toast.error('Gagal menambah slide: ' + error.message)
+    } finally {
+      setUploadingSlide(false)
+    }
+  }
+
+  const handleDeleteSlide = async (slideId: string) => {
+    if (!confirm('Hapus slide ini?')) return
+    try {
+      const supabase = createClient()
+      const { error } = await supabase.from('outlet_carousel_slides').delete().eq('id', slideId)
+      if (error) throw error
+      toast.success('Slide dihapus!')
+      if (carouselOutletId) loadCarouselSlides(carouselOutletId)
+    } catch (error: any) {
+      toast.error('Gagal hapus slide: ' + error.message)
+    }
+  }
+
+  const handleToggleSlide = async (slide: CarouselSlide) => {
+    try {
+      const supabase = createClient()
+      const { error } = await supabase
+        .from('outlet_carousel_slides')
+        .update({ is_active: !slide.is_active })
+        .eq('id', slide.id)
+      if (error) throw error
+      if (carouselOutletId) loadCarouselSlides(carouselOutletId)
+    } catch (error: any) {
+      toast.error('Gagal mengubah status slide')
+    }
   }
 
   const handleDeleteOutlet = async (id: string) => {
@@ -572,7 +729,7 @@ export default function Settings() {
                   onClick={() => {
                     setShowOutletForm(!showOutletForm)
                     setEditingOutlet(null)
-                    setOutletForm({ name: '', address: '', qr_code: '', qris_code: '', qris_image_url: '' })
+                    setOutletForm({ name: '', address: '', qr_code: '', qris_code: '', qris_image_url: '', logo_url: '', brand_name: '', header_color_from: '#dc2626', header_color_to: '#ea580c' })
                   }}
                   className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
                 >
@@ -657,6 +814,128 @@ export default function Settings() {
                     </div>
                   </div>
 
+                  {/* --- Kustomisasi Tampilan --- */}
+                  <div className="mt-6 pt-5 border-t border-gray-200">
+                    <h4 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                      <Image className="w-4 h-4 text-purple-600" />
+                      Kustomisasi Tampilan Outlet
+                    </h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Brand Name */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Nama Brand <span className="text-gray-500 text-xs">(tampil di header)</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={outletForm.brand_name}
+                          onChange={(e) => setOutletForm({ ...outletForm, brand_name: e.target.value })}
+                          placeholder="Bisnis & Partnership"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">Kosongkan = pakai default "Bisnis & Partnership"</p>
+                      </div>
+
+                      {/* Logo Upload */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Logo Outlet <span className="text-gray-500 text-xs">(di samping nama brand)</span>
+                        </label>
+                        <div className="flex items-center gap-3">
+                          {outletForm.logo_url && (
+                            <img src={outletForm.logo_url} alt="logo" className="w-12 h-12 rounded-lg object-cover border border-gray-200" />
+                          )}
+                          <label className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 border-2 border-dashed border-gray-300 rounded-lg hover:border-purple-400 cursor-pointer transition-colors">
+                            <Upload className="w-4 h-4 text-gray-500" />
+                            <span className="text-sm text-gray-600">
+                              {uploadingLogo ? 'Mengupload...' : 'Pilih Logo'}
+                            </span>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              disabled={uploadingLogo}
+                              onChange={(e) => {
+                                const file = e.target.files?.[0]
+                                if (file) handleLogoUpload(file)
+                              }}
+                            />
+                          </label>
+                          {outletForm.logo_url && (
+                            <button
+                              onClick={() => setOutletForm(prev => ({ ...prev, logo_url: '' }))}
+                              className="text-red-500 hover:text-red-700 text-xs"
+                            >
+                              Hapus
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Header Color From */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Warna Header — Mulai
+                        </label>
+                        <div className="flex items-center gap-3">
+                          <input
+                            type="color"
+                            value={outletForm.header_color_from}
+                            onChange={(e) => setOutletForm({ ...outletForm, header_color_from: e.target.value })}
+                            className="w-12 h-10 rounded-lg border border-gray-300 cursor-pointer p-0.5"
+                          />
+                          <input
+                            type="text"
+                            value={outletForm.header_color_from}
+                            onChange={(e) => setOutletForm({ ...outletForm, header_color_from: e.target.value })}
+                            placeholder="#dc2626"
+                            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm font-mono"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Header Color To */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Warna Header — Akhir
+                        </label>
+                        <div className="flex items-center gap-3">
+                          <input
+                            type="color"
+                            value={outletForm.header_color_to}
+                            onChange={(e) => setOutletForm({ ...outletForm, header_color_to: e.target.value })}
+                            className="w-12 h-10 rounded-lg border border-gray-300 cursor-pointer p-0.5"
+                          />
+                          <input
+                            type="text"
+                            value={outletForm.header_color_to}
+                            onChange={(e) => setOutletForm({ ...outletForm, header_color_to: e.target.value })}
+                            placeholder="#ea580c"
+                            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm font-mono"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Preview */}
+                    <div className="mt-4">
+                      <p className="text-xs text-gray-500 mb-2">Preview header:</p>
+                      <div
+                        className="rounded-xl px-4 py-3 flex items-center gap-3 text-white shadow"
+                        style={{ background: `linear-gradient(to right, ${outletForm.header_color_from || '#dc2626'}, ${outletForm.header_color_to || '#ea580c'})` }}
+                      >
+                        {outletForm.logo_url
+                          ? <img src={outletForm.logo_url} alt="logo" className="w-8 h-8 rounded-lg object-cover bg-white/20" />
+                          : <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center text-lg">🏪</div>
+                        }
+                        <div>
+                          <p className="font-bold text-base leading-tight">{outletForm.brand_name || 'Bisnis & Partnership'}</p>
+                          <p className="text-xs opacity-80">{outletForm.name || 'Nama outlet'}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
                   <div className="flex gap-3 mt-6">
                     <button
                       onClick={handleSaveOutlet}
@@ -668,7 +947,7 @@ export default function Settings() {
                       onClick={() => {
                         setShowOutletForm(false)
                         setEditingOutlet(null)
-                        setOutletForm({ name: '', address: '', qr_code: '', qris_code: '', qris_image_url: '' })
+                        setOutletForm({ name: '', address: '', qr_code: '', qris_code: '', qris_image_url: '', logo_url: '', brand_name: '', header_color_from: '#dc2626', header_color_to: '#ea580c' })
                       }}
                       className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 font-medium"
                     >
@@ -690,8 +969,20 @@ export default function Settings() {
                     {outlets.map((outlet) => (
                       <div
                         key={outlet.id}
-                        className={`border rounded-lg p-4 ${outlet.is_active ? 'bg-white border-gray-200' : 'bg-gray-50 border-gray-300'}`}
+                        className={`border rounded-lg overflow-hidden ${outlet.is_active ? 'bg-white border-gray-200' : 'bg-gray-50 border-gray-300'}`}
                       >
+                        {/* Mini header preview */}
+                        <div
+                          className="px-4 py-2.5 flex items-center gap-2 text-white text-sm"
+                          style={{ background: `linear-gradient(to right, ${outlet.header_color_from || '#dc2626'}, ${outlet.header_color_to || '#ea580c'})` }}
+                        >
+                          {outlet.logo_url
+                            ? <img src={outlet.logo_url} alt="logo" className="w-6 h-6 rounded object-cover" />
+                            : <span>🏪</span>
+                          }
+                          <span className="font-semibold">{outlet.brand_name || 'Bisnis & Partnership'}</span>
+                        </div>
+                        <div className="p-4">
                         <div className="flex items-start justify-between mb-3">
                           <div className="flex-1">
                             <div className="flex items-center gap-2 mb-1">
@@ -779,7 +1070,95 @@ export default function Settings() {
                               <Trash2 className="w-4 h-4" />
                             </button>
                           </div>
+
+                          {/* Carousel Toggle Button */}
+                          <button
+                            onClick={() => handleToggleCarousel(outlet.id)}
+                            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-orange-500 to-pink-500 text-white rounded-lg hover:from-orange-600 hover:to-pink-600 font-medium transition-all"
+                          >
+                            <Layers className="w-4 h-4" />
+                            Kelola Slide Carousel
+                            {carouselOutletId === outlet.id ? <ChevronUp className="w-4 h-4 ml-auto" /> : <ChevronDown className="w-4 h-4 ml-auto" />}
+                          </button>
                         </div>
+                        </div>{/* end p-4 */}
+
+                        {/* === CAROUSEL MANAGEMENT === */}
+                        {carouselOutletId === outlet.id && (
+                          <div className="border-t border-orange-100 bg-orange-50 p-4">
+                            <h4 className="font-semibold text-gray-800 mb-3 flex items-center gap-2 text-sm">
+                              <Layers className="w-4 h-4 text-orange-600" />
+                              Slide Carousel — {outlet.name}
+                            </h4>
+
+                            {/* Existing Slides */}
+                            {carouselLoading ? (
+                              <p className="text-sm text-gray-500 py-2">Memuat slide...</p>
+                            ) : carouselSlides.length === 0 ? (
+                              <p className="text-sm text-gray-500 py-2">Belum ada slide.</p>
+                            ) : (
+                              <div className="space-y-2 mb-4">
+                                {carouselSlides.map((slide, idx) => (
+                                  <div key={slide.id} className="flex items-center gap-3 bg-white rounded-lg p-2.5 border border-gray-200">
+                                    <img src={slide.image_url} alt={slide.title || `Slide ${idx+1}`} className="w-16 h-10 object-cover rounded flex-shrink-0" />
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-sm font-medium text-gray-800 truncate">{slide.title || `Slide ${idx+1}`}</p>
+                                      {slide.subtitle && <p className="text-xs text-gray-500 truncate">{slide.subtitle}</p>}
+                                    </div>
+                                    <button
+                                      onClick={() => handleToggleSlide(slide)}
+                                      className={`text-xs px-2 py-1 rounded-full flex-shrink-0 ${slide.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}
+                                    >
+                                      {slide.is_active ? 'Aktif' : 'Off'}
+                                    </button>
+                                    <button
+                                      onClick={() => handleDeleteSlide(slide.id)}
+                                      className="text-red-500 hover:text-red-700 flex-shrink-0"
+                                    >
+                                      <Trash2 className="w-4 h-4" />
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+
+                            {/* Add New Slide Form */}
+                            <div className="bg-white rounded-lg p-3 border border-orange-200">
+                              <p className="text-xs font-semibold text-gray-600 mb-2">+ Tambah Slide Baru</p>
+                              <div className="space-y-2">
+                                <input
+                                  type="text"
+                                  placeholder="Judul slide (opsional)"
+                                  value={newSlide.title}
+                                  onChange={(e) => setNewSlide(prev => ({ ...prev, title: e.target.value }))}
+                                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-400"
+                                />
+                                <input
+                                  type="text"
+                                  placeholder="Subjudul / deskripsi (opsional)"
+                                  value={newSlide.subtitle}
+                                  onChange={(e) => setNewSlide(prev => ({ ...prev, subtitle: e.target.value }))}
+                                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-400"
+                                />
+                                <label className="flex items-center justify-center gap-2 w-full px-4 py-2.5 border-2 border-dashed border-orange-300 rounded-lg hover:border-orange-500 cursor-pointer text-sm text-gray-600 transition-colors">
+                                  <Upload className="w-4 h-4 text-orange-500" />
+                                  {uploadingSlide ? 'Mengupload...' : 'Pilih Gambar & Tambah Slide'}
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    className="hidden"
+                                    disabled={uploadingSlide}
+                                    onChange={(e) => {
+                                      const file = e.target.files?.[0]
+                                      if (file) handleAddSlide(file)
+                                      e.target.value = ''
+                                    }}
+                                  />
+                                </label>
+                              </div>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>

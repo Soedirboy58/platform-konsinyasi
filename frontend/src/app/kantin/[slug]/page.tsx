@@ -1,9 +1,9 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { ShoppingCart, Scan, Plus, Minus, Search, Filter, X, AlertTriangle, Store } from 'lucide-react'
+import { ShoppingCart, Scan, Plus, Minus, Search, Filter, X, AlertTriangle, Store, ChevronLeft, ChevronRight } from 'lucide-react'
 import { toast } from 'sonner'
 import ReportProductModal from '@/components/ReportProductModal'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
@@ -23,6 +23,13 @@ type Product = {
 }
 
 type CartItem = Product & { cartQuantity: number }
+
+type CarouselSlide = {
+  id: string
+  image_url: string
+  title: string | null
+  subtitle: string | null
+}
 
 // Kategori untuk kantin kejujuran
 const CATEGORIES = [
@@ -45,12 +52,24 @@ export default function KantinPage() {
   const [loading, setLoading] = useState(true)
   const [locationName, setLocationName] = useState('')
   const [locationId, setLocationId] = useState<string>('')
+  // Outlet customization
+  const [locationLogo, setLocationLogo] = useState<string | null>(null)
+  const [locationBrandName, setLocationBrandName] = useState('Bisnis & Partnership')
+  const [headerColorFrom, setHeaderColorFrom] = useState('#dc2626')
+  const [headerColorTo, setHeaderColorTo] = useState('#ea580c')
+  // Carousel
+  const [carouselSlides, setCarouselSlides] = useState<CarouselSlide[]>([])
+  const [currentSlide, setCurrentSlide] = useState(0)
+  // Misc
   const [selectedCategory, setSelectedCategory] = useState('all')
   const [searchQuery, setSearchQuery] = useState('')
   const [showCart, setShowCart] = useState(false)
   const [isReportModalOpen, setIsReportModalOpen] = useState(false)
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
   const [showClearCartConfirm, setShowClearCartConfirm] = useState(false)
+  // Tracking refs (fire-once per session)
+  const hasTrackedPageView = useRef(false)
+  const hasTrackedCartAdd = useRef(false)
 
   useEffect(() => {
     loadProducts()
@@ -78,6 +97,24 @@ export default function KantinPage() {
       window.removeEventListener('focus', handleFocus)
     }
   }, [locationSlug])
+
+  // Track page view + load carousel once locationId is known
+  useEffect(() => {
+    if (locationId && !hasTrackedPageView.current) {
+      hasTrackedPageView.current = true
+      trackEvent(locationId, 'page_view')
+      loadCarouselSlides(locationId)
+    }
+  }, [locationId])
+
+  // Auto-advance carousel
+  useEffect(() => {
+    if (carouselSlides.length <= 1) return
+    const timer = setInterval(() => {
+      setCurrentSlide(prev => (prev + 1) % carouselSlides.length)
+    }, 4000)
+    return () => clearInterval(timer)
+  }, [carouselSlides.length])
 
   function loadCartFromStorage() {
     try {
@@ -132,6 +169,26 @@ export default function KantinPage() {
     setShowCart(false)
   }
 
+  function trackEvent(locId: string, eventType: 'page_view' | 'cart_add' | 'checkout_start') {
+    const supabase = createClient()
+    supabase.from('outlet_page_views').insert({ location_id: locId, event_type: eventType }).then()
+  }
+
+  async function loadCarouselSlides(locId: string) {
+    try {
+      const supabase = createClient()
+      const { data } = await supabase
+        .from('outlet_carousel_slides')
+        .select('id, image_url, title, subtitle')
+        .eq('location_id', locId)
+        .eq('is_active', true)
+        .order('sort_order', { ascending: true })
+      setCarouselSlides(data || [])
+    } catch {
+      // Carousel is optional — fail silently
+    }
+  }
+
   async function loadProducts() {
     try {
       const supabase = createClient()
@@ -139,13 +196,17 @@ export default function KantinPage() {
       // Get location info first
       const { data: locationData } = await supabase
         .from('locations')
-        .select('id, name')
+        .select('id, name, logo_url, brand_name, header_color_from, header_color_to')
         .eq('qr_code', locationSlug)
         .single()
       
       if (locationData) {
         setLocationId(locationData.id)
         setLocationName(locationData.name)
+        if (locationData.logo_url) setLocationLogo(locationData.logo_url)
+        if (locationData.brand_name) setLocationBrandName(locationData.brand_name)
+        if (locationData.header_color_from) setHeaderColorFrom(locationData.header_color_from)
+        if (locationData.header_color_to) setHeaderColorTo(locationData.header_color_to)
       }
       
       // Get products by location QR code
@@ -200,6 +261,13 @@ export default function KantinPage() {
       
       saveCartToStorage(newCart)
       toast.success('Ditambahkan ke keranjang')
+
+      // Track first cart add per session
+      if (!hasTrackedCartAdd.current && locationId) {
+        hasTrackedCartAdd.current = true
+        trackEvent(locationId, 'cart_add')
+      }
+
       return newCart
     })
   }
@@ -264,6 +332,9 @@ export default function KantinPage() {
       return
     }
 
+    // Track checkout start
+    if (locationId) trackEvent(locationId, 'checkout_start')
+
     // Save cart to sessionStorage before navigating
     // Keep SAME structure with cartQuantity to maintain consistency
     const cartForCheckout = cart.map(item => ({
@@ -298,14 +369,21 @@ export default function KantinPage() {
   return (
     <div className="min-h-screen bg-gray-50 pb-32">
       {/* Header */}
-      <header className="bg-gradient-to-r from-red-600 to-orange-600 text-white sticky top-0 z-20 shadow-lg">
+      <header
+        className="text-white sticky top-0 z-20 shadow-lg"
+        style={{ background: `linear-gradient(to right, ${headerColorFrom}, ${headerColorTo})` }}
+      >
         <div className="max-w-7xl mx-auto px-4 py-4">
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-3">
-              <Store className="w-8 h-8" />
+              {locationLogo ? (
+                <img src={locationLogo} alt="logo" className="w-10 h-10 rounded-lg object-cover bg-white/20" />
+              ) : (
+                <Store className="w-8 h-8" />
+              )}
               <div>
-                <h1 className="text-2xl font-bold">Bisnis & Partnership</h1>
-                <p className="text-sm text-red-100">{locationName || 'Belanja mudah, bayar jujur'}</p>
+                <h1 className="text-2xl font-bold">{locationBrandName}</h1>
+                <p className="text-sm opacity-80">{locationName || 'Belanja mudah, bayar jujur'}</p>
               </div>
             </div>
             
@@ -327,6 +405,64 @@ export default function KantinPage() {
           </div>
         </div>
       </header>
+
+      {/* Promotional Carousel */}
+      {carouselSlides.length > 0 && (
+        <section className="max-w-7xl mx-auto px-4 pt-4">
+          <div className="relative overflow-hidden rounded-2xl shadow-lg bg-white border border-gray-100">
+            <div className="relative h-44 sm:h-56 md:h-64">
+              {carouselSlides.map((slide, index) => (
+                <div
+                  key={slide.id}
+                  className={`absolute inset-0 transition-opacity duration-700 ${index === currentSlide ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+                >
+                  <img
+                    src={slide.image_url}
+                    alt={slide.title || `Promo ${index + 1}`}
+                    className="w-full h-full object-cover"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-r from-black/65 via-black/30 to-transparent" />
+                  <div className="absolute inset-0 p-5 sm:p-7 flex items-end">
+                    <div className="max-w-xl text-white">
+                      {slide.title && <h2 className="text-xl sm:text-2xl font-bold leading-tight">{slide.title}</h2>}
+                      {slide.subtitle && <p className="text-sm sm:text-base mt-2 text-white/90">{slide.subtitle}</p>}
+                    </div>
+                  </div>
+                </div>
+              ))}
+
+              {carouselSlides.length > 1 && (
+                <>
+                  <button
+                    onClick={() => setCurrentSlide(prev => (prev === 0 ? carouselSlides.length - 1 : prev - 1))}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/20 backdrop-blur-sm text-white hover:bg-white/30 flex items-center justify-center"
+                    aria-label="Slide sebelumnya"
+                  >
+                    <ChevronLeft className="w-5 h-5" />
+                  </button>
+                  <button
+                    onClick={() => setCurrentSlide(prev => (prev + 1) % carouselSlides.length)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/20 backdrop-blur-sm text-white hover:bg-white/30 flex items-center justify-center"
+                    aria-label="Slide berikutnya"
+                  >
+                    <ChevronRight className="w-5 h-5" />
+                  </button>
+                  <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-2">
+                    {carouselSlides.map((slide, index) => (
+                      <button
+                        key={slide.id}
+                        onClick={() => setCurrentSlide(index)}
+                        className={`w-2.5 h-2.5 rounded-full transition-all ${index === currentSlide ? 'bg-white w-6' : 'bg-white/50'}`}
+                        aria-label={`Pilih slide ${index + 1}`}
+                      />
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Search Bar */}
       <div className="sticky top-[72px] z-10 bg-white shadow-md">
