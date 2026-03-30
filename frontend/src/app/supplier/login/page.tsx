@@ -78,6 +78,20 @@ function SupplierLoginContent() {
         }
 
         if (data.user) {
+          // Cek apakah email ini sudah terdaftar sebagai admin
+          const { data: existingProfile } = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', data.user.id)
+            .maybeSingle()
+
+          if (existingProfile?.role === 'ADMIN' || existingProfile?.role === 'SUPER_ADMIN') {
+            await supabase.auth.signOut()
+            toast.error('Email ini terdaftar sebagai akun admin. Gunakan halaman Admin Login.', { duration: 6000 })
+            setLoading(false)
+            return
+          }
+
           toast.success('✅ Registrasi berhasil! Silakan cek email Anda untuk verifikasi akun.', {
             duration: 6000,
             description: 'Klik link verifikasi di email, lalu login kembali untuk melengkapi data supplier.'
@@ -95,13 +109,25 @@ function SupplierLoginContent() {
 
         if (error) throw error
 
-        // Update profile role to SUPPLIER if not set yet
+        // PROTEKSI: Cek role sebelum proses lebih lanjut
         const { data: profile } = await supabase
           .from('profiles')
           .select('role')
           .eq('id', loginData.user.id)
           .single()
 
+        // Tolak login admin di halaman supplier — jangan pernah overwrite role admin
+        if (profile?.role === 'ADMIN' || profile?.role === 'SUPER_ADMIN') {
+          await supabase.auth.signOut()
+          toast.error('Email ini terdaftar sebagai akun admin.', {
+            duration: 6000,
+            description: 'Silakan gunakan halaman Admin Login untuk masuk.'
+          })
+          setLoading(false)
+          return
+        }
+
+        // Update profile role to SUPPLIER if not set yet
         if (!profile || profile.role !== 'SUPPLIER') {
           await supabase
             .from('profiles')
