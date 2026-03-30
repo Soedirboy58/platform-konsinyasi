@@ -70,10 +70,10 @@ export default function CheckoutPage() {
     }
   }
 
-  // Countdown timer: starts at 30s when QRIS screen appears
+  // Countdown timer: starts at 15s when QRIS screen appears
   useEffect(() => {
     if (!checkoutResult || selectedPaymentMethod !== 'QRIS') return
-    setTimerSeconds(30)
+    setTimerSeconds(15)
     const interval = setInterval(() => {
       setTimerSeconds(prev => {
         if (prev <= 1) { clearInterval(interval); return 0 }
