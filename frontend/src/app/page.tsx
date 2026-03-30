@@ -19,11 +19,7 @@ type CarouselItem = {
   logoUrl?: string | null
 }
 
-const STATIC_SLIDES: CarouselItem[] = [
-  { id: 'static-1', type: 'banner', title: 'Platform Konsinyasi Digital', subtitle: 'Solusi modern untuk mengelola bisnis konsinyasi Anda', imageUrl: null, linkUrl: '/supplier/login', buttonText: 'Mulai Sekarang', badgeText: null, bgFrom: '#10b981', bgTo: '#0d9488' },
-  { id: 'static-2', type: 'banner', title: 'Self-Checkout yang Mudah', subtitle: 'Kantin kejujuran dengan teknologi modern', imageUrl: null, linkUrl: null, buttonText: 'Pelajari Lebih Lanjut', badgeText: null, bgFrom: '#3b82f6', bgTo: '#0891b2' },
-  { id: 'static-3', type: 'banner', title: 'Kelola Stok Real-Time', subtitle: 'Pantau inventori dari mana saja', imageUrl: null, linkUrl: null, buttonText: 'Pelajari Lebih Lanjut', badgeText: null, bgFrom: '#8b5cf6', bgTo: '#ec4899' },
-]
+const STATIC_SLIDES: CarouselItem[] = []
 
 export default function Home() {
   const [currentSlide, setCurrentSlide] = useState(0)
@@ -106,14 +102,15 @@ export default function Home() {
   }, [])
 
   useEffect(() => {
+    if (carouselItems.length === 0) return
     const timer = setInterval(() => {
       setCurrentSlide((prev) => (prev + 1) % carouselItems.length)
     }, 5000)
     return () => clearInterval(timer)
   }, [carouselItems.length])
 
-  const nextSlide = () => setCurrentSlide((prev) => (prev + 1) % carouselItems.length)
-  const prevSlide = () => setCurrentSlide((prev) => (prev - 1 + carouselItems.length) % carouselItems.length)
+  const nextSlide = () => setCurrentSlide((prev) => (prev + 1) % Math.max(carouselItems.length, 1))
+  const prevSlide = () => setCurrentSlide((prev) => (prev - 1 + Math.max(carouselItems.length, 1)) % Math.max(carouselItems.length, 1))
 
   return (
     <div className="min-h-screen bg-white">
@@ -141,7 +138,8 @@ export default function Home() {
         </div>
       </header>
 
-      {/* Hero Carousel */}
+      {/* Hero Carousel - only render when data loaded */}
+      {carouselItems.length > 0 && (
       <section className="relative h-[600px] mt-16 overflow-hidden">
         {carouselItems.map((item, index) => (
           <div
@@ -233,6 +231,7 @@ export default function Home() {
           ))}
         </div>
       </section>
+      )}
 
       {/* 3 Portal Access */}
       <section id="access" className="py-20 bg-gray-50">
