@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Package, Edit, Trash2, Plus } from 'lucide-react'
+import { Package, Edit, Trash2, Plus, Boxes } from 'lucide-react'
 import { toast } from 'sonner'
 import ConfirmDialog from '@/components/supplier/ConfirmDialog'
 
@@ -20,9 +20,16 @@ type Product = {
   created_at: string
 }
 
+type StockEntry = {
+  locationId: string
+  locationName: string
+  quantity: number
+}
+
 export default function ProductsPage() {
   const router = useRouter()
   const [products, setProducts] = useState<Product[]>([])
+  const [stockMap, setStockMap] = useState<Record<string, StockEntry[]>>({})
   const [loading, setLoading] = useState(true)
   const [supplierId, setSupplierId] = useState<string | null>(null)
   const [selectedProducts, setSelectedProducts] = useState<string[]>([])
@@ -77,6 +84,28 @@ export default function ProductsPage() {
       if (error) throw error
 
       setProducts(data || [])
+
+      // Load stock per outlet for all products
+      if (data && data.length > 0) {
+        const productIds = data.map((p: Product) => p.id)
+        const { data: stockData } = await supabase
+          .from('inventory_levels')
+          .select('product_id, quantity, locations(id, name, brand_name)')
+          .in('product_id', productIds)
+
+        const map: Record<string, StockEntry[]> = {}
+        stockData?.forEach((row: any) => {
+          const loc = row.locations
+          if (!loc) return
+          if (!map[row.product_id]) map[row.product_id] = []
+          map[row.product_id].push({
+            locationId: loc.id,
+            locationName: loc.brand_name || loc.name,
+            quantity: row.quantity
+          })
+        })
+        setStockMap(map)
+      }
     } catch (error) {
       console.error('Error loading products:', error)
       toast.error('Gagal memuat produk')
@@ -283,6 +312,9 @@ export default function ProductsPage() {
                         Status
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Stok Outlet
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Barcode
                       </th>
                       <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -327,6 +359,27 @@ export default function ProductsPage() {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           {getStatusBadge(product.status)}
+                        </td>
+                        <td className="px-6 py-4">
+                          {(stockMap[product.id] || []).length === 0 ? (
+                            <span className="text-xs text-gray-400">Belum ada stok</span>
+                          ) : (
+                            <div className="flex flex-col gap-1">
+                              {(stockMap[product.id] || []).map(s => (
+                                <div key={s.locationId} className="flex items-center gap-1.5">
+                                  <span className={`inline-block w-2 h-2 rounded-full flex-shrink-0 ${
+                                    s.quantity === 0 ? 'bg-red-500' :
+                                    s.quantity <= 5 ? 'bg-orange-400' : 'bg-green-500'
+                                  }`} />
+                                  <span className="text-xs text-gray-700 truncate max-w-[120px]">{s.locationName}</span>
+                                  <span className={`text-xs font-semibold ${
+                                    s.quantity === 0 ? 'text-red-600' :
+                                    s.quantity <= 5 ? 'text-orange-600' : 'text-green-700'
+                                  }`}>{s.quantity}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           {product.barcode || '-'}
@@ -406,6 +459,33 @@ export default function ProductsPage() {
                         <p className="text-xs text-gray-500">Komisi</p>
                         <p className="font-semibold text-primary-600 text-sm">{product.commission_rate}%</p>
                       </div>
+                    </div>
+
+                    {/* Stock per Outlet */}
+                    <div className="mb-3 pb-3 border-b border-gray-100">
+                      <div className="flex items-center gap-1.5 mb-2">
+                        <Boxes className="w-3.5 h-3.5 text-gray-400" />
+                        <p className="text-xs font-medium text-gray-500">Sisa Stok Outlet</p>
+                      </div>
+                      {(stockMap[product.id] || []).length === 0 ? (
+                        <p className="text-xs text-gray-400 italic">Belum ada stok di outlet manapun</p>
+                      ) : (
+                        <div className="grid grid-cols-2 gap-x-3 gap-y-1">
+                          {(stockMap[product.id] || []).map(s => (
+                            <div key={s.locationId} className="flex items-center gap-1.5">
+                              <span className={`inline-block w-2 h-2 rounded-full flex-shrink-0 ${
+                                s.quantity === 0 ? 'bg-red-500' :
+                                s.quantity <= 5 ? 'bg-orange-400' : 'bg-green-500'
+                              }`} />
+                              <span className="text-xs text-gray-600 truncate">{s.locationName}</span>
+                              <span className={`text-xs font-bold ml-auto ${
+                                s.quantity === 0 ? 'text-red-600' :
+                                s.quantity <= 5 ? 'text-orange-600' : 'text-green-700'
+                              }`}>{s.quantity}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
 
                     {/* Actions */}
