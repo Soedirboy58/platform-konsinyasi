@@ -19,7 +19,35 @@ type CarouselItem = {
   logoUrl?: string | null
 }
 
-const STATIC_SLIDES: CarouselItem[] = []
+const STATIC_SLIDES: CarouselItem[] = [
+  {
+    id: 'intro-1', type: 'banner',
+    title: 'Selamat Datang di Katalara',
+    subtitle: 'Platform konsinyasi digital yang menghubungkan supplier, toko, dan pelanggan dalam satu ekosistem',
+    imageUrl: null, linkUrl: '/supplier/login',
+    buttonText: 'Mulai Sekarang',
+    badgeText: '✨ Platform Konsinyasi',
+    bgFrom: '#10b981', bgTo: '#0d9488'
+  },
+  {
+    id: 'intro-2', type: 'banner',
+    title: 'Outlet Virtual Siap Pakai',
+    subtitle: 'Kelola produk, stok, dan transaksi secara real-time dari mana saja',
+    imageUrl: null, linkUrl: null,
+    buttonText: 'Pelajari Lebih Lanjut',
+    badgeText: '🏪 Kelola Outlet',
+    bgFrom: '#3b82f6', bgTo: '#0891b2'
+  },
+  {
+    id: 'intro-3', type: 'banner',
+    title: 'Self-Checkout Tanpa Antre',
+    subtitle: 'Pelanggan scan QR, pilih produk, bayar sendiri — semua tercatat otomatis',
+    imageUrl: null, linkUrl: null,
+    buttonText: 'Pelajari Lebih Lanjut',
+    badgeText: '⚡ Kantin Kejujuran',
+    bgFrom: '#8b5cf6', bgTo: '#ec4899'
+  },
+]
 
 export default function Home() {
   const [currentSlide, setCurrentSlide] = useState(0)
@@ -67,13 +95,17 @@ export default function Home() {
           .select('*')
           .eq('is_active', true)
           .order('sort_order', { ascending: true })
+
+        // Jika belum ada banner dari admin → tetap tampilkan intro default
+        if (!banners || banners.length === 0) return
+
         const { data: outlets } = await supabase
           .from('locations')
           .select('id, name, brand_name, qr_code, logo_url, header_color_from, header_color_to')
           .eq('is_active', true)
           .order('name', { ascending: true })
         const items: CarouselItem[] = []
-        banners?.forEach(b => items.push({
+        banners.forEach(b => items.push({
           id: b.id, type: 'banner',
           title: b.title, subtitle: b.subtitle,
           imageUrl: b.image_url, linkUrl: b.link_url,
@@ -102,15 +134,14 @@ export default function Home() {
   }, [])
 
   useEffect(() => {
-    if (carouselItems.length === 0) return
     const timer = setInterval(() => {
       setCurrentSlide((prev) => (prev + 1) % carouselItems.length)
     }, 5000)
     return () => clearInterval(timer)
   }, [carouselItems.length])
 
-  const nextSlide = () => setCurrentSlide((prev) => (prev + 1) % Math.max(carouselItems.length, 1))
-  const prevSlide = () => setCurrentSlide((prev) => (prev - 1 + Math.max(carouselItems.length, 1)) % Math.max(carouselItems.length, 1))
+  const nextSlide = () => setCurrentSlide((prev) => (prev + 1) % carouselItems.length)
+  const prevSlide = () => setCurrentSlide((prev) => (prev - 1 + carouselItems.length) % carouselItems.length)
 
   return (
     <div className="min-h-screen bg-white">
@@ -138,8 +169,7 @@ export default function Home() {
         </div>
       </header>
 
-      {/* Hero Carousel - only render when data loaded */}
-      {carouselItems.length > 0 && (
+      {/* Hero Carousel */}
       <section className="relative h-[600px] mt-16 overflow-hidden">
         {carouselItems.map((item, index) => (
           <div
@@ -231,7 +261,6 @@ export default function Home() {
           ))}
         </div>
       </section>
-      )}
 
       {/* 3 Portal Access */}
       <section id="access" className="py-20 bg-gray-50">
