@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react'
 import { Users, Phone, Mail, MapPin, CreditCard, Building, Check, X, Search, Eye } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
+import { toast } from 'sonner'
+import ConfirmDialog from '@/components/admin/ConfirmDialog'
 
 interface Supplier {
   id: string
@@ -31,6 +33,20 @@ export default function SupplierList() {
   const [itemsPerPage, setItemsPerPage] = useState(10)
   
   const [selectedSuppliers, setSelectedSuppliers] = useState<string[]>([])
+
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean
+    title: string
+    message: string
+    onConfirm: () => void | Promise<void>
+    variant?: 'primary' | 'danger' | 'warning' | 'success'
+    icon?: 'warning' | 'danger' | 'info' | 'success'
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {}
+  })
 
   useEffect(() => {
     loadSuppliers()
@@ -83,12 +99,12 @@ export default function SupplierList() {
         .select()
 
       if (error) throw error
-      alert('Supplier berhasil di-approve')
+      toast.success('Supplier berhasil di-approve')
       await loadSuppliers()
       setSelectedSupplier(null)
     } catch (error) {
       console.error('Error approving supplier:', error)
-      alert('Gagal approve supplier')
+      toast.error('Gagal approve supplier')
     }
   }
 
@@ -102,46 +118,40 @@ export default function SupplierList() {
         .select()
 
       if (error) throw error
-      alert('Supplier berhasil di-reject')
+      toast.success('Supplier berhasil di-reject')
       await loadSuppliers()
       setSelectedSupplier(null)
     } catch (error) {
       console.error('Error rejecting supplier:', error)
-      alert('Gagal reject supplier')
+      toast.error('Gagal reject supplier')
     }
   }
 
   async function handleDelete(supplierId: string, businessName: string) {
-    const confirmed = confirm(
-      `PERHATIAN: Hapus permanen supplier "${businessName}"?\n\n` +
-      `Data yang akan dihapus:\n` +
-      `- Akun supplier\n` +
-      `- Semua produk supplier\n` +
-      `- Riwayat transaksi\n\n` +
-      `Aksi ini TIDAK BISA DIBATALKAN!`
-    )
-    
-    if (!confirmed) return
-
-    try {
-      const supabase = createClient()
-      
-      // Delete supplier (cascade will handle related data)
-      const { error } = await supabase
-        .from('suppliers')
-        .delete()
-        .eq('id', supplierId)
-        .eq('status', 'REJECTED') // Only allow delete if REJECTED
-
-      if (error) throw error
-      
-      alert('Supplier berhasil dihapus permanen')
-      await loadSuppliers()
-      setSelectedSupplier(null)
-    } catch (error) {
-      console.error('Error deleting supplier:', error)
-      alert('Gagal menghapus supplier: ' + (error as any).message)
-    }
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Hapus Supplier Permanen',
+      message: `Hapus permanen supplier "${businessName}"? Data akun, produk, dan riwayat transaksi akan ikut terhapus. Aksi ini tidak bisa dibatalkan.`,
+      variant: 'danger',
+      icon: 'danger',
+      onConfirm: async () => {
+        try {
+          const supabase = createClient()
+          const { error } = await supabase
+            .from('suppliers')
+            .delete()
+            .eq('id', supplierId)
+            .eq('status', 'REJECTED')
+          if (error) throw error
+          toast.success('Supplier berhasil dihapus permanen')
+          await loadSuppliers()
+          setSelectedSupplier(null)
+        } catch (error) {
+          console.error('Error deleting supplier:', error)
+          toast.error('Gagal menghapus supplier: ' + (error as any).message)
+        }
+      }
+    })
   }
 
   async function handleBulkApprove() {
@@ -154,11 +164,11 @@ export default function SupplierList() {
         .update({ status: 'APPROVED' })
         .in('id', selectedSuppliers)
 
-      alert(`${selectedSuppliers.length} supplier di-approve`)
+      toast.success(`${selectedSuppliers.length} supplier berhasil di-approve`)
       setSelectedSuppliers([])
       await loadSuppliers()
     } catch (error) {
-      alert('Gagal approve supplier')
+      toast.error('Gagal approve supplier')
     }
   }
 
@@ -172,11 +182,11 @@ export default function SupplierList() {
         .update({ status: 'REJECTED' })
         .in('id', selectedSuppliers)
 
-      alert(`${selectedSuppliers.length} supplier di-reject`)
+      toast.success(`${selectedSuppliers.length} supplier berhasil di-reject`)
       setSelectedSuppliers([])
       await loadSuppliers()
     } catch (error) {
-      alert('Gagal reject supplier')
+      toast.error('Gagal reject supplier')
     }
   }
 
@@ -188,31 +198,32 @@ export default function SupplierList() {
     )
 
     if (rejectedSuppliers.length === 0) {
-      alert('Hanya supplier dengan status REJECTED yang bisa dihapus permanen')
+      toast.warning('Hanya supplier dengan status REJECTED yang bisa dihapus permanen')
       return
     }
 
-    const confirmed = confirm(
-      `PERHATIAN: Hapus permanen ${rejectedSuppliers.length} supplier?\n\n` +
-      `Aksi ini TIDAK BISA DIBATALKAN!`
-    )
-    
-    if (!confirmed) return
-
-    try {
-      const supabase = createClient()
-      await supabase
-        .from('suppliers')
-        .delete()
-        .in('id', rejectedSuppliers.map(s => s.id))
-        .eq('status', 'REJECTED')
-
-      alert(`${rejectedSuppliers.length} supplier berhasil dihapus`)
-      setSelectedSuppliers([])
-      await loadSuppliers()
-    } catch (error) {
-      alert('Gagal menghapus supplier')
-    }
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Hapus Massal Supplier',
+      message: `Hapus permanen ${rejectedSuppliers.length} supplier? Aksi ini tidak bisa dibatalkan.`,
+      variant: 'danger',
+      icon: 'danger',
+      onConfirm: async () => {
+        try {
+          const supabase = createClient()
+          await supabase
+            .from('suppliers')
+            .delete()
+            .in('id', rejectedSuppliers.map(s => s.id))
+            .eq('status', 'REJECTED')
+          toast.success(`${rejectedSuppliers.length} supplier berhasil dihapus`)
+          setSelectedSuppliers([])
+          await loadSuppliers()
+        } catch (error) {
+          toast.error('Gagal menghapus supplier')
+        }
+      }
+    })
   }
 
   function toggleSupplierSelection(supplierId: string) {
@@ -685,6 +696,16 @@ export default function SupplierList() {
             </>
         )}
       </main>
+
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        onClose={() => setConfirmDialog({ ...confirmDialog, isOpen: false })}
+        onConfirm={confirmDialog.onConfirm}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        variant={confirmDialog.variant}
+        icon={confirmDialog.icon}
+      />
 
       {selectedSupplier && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">

@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 import ConfirmDialog from '@/components/admin/ConfirmDialog'
 import AlertDialog from '@/components/admin/AlertDialog'
+import { toast } from 'sonner'
 
 interface Product {
   id: string
@@ -156,7 +157,7 @@ function ShipmentsTab() {
       setShipments(data || [])
     } catch (error: any) {
       console.error('❌ Error loading shipments:', error)
-      alert(`Error loading data: ${error?.message || 'Unknown error'}`)
+      toast.error(`Gagal memuat data: ${error?.message || 'Unknown error'}`)
     } finally {
       setLoading(false)
     }
@@ -752,6 +753,11 @@ function ReturnsTab() {
   const [showReturnDetailModal, setShowReturnDetailModal] = useState(false)
   const [viewType, setViewType] = useState<'rejected' | 'admin' | 'customer'>('rejected')
 
+  const [confirmMarkReturnedDialog, setConfirmMarkReturnedDialog] = useState<{
+    isOpen: boolean
+    shipmentId: string
+  }>({ isOpen: false, shipmentId: '' })
+
   useEffect(() => {
     loadRejectedShipments()
     loadManualReturns()
@@ -850,13 +856,15 @@ function ReturnsTab() {
       setManualReturns(enrichedData as ManualReturn[])
     } catch (error: any) {
       console.error('❌ Error loading manual returns:', error)
-      alert('Gagal memuat data retur: ' + (error?.message || 'Unknown error'))
+      toast.error('Gagal memuat data retur: ' + (error?.message || 'Unknown error'))
     }
   }
 
   async function handleMarkAsReturned(shipmentId: string) {
-    if (!confirm('Tandai pengiriman ini sebagai sudah diretur/diambil supplier?')) return
+    setConfirmMarkReturnedDialog({ isOpen: true, shipmentId })
+  }
 
+  async function doMarkAsReturned(shipmentId: string) {
     try {
       const supabase = createClient()
       
@@ -871,12 +879,12 @@ function ReturnsTab() {
 
       if (error) throw error
 
-      alert('Pengiriman ditandai sebagai sudah diretur')
+      toast.success('Pengiriman ditandai sebagai sudah diretur')
       await loadRejectedShipments()
       setShowDetailModal(false)
     } catch (error: any) {
       console.error('Error marking as returned:', error)
-      alert('Gagal update status: ' + (error.message || 'Unknown error'))
+      toast.error('Gagal update status: ' + (error.message || 'Unknown error'))
     }
   }
 
@@ -1944,6 +1952,17 @@ function ReturnsTab() {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        isOpen={confirmMarkReturnedDialog.isOpen}
+        onClose={() => setConfirmMarkReturnedDialog({ isOpen: false, shipmentId: '' })}
+        onConfirm={() => doMarkAsReturned(confirmMarkReturnedDialog.shipmentId)}
+        title="Tandai Sudah Diretur"
+        message="Tandai pengiriman ini sebagai sudah diretur/diambil supplier?"
+        variant="warning"
+        icon="warning"
+        confirmText="Ya, Tandai"
+      />
     </>
   )
 }
