@@ -403,7 +403,7 @@ export default function KantinPage() {
               >
                 <ShoppingCart className="w-6 h-6 sm:w-7 sm:h-7" />
                 {totalItems > 0 && (
-                  <span className="absolute -top-0.5 -right-0.5 sm:-top-1 sm:-right-1 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center animate-pulse">
+                  <span className="absolute -top-0.5 -right-0.5 sm:-top-1 sm:-right-1 text-white text-xs font-bold rounded-full w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center animate-pulse" style={{ background: headerColorFrom }}>
                     {totalItems}
                   </span>
                 )}
@@ -613,7 +613,7 @@ export default function KantinPage() {
                     </div>
 
                     <div className="flex items-baseline justify-between mb-3">
-                      <p className="text-lg font-bold text-red-600">
+                      <p className="text-lg font-bold" style={{ color: headerColorFrom }}>
                         Rp {product.price.toLocaleString('id-ID')}
                       </p>
                       <div className="text-right">
@@ -625,20 +625,21 @@ export default function KantinPage() {
 
                     {/* Add to cart button or counter */}
                     {inCart ? (
-                      <div className="flex items-center justify-between bg-orange-50 rounded-lg p-2">
+                      <div className="flex items-center justify-between rounded-lg p-2" style={{ backgroundColor: headerColorFrom + '1a' }}>
                         <button
                           onClick={() => removeFromCart(product.product_id)}
                           className="w-8 h-8 rounded-full bg-white shadow flex items-center justify-center hover:bg-gray-50 active:scale-95 transition"
                         >
-                          <Minus className="w-4 h-4 text-red-600" />
+                          <Minus className="w-4 h-4" style={{ color: headerColorFrom }} />
                         </button>
-                        <span className="font-bold text-red-600 text-lg">
+                        <span className="font-bold text-lg" style={{ color: headerColorFrom }}>
                           {inCart.cartQuantity || 0}
                         </span>
                         <button
                           onClick={() => addToCart(product)}
                           disabled={(inCart.cartQuantity || 0) >= product.quantity}
-                          className="w-8 h-8 rounded-full bg-red-600 shadow flex items-center justify-center hover:bg-red-700 active:scale-95 transition disabled:bg-gray-300"
+                          className="w-8 h-8 rounded-full shadow flex items-center justify-center active:scale-95 transition disabled:bg-gray-300"
+                          style={{ background: headerColorFrom }}
                         >
                           <Plus className="w-4 h-4 text-white" />
                         </button>
@@ -647,7 +648,11 @@ export default function KantinPage() {
                       <button
                         onClick={() => addToCart(product)}
                         disabled={product.quantity === 0}
-                        className="w-full bg-gradient-to-r from-red-600 to-orange-600 text-white py-2.5 rounded-lg font-semibold hover:from-red-700 hover:to-orange-700 active:scale-95 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed transition-all"
+                        className="w-full text-white py-2.5 rounded-lg font-semibold active:scale-95 disabled:cursor-not-allowed transition-all"
+                        style={product.quantity === 0
+                          ? { background: '#9ca3af' }
+                          : { background: `linear-gradient(to right, ${headerColorFrom}, ${headerColorTo})` }
+                        }
                       >
                         {product.quantity === 0 ? '😔 Habis' : '🛒 Tambah'}
                       </button>
@@ -656,7 +661,8 @@ export default function KantinPage() {
                     {/* Report button */}
                     <button
                       onClick={() => openReportModal(product)}
-                      className="mt-2 w-full bg-white border-2 border-orange-300 text-orange-700 py-2 rounded-lg text-sm font-medium hover:bg-orange-50 active:scale-95 transition-all flex items-center justify-center gap-1"
+                      className="mt-2 w-full bg-white border-2 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 active:scale-95 transition-all flex items-center justify-center gap-1"
+                      style={{ borderColor: headerColorFrom + '60', color: headerColorFrom }}
                     >
                       <span className="text-base">😟</span>
                       Ada Masalah?
