@@ -3,30 +3,31 @@
 import Link from 'next/link'
 import { useState, useEffect } from 'react'
 import { ChevronLeft, ChevronRight, Package, Settings, ShoppingCart, BarChart3, Shield, Zap, Users, Smartphone, QrCode } from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
+
+type CarouselItem = {
+  id: string
+  type: 'banner' | 'outlet'
+  title: string
+  subtitle: string | null
+  imageUrl: string | null
+  linkUrl: string | null
+  buttonText: string
+  badgeText: string | null
+  bgFrom: string
+  bgTo: string
+  logoUrl?: string | null
+}
+
+const STATIC_SLIDES: CarouselItem[] = [
+  { id: 'static-1', type: 'banner', title: 'Platform Konsinyasi Digital', subtitle: 'Solusi modern untuk mengelola bisnis konsinyasi Anda', imageUrl: null, linkUrl: '/supplier/login', buttonText: 'Mulai Sekarang', badgeText: null, bgFrom: '#10b981', bgTo: '#0d9488' },
+  { id: 'static-2', type: 'banner', title: 'Self-Checkout yang Mudah', subtitle: 'Kantin kejujuran dengan teknologi modern', imageUrl: null, linkUrl: null, buttonText: 'Pelajari Lebih Lanjut', badgeText: null, bgFrom: '#3b82f6', bgTo: '#0891b2' },
+  { id: 'static-3', type: 'banner', title: 'Kelola Stok Real-Time', subtitle: 'Pantau inventori dari mana saja', imageUrl: null, linkUrl: null, buttonText: 'Pelajari Lebih Lanjut', badgeText: null, bgFrom: '#8b5cf6', bgTo: '#ec4899' },
+]
 
 export default function Home() {
   const [currentSlide, setCurrentSlide] = useState(0)
-
-  const slides = [
-    {
-      title: "Platform Konsinyasi Digital",
-      subtitle: "Solusi modern untuk mengelola bisnis konsinyasi Anda",
-      image: "https://rpzoacwlswlhfqaiicho.supabase.co/storage/v1/object/public/assets/store.png",
-      gradient: "from-emerald-500 to-teal-600"
-    },
-    {
-      title: "Self-Checkout yang Mudah",
-      subtitle: "Kantin kejujuran dengan teknologi PWA",
-      image: "https://rpzoacwlswlhfqaiicho.supabase.co/storage/v1/object/public/assets/store.png",
-      gradient: "from-blue-500 to-cyan-600"
-    },
-    {
-      title: "Kelola Stok Real-Time",
-      subtitle: "Pantau inventori dari mana saja",
-      image: "https://rpzoacwlswlhfqaiicho.supabase.co/storage/v1/object/public/assets/store.png",
-      gradient: "from-purple-500 to-pink-600"
-    }
-  ]
+  const [carouselItems, setCarouselItems] = useState<CarouselItem[]>(STATIC_SLIDES)
 
   const features = [
     {
@@ -62,14 +63,57 @@ export default function Home() {
   ]
 
   useEffect(() => {
+    async function fetchCarousel() {
+      try {
+        const supabase = createClient()
+        const { data: banners } = await supabase
+          .from('homepage_banners')
+          .select('*')
+          .eq('is_active', true)
+          .order('sort_order', { ascending: true })
+        const { data: outlets } = await supabase
+          .from('locations')
+          .select('id, name, brand_name, qr_code, logo_url, header_color_from, header_color_to')
+          .eq('is_active', true)
+          .order('name', { ascending: true })
+        const items: CarouselItem[] = []
+        banners?.forEach(b => items.push({
+          id: b.id, type: 'banner',
+          title: b.title, subtitle: b.subtitle,
+          imageUrl: b.image_url, linkUrl: b.link_url,
+          buttonText: b.button_text || 'Selengkapnya',
+          badgeText: b.badge_text,
+          bgFrom: b.bg_color_from || '#10b981',
+          bgTo: b.bg_color_to || '#059669'
+        }))
+        outlets?.forEach(o => items.push({
+          id: o.id, type: 'outlet',
+          title: o.brand_name || o.name,
+          subtitle: 'Produk segar tersedia — belanja langsung sekarang!',
+          imageUrl: null, linkUrl: `/kantin/${o.qr_code}`,
+          buttonText: 'Belanja Sekarang',
+          badgeText: '🏪 Outlet Virtual',
+          bgFrom: o.header_color_from || '#dc2626',
+          bgTo: o.header_color_to || '#ea580c',
+          logoUrl: o.logo_url
+        }))
+        if (items.length > 0) setCarouselItems(items)
+      } catch {
+        // keep STATIC_SLIDES as fallback
+      }
+    }
+    fetchCarousel()
+  }, [])
+
+  useEffect(() => {
     const timer = setInterval(() => {
-      setCurrentSlide((prev) => (prev + 1) % slides.length)
+      setCurrentSlide((prev) => (prev + 1) % carouselItems.length)
     }, 5000)
     return () => clearInterval(timer)
-  }, [slides.length])
+  }, [carouselItems.length])
 
-  const nextSlide = () => setCurrentSlide((prev) => (prev + 1) % slides.length)
-  const prevSlide = () => setCurrentSlide((prev) => (prev - 1 + slides.length) % slides.length)
+  const nextSlide = () => setCurrentSlide((prev) => (prev + 1) % carouselItems.length)
+  const prevSlide = () => setCurrentSlide((prev) => (prev - 1 + carouselItems.length) % carouselItems.length)
 
   return (
     <div className="min-h-screen bg-white">
@@ -99,37 +143,63 @@ export default function Home() {
 
       {/* Hero Carousel */}
       <section className="relative h-[600px] mt-16 overflow-hidden">
-        {slides.map((slide, index) => (
+        {carouselItems.map((item, index) => (
           <div
-            key={index}
+            key={item.id}
             className={`absolute inset-0 transition-opacity duration-1000 ${
               index === currentSlide ? 'opacity-100' : 'opacity-0'
             }`}
           >
-            <div className={`absolute inset-0 bg-gradient-to-br ${slide.gradient}`}>
-              <div className="absolute inset-0 bg-black/20" />
-            </div>
+            {/* Background: image or gradient */}
+            {item.imageUrl ? (
+              <div className="absolute inset-0">
+                <img src={item.imageUrl} alt={item.title} className="w-full h-full object-cover" />
+                <div className="absolute inset-0 bg-black/45" />
+              </div>
+            ) : (
+              <div className="absolute inset-0" style={{ background: `linear-gradient(135deg, ${item.bgFrom}, ${item.bgTo})` }}>
+                <div className="absolute inset-0 bg-black/20" />
+              </div>
+            )}
+
             <div className="relative h-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center">
               <div className="max-w-2xl text-white">
+                {/* Badge */}
+                {item.badgeText && (
+                  <span className="inline-block px-4 py-1 bg-white/20 backdrop-blur rounded-full text-sm font-medium mb-4">
+                    {item.badgeText}
+                  </span>
+                )}
+                {/* Outlet logo */}
+                {item.type === 'outlet' && item.logoUrl && (
+                  <img src={item.logoUrl} alt={item.title} className="w-16 h-16 rounded-xl object-cover mb-4 shadow-lg" />
+                )}
                 <h2 className="text-5xl md:text-6xl font-bold mb-6 drop-shadow-lg">
-                  {slide.title}
+                  {item.title}
                 </h2>
-                <p className="text-xl md:text-2xl mb-8 text-white/90 drop-shadow">
-                  {slide.subtitle}
-                </p>
-                <div className="flex space-x-4">
-                  <Link
-                    href="/supplier/login"
-                    className="px-8 py-3 bg-white text-emerald-600 rounded-lg font-semibold hover:bg-gray-100 transition-colors shadow-xl"
-                  >
-                    Mulai Sekarang
-                  </Link>
-                  <a
-                    href="#features"
-                    className="px-8 py-3 bg-white/20 backdrop-blur text-white rounded-lg font-semibold hover:bg-white/30 transition-colors border border-white/30"
-                  >
-                    Pelajari Lebih Lanjut
-                  </a>
+                {item.subtitle && (
+                  <p className="text-xl md:text-2xl mb-8 text-white/90 drop-shadow">
+                    {item.subtitle}
+                  </p>
+                )}
+                <div className="flex flex-wrap gap-3">
+                  {item.linkUrl && (
+                    <Link
+                      href={item.linkUrl}
+                      className="px-8 py-3 bg-white rounded-lg font-semibold hover:bg-gray-100 transition-colors shadow-xl"
+                      style={{ color: item.bgFrom }}
+                    >
+                      {item.buttonText}
+                    </Link>
+                  )}
+                  {item.type === 'banner' && !item.linkUrl && (
+                    <a
+                      href="#features"
+                      className="px-8 py-3 bg-white/20 backdrop-blur text-white rounded-lg font-semibold hover:bg-white/30 transition-colors border border-white/30"
+                    >
+                      Pelajari Lebih Lanjut
+                    </a>
+                  )}
                 </div>
               </div>
             </div>
@@ -152,12 +222,12 @@ export default function Home() {
 
         {/* Carousel Indicators */}
         <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex space-x-2">
-          {slides.map((_, index) => (
+          {carouselItems.map((_, index) => (
             <button
               key={index}
               onClick={() => setCurrentSlide(index)}
-              className={`w-3 h-3 rounded-full transition-all ${
-                index === currentSlide ? 'bg-white w-8' : 'bg-white/50'
+              className={`h-3 rounded-full transition-all ${
+                index === currentSlide ? 'bg-white w-8' : 'bg-white/50 w-3'
               }`}
             />
           ))}

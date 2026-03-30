@@ -1,7 +1,7 @@
 ﻿'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { Save, Info, DollarSign, Calculator, User, Bell, Database, Eye, EyeOff, Lock, Mail, Camera, MapPin, QrCode, Plus, Trash2, Edit, Download, Printer, Upload, Image, Layers, ChevronDown, ChevronUp, GripVertical } from 'lucide-react'
+import { Save, Info, DollarSign, Calculator, User, Bell, Database, Eye, EyeOff, Lock, Mail, Camera, MapPin, QrCode, Plus, Trash2, Edit, Download, Printer, Upload, Image, Layers, ChevronDown, ChevronUp, GripVertical, Monitor } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import ConfirmDialog from '@/components/admin/ConfirmDialog'
@@ -39,6 +39,20 @@ type CarouselSlide = {
   sort_order: number
 }
 
+type HomepageBanner = {
+  id: string
+  title: string
+  subtitle: string | null
+  image_url: string | null
+  link_url: string | null
+  button_text: string
+  badge_text: string | null
+  bg_color_from: string
+  bg_color_to: string
+  is_active: boolean
+  sort_order: number
+}
+
 export default function Settings() {
   const [activeTab, setActiveTab] = useState('commission')
   const [commissionRate, setCommissionRate] = useState(10)
@@ -70,6 +84,17 @@ export default function Settings() {
   const [uploadingLogo, setUploadingLogo] = useState(false)
   const [uploadingQris, setUploadingQris] = useState(false)
   const [showBarcodeModal, setShowBarcodeModal] = useState(false)
+
+  // Homepage banner state
+  const [homepageBanners, setHomepageBanners] = useState<HomepageBanner[]>([])
+  const [showBannerForm, setShowBannerForm] = useState(false)
+  const [editingBanner, setEditingBanner] = useState<HomepageBanner | null>(null)
+  const [uploadingBanner, setUploadingBanner] = useState(false)
+  const [bannerForm, setBannerForm] = useState({
+    title: '', subtitle: '', image_url: '', link_url: '',
+    button_text: 'Selengkapnya', badge_text: '',
+    bg_color_from: '#10b981', bg_color_to: '#059669'
+  })
 
   const [confirmDialog, setConfirmDialog] = useState<{
     isOpen: boolean
@@ -111,6 +136,10 @@ export default function Settings() {
     loadCommissionRate()
     if (activeTab === 'outlets') {
       loadOutlets()
+    }
+    if (activeTab === 'banners') {
+      loadHomepageBanners()
+      loadOutlets() // needed for quick-add outlet shortcuts
     }
   }, [activeTab])
 
@@ -491,6 +520,129 @@ export default function Settings() {
     }
   }
 
+  // ============ HOMEPAGE BANNER FUNCTIONS ============
+
+  const loadHomepageBanners = async () => {
+    try {
+      const supabase = createClient()
+      const { data, error } = await supabase
+        .from('homepage_banners')
+        .select('*')
+        .order('sort_order', { ascending: true })
+      if (error) throw error
+      setHomepageBanners(data || [])
+    } catch (error: any) {
+      toast.error('Gagal memuat banner: ' + error.message)
+    }
+  }
+
+  const handleSaveBanner = async () => {
+    if (!bannerForm.title.trim()) {
+      toast.error('Judul banner wajib diisi!')
+      return
+    }
+    try {
+      const supabase = createClient()
+      const payload = {
+        title: bannerForm.title,
+        subtitle: bannerForm.subtitle || null,
+        image_url: bannerForm.image_url || null,
+        link_url: bannerForm.link_url || null,
+        button_text: bannerForm.button_text || 'Selengkapnya',
+        badge_text: bannerForm.badge_text || null,
+        bg_color_from: bannerForm.bg_color_from,
+        bg_color_to: bannerForm.bg_color_to,
+        updated_at: new Date().toISOString()
+      }
+      if (editingBanner) {
+        const { error } = await supabase.from('homepage_banners').update(payload).eq('id', editingBanner.id)
+        if (error) throw error
+        toast.success('Banner berhasil diupdate!')
+      } else {
+        const maxOrder = homepageBanners.length > 0 ? Math.max(...homepageBanners.map(b => b.sort_order)) + 1 : 0
+        const { error } = await supabase.from('homepage_banners').insert({ ...payload, sort_order: maxOrder, is_active: true })
+        if (error) throw error
+        toast.success('Banner berhasil ditambahkan!')
+      }
+      setBannerForm({ title: '', subtitle: '', image_url: '', link_url: '', button_text: 'Selengkapnya', badge_text: '', bg_color_from: '#10b981', bg_color_to: '#059669' })
+      setEditingBanner(null)
+      setShowBannerForm(false)
+      loadHomepageBanners()
+    } catch (error: any) {
+      toast.error('Gagal menyimpan banner: ' + error.message)
+    }
+  }
+
+  const handleEditBanner = (banner: HomepageBanner) => {
+    setEditingBanner(banner)
+    setBannerForm({
+      title: banner.title,
+      subtitle: banner.subtitle || '',
+      image_url: banner.image_url || '',
+      link_url: banner.link_url || '',
+      button_text: banner.button_text || 'Selengkapnya',
+      badge_text: banner.badge_text || '',
+      bg_color_from: banner.bg_color_from,
+      bg_color_to: banner.bg_color_to
+    })
+    setShowBannerForm(true)
+  }
+
+  const handleDeleteBanner = (id: string) => {
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Hapus Banner',
+      message: 'Yakin ingin menghapus banner ini dari halaman utama?',
+      variant: 'danger',
+      icon: 'danger',
+      confirmText: 'Hapus',
+      onConfirm: async () => {
+        try {
+          const supabase = createClient()
+          const { error } = await supabase.from('homepage_banners').delete().eq('id', id)
+          if (error) throw error
+          toast.success('Banner dihapus!')
+          loadHomepageBanners()
+        } catch (error: any) {
+          toast.error('Gagal hapus banner: ' + error.message)
+        }
+      }
+    })
+  }
+
+  const handleToggleBanner = async (banner: HomepageBanner) => {
+    try {
+      const supabase = createClient()
+      const { error } = await supabase
+        .from('homepage_banners')
+        .update({ is_active: !banner.is_active })
+        .eq('id', banner.id)
+      if (error) throw error
+      loadHomepageBanners()
+    } catch (error: any) {
+      toast.error('Gagal mengubah status banner')
+    }
+  }
+
+  const handleBannerImageUpload = async (file: File) => {
+    if (!file) return
+    setUploadingBanner(true)
+    try {
+      const supabase = createClient()
+      const ext = file.name.split('.').pop()
+      const path = `banners/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+      const { error: uploadError } = await supabase.storage.from('outlet-media').upload(path, file)
+      if (uploadError) throw uploadError
+      const { data: { publicUrl } } = supabase.storage.from('outlet-media').getPublicUrl(path)
+      setBannerForm(prev => ({ ...prev, image_url: publicUrl }))
+      toast.success('Gambar banner berhasil diupload!')
+    } catch (error: any) {
+      toast.error('Gagal upload gambar: ' + error.message)
+    } finally {
+      setUploadingBanner(false)
+    }
+  }
+
   const handleShowBarcode = async (outlet: Location) => {
     setSelectedOutletForBarcode(outlet)
     setShowBarcodeModal(true)
@@ -628,6 +780,9 @@ export default function Settings() {
             </button>
             <button onClick={() => setActiveTab('backup')} className={`px-6 py-4 border-b-2 whitespace-nowrap ${activeTab === 'backup' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500'}`}>
               <Database className="w-5 h-5 inline mr-2" />Backup
+            </button>
+            <button onClick={() => setActiveTab('banners')} className={`px-6 py-4 border-b-2 whitespace-nowrap ${activeTab === 'banners' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500'}`}>
+              <Monitor className="w-5 h-5 inline mr-2" />Banner Utama
             </button>
           </nav>
         </div>
@@ -1424,6 +1579,187 @@ export default function Settings() {
             <Database className="w-16 h-16 text-gray-300 mx-auto mb-4" />
             <h3 className="text-lg font-medium">Backup & Maintenance</h3>
             <p className="text-gray-600">Coming soon</p>
+          </div>
+        )}
+
+        {activeTab === 'banners' && (
+          <div className="space-y-6">
+            {/* Header + quick-add */}
+            <div className="bg-white rounded-lg shadow p-6">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">Banner Halaman Utama</h3>
+                  <p className="text-sm text-gray-500 mt-1">Kelola banner info, promo, dan iklan outlet di carousel halaman publik</p>
+                </div>
+                <button
+                  onClick={() => { setEditingBanner(null); setBannerForm({ title: '', subtitle: '', image_url: '', link_url: '', button_text: 'Selengkapnya', badge_text: '', bg_color_from: '#10b981', bg_color_to: '#059669' }); setShowBannerForm(true) }}
+                  className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  <Plus className="w-4 h-4" /> Tambah Banner
+                </button>
+              </div>
+
+              {/* Quick-add outlet shortcuts */}
+              {outlets.filter(o => o.is_active).length > 0 && (
+                <div className="mt-4 pt-4 border-t">
+                  <p className="text-sm text-gray-600 mb-2">⚡ Tambah cepat outlet sebagai banner:</p>
+                  <div className="flex flex-wrap gap-2">
+                    {outlets.filter(o => o.is_active).map(outlet => (
+                      <button
+                        key={outlet.id}
+                        onClick={() => {
+                          setEditingBanner(null)
+                          setBannerForm({
+                            title: outlet.brand_name || outlet.name,
+                            subtitle: 'Produk segar tersedia — belanja langsung dari outlet kami!',
+                            image_url: outlet.logo_url || '',
+                            link_url: `/kantin/${outlet.qr_code}`,
+                            button_text: 'Belanja Sekarang',
+                            badge_text: '🏪 Outlet Virtual',
+                            bg_color_from: outlet.header_color_from || '#dc2626',
+                            bg_color_to: outlet.header_color_to || '#ea580c'
+                          })
+                          setShowBannerForm(true)
+                        }}
+                        className="flex items-center gap-1.5 text-sm bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-full transition-colors border-l-4"
+                        style={{ borderColor: outlet.header_color_from || '#dc2626' }}
+                      >
+                        {outlet.logo_url && <img src={outlet.logo_url} className="w-4 h-4 rounded object-cover" alt="" />}
+                        {outlet.brand_name || outlet.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Banner Form */}
+            {showBannerForm && (
+              <div className="bg-white rounded-lg shadow p-6">
+                <h3 className="font-semibold text-gray-900 mb-4">{editingBanner ? 'Edit Banner' : 'Banner Baru'}</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Judul <span className="text-red-500">*</span></label>
+                    <input type="text" value={bannerForm.title} onChange={(e) => setBannerForm(prev => ({ ...prev, title: e.target.value }))} className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="Judul banner (tampil besar di carousel)" />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Subjudul</label>
+                    <input type="text" value={bannerForm.subtitle} onChange={(e) => setBannerForm(prev => ({ ...prev, subtitle: e.target.value }))} className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="Teks deskripsi singkat di bawah judul" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Badge kecil</label>
+                    <input type="text" value={bannerForm.badge_text} onChange={(e) => setBannerForm(prev => ({ ...prev, badge_text: e.target.value }))} className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="contoh: 🏪 Outlet Virtual, PROMO, INFO" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Teks Tombol</label>
+                    <input type="text" value={bannerForm.button_text} onChange={(e) => setBannerForm(prev => ({ ...prev, button_text: e.target.value }))} className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="Selengkapnya" />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Link Tujuan</label>
+                    <input type="text" value={bannerForm.link_url} onChange={(e) => setBannerForm(prev => ({ ...prev, link_url: e.target.value }))} className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="/kantin/nama-outlet atau https://..." />
+                    <p className="text-xs text-gray-400 mt-1">Kosongkan jika tidak perlu tombol</p>
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Gambar Banner (opsional)</label>
+                    {bannerForm.image_url && (
+                      <div className="relative w-full h-32 rounded-lg overflow-hidden mb-2">
+                        <img src={bannerForm.image_url} alt="preview" className="w-full h-full object-cover" />
+                        <button onClick={() => setBannerForm(prev => ({ ...prev, image_url: '' }))} className="absolute top-2 right-2 p-1 bg-red-600 text-white rounded-full">
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      </div>
+                    )}
+                    <label className={`flex items-center gap-2 cursor-pointer border-2 border-dashed rounded-lg p-3 hover:border-blue-400 transition-colors ${uploadingBanner ? 'opacity-60 pointer-events-none' : ''}`}>
+                      <Upload className="w-4 h-4 text-gray-400" />
+                      <span className="text-sm text-gray-500">{uploadingBanner ? 'Mengupload...' : bannerForm.image_url ? 'Ganti gambar' : 'Upload gambar (jika tidak diupload, background menggunakan warna gradient)'}</span>
+                      <input type="file" accept="image/*" className="hidden" onChange={(e) => { if (e.target.files?.[0]) handleBannerImageUpload(e.target.files[0]) }} />
+                    </label>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Warna Gradient Kiri</label>
+                    <div className="flex gap-2 items-center">
+                      <input type="color" value={bannerForm.bg_color_from} onChange={(e) => setBannerForm(prev => ({ ...prev, bg_color_from: e.target.value }))} className="w-10 h-10 rounded cursor-pointer border border-gray-300" />
+                      <input type="text" value={bannerForm.bg_color_from} onChange={(e) => setBannerForm(prev => ({ ...prev, bg_color_from: e.target.value }))} className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono" />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Warna Gradient Kanan</label>
+                    <div className="flex gap-2 items-center">
+                      <input type="color" value={bannerForm.bg_color_to} onChange={(e) => setBannerForm(prev => ({ ...prev, bg_color_to: e.target.value }))} className="w-10 h-10 rounded cursor-pointer border border-gray-300" />
+                      <input type="text" value={bannerForm.bg_color_to} onChange={(e) => setBannerForm(prev => ({ ...prev, bg_color_to: e.target.value }))} className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono" />
+                    </div>
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Preview</label>
+                    <div className="relative h-24 rounded-xl overflow-hidden flex items-center px-6 text-white" style={{ background: bannerForm.image_url ? undefined : `linear-gradient(135deg, ${bannerForm.bg_color_from}, ${bannerForm.bg_color_to})` }}>
+                      {bannerForm.image_url && <img src={bannerForm.image_url} alt="" className="absolute inset-0 w-full h-full object-cover opacity-60" />}
+                      <div className="relative z-10">
+                        {bannerForm.badge_text && <span className="text-xs bg-white/20 px-2 py-0.5 rounded-full mr-2">{bannerForm.badge_text}</span>}
+                        <p className="font-bold text-lg leading-tight">{bannerForm.title || 'Judul Banner'}</p>
+                        {bannerForm.subtitle && <p className="text-sm text-white/80 mt-0.5">{bannerForm.subtitle}</p>}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex gap-3 mt-6">
+                  <button onClick={handleSaveBanner} className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium">
+                    {editingBanner ? 'Simpan Perubahan' : 'Tambah Banner'}
+                  </button>
+                  <button onClick={() => setShowBannerForm(false)} className="bg-gray-100 text-gray-700 px-6 py-2 rounded-lg hover:bg-gray-200 transition-colors">Batal</button>
+                </div>
+              </div>
+            )}
+
+            {/* Banner List */}
+            <div className="bg-white rounded-lg shadow">
+              {homepageBanners.length === 0 ? (
+                <div className="p-12 text-center">
+                  <Monitor className="w-14 h-14 text-gray-300 mx-auto mb-3" />
+                  <p className="text-gray-500 font-medium">Belum ada banner</p>
+                  <p className="text-sm text-gray-400 mt-1">Tambahkan banner info, promo, atau outlet sebagai iklan berjalan di halaman utama</p>
+                </div>
+              ) : (
+                <div className="divide-y">
+                  {homepageBanners.map((banner, idx) => (
+                    <div key={banner.id} className="p-4 flex gap-4 items-center">
+                      <div className="w-28 h-16 rounded-lg flex-shrink-0 overflow-hidden flex items-center justify-center text-white text-xs font-medium relative" style={{ background: banner.image_url ? undefined : `linear-gradient(135deg, ${banner.bg_color_from}, ${banner.bg_color_to})` }}>
+                        {banner.image_url && <img src={banner.image_url} alt="" className="w-full h-full object-cover" />}
+                        {!banner.image_url && <span className="px-1 text-center leading-tight">{banner.title.slice(0, 18)}</span>}
+                        <span className="absolute top-1 left-1 text-xs bg-black/30 px-1 rounded">#{idx + 1}</span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex flex-wrap items-center gap-1.5 mb-1">
+                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${banner.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                            {banner.is_active ? 'Tampil' : 'Disembunyikan'}
+                          </span>
+                          {banner.badge_text && <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full">{banner.badge_text}</span>}
+                        </div>
+                        <p className="font-semibold text-gray-900 truncate">{banner.title}</p>
+                        {banner.subtitle && <p className="text-sm text-gray-500 truncate">{banner.subtitle}</p>}
+                        {banner.link_url && <p className="text-xs text-blue-500 truncate mt-0.5">🔗 {banner.link_url}</p>}
+                      </div>
+                      <div className="flex items-center gap-1 flex-shrink-0">
+                        <button onClick={() => handleToggleBanner(banner)} className={`p-2 rounded-lg hover:bg-gray-100 transition-colors ${banner.is_active ? 'text-green-600' : 'text-gray-400'}`} title={banner.is_active ? 'Sembunyikan' : 'Tampilkan'}>
+                          {banner.is_active ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                        </button>
+                        <button onClick={() => handleEditBanner(banner)} className="p-2 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-blue-600 transition-colors" title="Edit">
+                          <Edit className="w-4 h-4" />
+                        </button>
+                        <button onClick={() => handleDeleteBanner(banner.id)} className="p-2 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-red-600 transition-colors" title="Hapus">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <p className="text-sm text-blue-800">
+                <strong>ℹ️ Cara kerja:</strong> Banner aktif tampil sebagai iklan berjalan di halaman utama. Outlet aktif <em>otomatis</em> muncul sebagai kartu di carousel meski tidak dibuat bannernya. Urutan banner manual = urutan penambahan, outlet menyusul di belakang.
+              </p>
+            </div>
           </div>
         )}
       </main>
