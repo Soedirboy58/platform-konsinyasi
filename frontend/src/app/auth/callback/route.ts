@@ -35,6 +35,11 @@ export async function GET(request: Request) {
         .eq('profile_id', user.id)
         .single()
       
+      // Password recovery flow → redirect ke halaman set password baru
+      if (type === 'recovery') {
+        return NextResponse.redirect(`${requestUrl.origin}/supplier/reset-password`)
+      }
+
       // Redirect based on role
       if (profile?.role === 'ADMIN') {
         return NextResponse.redirect(`${requestUrl.origin}/admin`)

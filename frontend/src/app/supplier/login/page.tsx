@@ -11,6 +11,8 @@ function SupplierLoginContent() {
   const searchParams = useSearchParams()
   const [loading, setLoading] = useState(false)
   const [isRegister, setIsRegister] = useState(false)
+  const [isForgotPassword, setIsForgotPassword] = useState(false)
+  const [forgotEmail, setForgotEmail] = useState('')
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -40,6 +42,30 @@ function SupplierLoginContent() {
       window.history.replaceState({}, '', '/supplier/login')
     }
   }, [searchParams])
+
+  async function handleForgotPassword(e: React.FormEvent) {
+    e.preventDefault()
+    setLoading(true)
+    try {
+      const supabase = createClient()
+      const { error } = await supabase.auth.resetPasswordForEmail(
+        forgotEmail.toLowerCase().trim(),
+        { redirectTo: `${window.location.origin}/auth/callback?type=recovery` }
+      )
+      if (error) throw error
+      toast.success('Email reset password telah dikirim!', {
+        duration: 7000,
+        description: 'Cek inbox (dan folder spam) Anda, lalu klik link untuk membuat password baru.',
+      })
+      setIsForgotPassword(false)
+      setForgotEmail('')
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : 'Terjadi kesalahan'
+      toast.error(msg)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -170,15 +196,52 @@ function SupplierLoginContent() {
             ← Kembali ke Home
           </Link>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            {isRegister ? 'Daftar Supplier' : 'Login Supplier'}
+            {isForgotPassword ? 'Lupa Password' : isRegister ? 'Daftar Supplier' : 'Login Supplier'}
           </h1>
           <p className="text-gray-600">
-            {isRegister ? 'Bergabung sebagai supplier' : 'Masuk ke portal supplier'}
+            {isForgotPassword ? 'Masukkan email untuk reset password' : isRegister ? 'Bergabung sebagai supplier' : 'Masuk ke portal supplier'}
           </p>
         </div>
 
         {/* Form */}
         <div className="bg-white rounded-xl shadow-lg p-8">
+          {isForgotPassword ? (
+            <form onSubmit={handleForgotPassword} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Email Akun Anda
+                </label>
+                <input
+                  type="email"
+                  required
+                  value={forgotEmail}
+                  onChange={(e) => setForgotEmail(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  placeholder="nama@gmail.com"
+                  autoFocus
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Kami akan mengirim link reset password ke email ini.
+                </p>
+              </div>
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-primary-600 text-white py-3 rounded-lg font-semibold hover:bg-primary-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+              >
+                {loading ? 'Mengirim...' : 'Kirim Link Reset Password'}
+              </button>
+              <div className="text-center">
+                <button
+                  type="button"
+                  onClick={() => { setIsForgotPassword(false); setForgotEmail('') }}
+                  className="text-primary-600 hover:text-primary-700 text-sm font-medium"
+                >
+                  ← Kembali ke Login
+                </button>
+              </div>
+            </form>
+          ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
             {isRegister && (
               <div>
@@ -216,9 +279,20 @@ function SupplierLoginContent() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Password {isRegister && <span className="text-xs text-gray-500">(min. 6 karakter)</span>}
-              </label>
+              <div className="flex justify-between items-center mb-2">
+                <label className="block text-sm font-medium text-gray-700">
+                  Password {isRegister && <span className="text-xs text-gray-500">(min. 6 karakter)</span>}
+                </label>
+                {!isRegister && (
+                  <button
+                    type="button"
+                    onClick={() => setIsForgotPassword(true)}
+                    className="text-xs text-primary-600 hover:text-primary-700 font-medium"
+                  >
+                    Lupa password?
+                  </button>
+                )}
+              </div>
               <input
                 type="password"
                 required
@@ -247,6 +321,8 @@ function SupplierLoginContent() {
               {isRegister ? 'Sudah punya akun? Login' : 'Belum punya akun? Daftar'}
             </button>
           </div>
+          </form>
+          )}
         </div>
 
         {/* Info */}
