@@ -311,16 +311,16 @@ function SupplierLoginContent() {
             >
               {loading ? 'Processing...' : isRegister ? 'Daftar' : 'Login'}
             </button>
-          </form>
 
-          <div className="mt-6 text-center">
-            <button
-              onClick={() => setIsRegister(!isRegister)}
-              className="text-primary-600 hover:text-primary-700 text-sm font-medium"
-            >
-              {isRegister ? 'Sudah punya akun? Login' : 'Belum punya akun? Daftar'}
-            </button>
-          </div>
+            <div className="mt-6 text-center">
+              <button
+                type="button"
+                onClick={() => setIsRegister(!isRegister)}
+                className="text-primary-600 hover:text-primary-700 text-sm font-medium"
+              >
+                {isRegister ? 'Sudah punya akun? Login' : 'Belum punya akun? Daftar'}
+              </button>
+            </div>
           </form>
           )}
         </div>
