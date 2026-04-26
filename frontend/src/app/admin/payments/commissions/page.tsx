@@ -504,15 +504,7 @@ export default function CommissionsPage() {
     totalPendingThreshold: pendingThresholdSuppliers.reduce((sum, c) => sum + c.unpaid_amount, 0)
   }
 
-  console.log('📊 Stats calculation:', {
-    totalUnpaid: stats.totalUnpaid.toLocaleString('id-ID'),
-    totalPaid: stats.totalPaid.toLocaleString('id-ID'),
-    totalPending: stats.totalPending.toLocaleString('id-ID'),
-    calculation: {
-      example: 'Dapur bunnara: revenue 180k - unpaid 18k = paid 162k',
-      formula: 'totalPaid = sum(commission_amount - unpaid_amount)'
-    }
-  })
+
 
   function handleBatchPayment() {
     if (readyToPaySuppliers.length === 0) {
