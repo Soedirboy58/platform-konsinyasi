@@ -96,16 +96,10 @@ export default function CommissionsPage() {
   }
 
   function calculateReadyToPay() {
-    const ready = commissions.filter(c => 
-      c.status === 'UNPAID' && 
-      c.commission_amount >= minThreshold
-    )
-    
-    const pending = commissions.filter(c => 
-      c.status === 'UNPAID' && 
-      c.commission_amount < minThreshold
-    )
-    
+    // UNPAID = saldo >= threshold → siap dibayar
+    const ready = commissions.filter(c => c.status === 'UNPAID')
+    // PENDING = saldo ada tapi < threshold → sedang akumulasi
+    const pending = commissions.filter(c => c.status === 'PENDING')
     setReadyToPaySuppliers(ready)
     setPendingThresholdSuppliers(pending)
   }
@@ -115,10 +109,9 @@ export default function CommissionsPage() {
       setLoading(true)
       const supabase = createClient()
 
-      // Calculate date range
+      // Period range hanya untuk display stats di tabel (bukan untuk kalkulasi saldo)
       const now = new Date()
       let startDate = new Date()
-      
       if (periodFilter === 'THIS_MONTH') {
         startDate = new Date(now.getFullYear(), now.getMonth(), 1)
       } else if (periodFilter === 'LAST_MONTH') {
@@ -126,23 +119,21 @@ export default function CommissionsPage() {
       } else if (periodFilter === 'THIS_YEAR') {
         startDate = new Date(now.getFullYear(), 0, 1)
       } else {
-        startDate = new Date(2020, 0, 1) // All time
+        startDate = new Date(2020, 0, 1)
       }
 
-      // Get commission rate from platform settings (key-value format)
-      const { data: platformSettings } = await supabase
-        .from('platform_settings')
-        .select('value')
-        .eq('key', 'commission_rate')
-        .single()
-      
-      const commissionRate = platformSettings?.value ? parseFloat(platformSettings.value) : 10 // Default 10%
-      console.log('💰 Commission rate:', commissionRate + '%')
+      // Ambil commission rate & minimum threshold dari DB (local variable, bukan state)
+      const [{ data: platformSettings }, { data: settingsData }] = await Promise.all([
+        supabase.from('platform_settings').select('value').eq('key', 'commission_rate').single(),
+        supabase.from('payment_settings').select('minimum_payout_amount').single()
+      ])
+      const commissionRate = platformSettings?.value ? parseFloat(platformSettings.value) : 10
+      const localMinThreshold = settingsData?.minimum_payout_amount || 50000
+      setMinThreshold(localMinThreshold)
 
-      // OPTIMIZED: Single query with JOIN instead of loop
-      // Get all sales with supplier info in one query
-      // FIX: tambah supplier_revenue & commission_amount agar tidak recalculate
-      const { data: salesItems, error: salesError } = await supabase
+      // ALL-TIME sales query — tidak difilter periode
+      // Ini yang digunakan untuk kalkulasi saldo berjalan yang akurat
+      const { data: allSalesItems, error: salesError } = await supabase
         .from('sales_transaction_items')
         .select(`
           quantity,
@@ -168,11 +159,8 @@ export default function CommissionsPage() {
             )
           )
         `)
-        .gte('sales_transactions.created_at', startDate.toISOString())
         .eq('sales_transactions.status', 'COMPLETED')
         .eq('products.suppliers.status', 'APPROVED')
-
-      console.log('📊 Sales items loaded:', salesItems?.length || 0)
 
       if (salesError) {
         console.error('Error loading sales:', salesError)
@@ -180,114 +168,90 @@ export default function CommissionsPage() {
         return
       }
 
-      // Get all supplier wallets in one query
-      const { data: wallets } = await supabase
-        .from('supplier_wallets')
-        .select('supplier_id, available_balance, pending_balance')
-
-      const walletMap = new Map(
-        wallets?.map(w => [w.supplier_id, w]) || []
-      )
-
-      // FIX: ambil SEMUA payment all-time (tidak difilter per periode)
-      // Agar status PAID/UNPAID dihitung berdasarkan seluruh riwayat pembayaran,
-      // bukan hanya yang dibayar di periode yang dipilih
-      const { data: paymentRecords, error: paymentError } = await supabase
+      // ALL-TIME payments — untuk saldo berjalan
+      const { data: paymentRecords } = await supabase
         .from('supplier_payments')
-        .select(`
-          supplier_id,
-          net_payment,
-          amount,
-          payment_date,
-          period_start,
-          payment_reference,
-          status,
-          created_at
-        `)
+        .select('supplier_id, net_payment, amount, payment_date, payment_reference, status, created_at')
         .eq('status', 'COMPLETED')
         .order('payment_date', { ascending: false })
 
-      if (paymentError) {
-        console.error('❌ Payment query error:', paymentError.message)
-      }
-
-      // Group payments by supplier
+      // Build payment map (all-time)
       const paymentMap = new Map<string, any[]>()
-      if (paymentRecords) {
-        for (const payment of paymentRecords) {
-          if (!paymentMap.has(payment.supplier_id)) {
-            paymentMap.set(payment.supplier_id, [])
-          }
-          paymentMap.get(payment.supplier_id)!.push(payment)
+      for (const payment of paymentRecords || []) {
+        if (!paymentMap.has(payment.supplier_id)) paymentMap.set(payment.supplier_id, [])
+        paymentMap.get(payment.supplier_id)!.push(payment)
+      }
+
+      // Kelompokkan sales per supplier — ALL-TIME + PERIOD (in-memory split)
+      const supplierAllTimeMap = new Map<string, any[]>()
+      const supplierPeriodMap = new Map<string, any[]>()
+
+      for (const item of allSalesItems || []) {
+        const supplier = (item.products as any)?.suppliers
+        if (!supplier) continue
+        const supplierId = supplier.id
+        const createdAt = new Date((item.sales_transactions as any)?.created_at || 0)
+
+        if (!supplierAllTimeMap.has(supplierId)) supplierAllTimeMap.set(supplierId, [])
+        supplierAllTimeMap.get(supplierId)!.push({ ...item, supplier })
+
+        if (createdAt >= startDate) {
+          if (!supplierPeriodMap.has(supplierId)) supplierPeriodMap.set(supplierId, [])
+          supplierPeriodMap.get(supplierId)!.push({ ...item, supplier })
         }
       }
 
-      // Group by supplier
-      const supplierSalesMap = new Map<string, any[]>()
-      
-      if (salesItems) {
-        for (const item of salesItems) {
-          const supplier = (item.products as any)?.suppliers
-          if (!supplier) continue
-
-          const supplierId = supplier.id
-          if (!supplierSalesMap.has(supplierId)) {
-            supplierSalesMap.set(supplierId, [])
-          }
-          supplierSalesMap.get(supplierId)!.push({
-            ...item,
-            supplier: supplier
-          })
-        }
-      }
-
-      // Calculate commissions for each supplier
       const commissionsData: Commission[] = []
-      const supplierEntries = Array.from(supplierSalesMap.entries())
-      
-      for (const [supplierId, sales] of supplierEntries) {
-        const supplier = sales[0].supplier
-        
-        // Calculate totals
-        const totalSales = sales.reduce((sum: number, item: any) => sum + (item.subtotal || 0), 0)
-        // FIX: gunakan supplier_revenue yang tersimpan di DB (bukan recalculate dengan rate saat ini)
-        // Ini memastikan angka konsisten dengan yang dilihat supplier di wallet-nya
-        const totalRevenue = sales.reduce((sum: number, item: any) => sum + (item.supplier_revenue || 0), 0)
-        const totalPlatformFee = sales.reduce((sum: number, item: any) => sum + (item.commission_amount || 0), 0)
-        // Hitung effective rate dari data DB untuk keperluan tampilan
-        const effectiveRate = totalSales > 0 ? (totalPlatformFee / totalSales) * 100 : commissionRate
-        const productsSold = sales.reduce((sum: number, item: any) => sum + (item.quantity || 0), 0)
-        
-        // Get unique transaction count
-        const uniqueTransactions = new Set(
-          sales.map((item: any) => {
+
+      for (const [supplierId, allSales] of Array.from(supplierAllTimeMap.entries())) {
+        const supplier = allSales[0].supplier
+        const periodSales = supplierPeriodMap.get(supplierId) || []
+
+        // ALL-TIME totals — untuk saldo berjalan
+        const alltimeRevenue = allSales.reduce((sum: number, item: any) => sum + (item.supplier_revenue || 0), 0)
+        const alltimePlatformFee = allSales.reduce((sum: number, item: any) => sum + (item.commission_amount || 0), 0)
+        const alltimeSales = allSales.reduce((sum: number, item: any) => sum + (item.subtotal || 0), 0)
+
+        // PERIOD totals — hanya untuk display di tabel
+        const periodTotalSales = periodSales.reduce((sum: number, item: any) => sum + (item.subtotal || 0), 0)
+        const periodProductsSold = periodSales.reduce((sum: number, item: any) => sum + (item.quantity || 0), 0)
+        const periodUniqueTransactions = new Set(
+          periodSales.map((item: any) => {
             const tx = item.sales_transactions
             return Array.isArray(tx) ? tx[0]?.id : tx?.id
           }).filter(Boolean)
         ).size
 
-        // Get wallet info
-        const wallet = walletMap.get(supplierId)
-
-        // Cumulative approach: unpaid = total period revenue - total paid in period
+        // Saldo berjalan = total pendapatan all-time - total dibayar admin all-time
         const payments = paymentMap.get(supplierId) || []
-        const totalPaid = payments.reduce((sum, p) => sum + (p.net_payment || p.amount || 0), 0)
-        const unpaidAmount = Math.max(0, totalRevenue - totalPaid)
+        const alltimePaid = payments.reduce((sum, p) => sum + (p.net_payment || p.amount || 0), 0)
+        const currentBalance = alltimeRevenue - alltimePaid
 
-        const latestPayment = payments.length > 0 ? payments[0] : null // already sorted by payment_date desc
+        // Effective commission rate dari data DB aktual
+        const effectiveRate = alltimeSales > 0 ? (alltimePlatformFee / alltimeSales) * 100 : commissionRate
 
-        let status: 'UNPAID' | 'PAID' | 'PENDING' = unpaidAmount < 0.01 ? 'PAID' : 'UNPAID'
+        // Status berdasarkan saldo berjalan vs threshold
+        let status: 'UNPAID' | 'PAID' | 'PENDING'
+        if (currentBalance >= localMinThreshold) {
+          status = 'UNPAID'    // Saldo cukup → siap dibayar
+        } else if (currentBalance > 0.01) {
+          status = 'PENDING'   // Ada saldo tapi belum cukup threshold → sedang akumulasi
+        } else {
+          status = 'PAID'      // Saldo 0 atau negatif → lunas
+        }
+
+        const latestPayment = payments[0] || null
 
         commissionsData.push({
           supplier_id: supplierId,
           supplier_name: supplier.business_name,
-          total_sales: totalSales,
+          total_sales: periodTotalSales,           // display: penjualan di periode dipilih
           commission_rate: effectiveRate / 100,
-          commission_amount: totalRevenue,
-          unpaid_amount: unpaidAmount,
-          products_sold: productsSold,
-          transactions: uniqueTransactions,
-          status: status,
+          commission_amount: Math.max(0, currentBalance), // saldo berjalan yang harus dibayar
+          unpaid_amount: Math.max(0, currentBalance),     // sama dengan commission_amount
+          products_sold: periodProductsSold,
+          transactions: periodUniqueTransactions,
+          status,
           payment_date: latestPayment?.payment_date,
           payment_reference: latestPayment?.payment_reference,
           bank_name: supplier.bank_name,
@@ -295,14 +259,6 @@ export default function CommissionsPage() {
           bank_holder: supplier.bank_account_holder
         })
       }
-
-      console.log('✅ Commission calculation complete:', commissionsData.map(c => ({
-        name: c.supplier_name,
-        totalSales: c.total_sales,
-        revenue: c.commission_amount,
-        unpaid: c.unpaid_amount,
-        status: c.status
-      })))
 
       setCommissions(commissionsData)
       setLoading(false)
@@ -531,26 +487,20 @@ export default function CommissionsPage() {
   }
 
   const stats = {
-    // ✅ FIX: Total yang BELUM BAYAR = sum of unpaid_amount for UNPAID status
+    // Total saldo berjalan yang belum dibayar (siap dibayar >= threshold)
     totalUnpaid: filteredCommissions
       .filter(c => c.status === 'UNPAID')
       .reduce((sum, c) => sum + c.unpaid_amount, 0),
     
-    // ✅ FIX: Total yang SUDAH BAYAR = sum of already paid amount (revenue - unpaid) for ALL suppliers
-    totalPaid: filteredCommissions
-      .reduce((sum, c) => sum + (c.commission_amount - c.unpaid_amount), 0),
+    // Total saldo yang siap ditransfer (>= threshold)
+    totalReadyToPay: readyToPaySuppliers.reduce((sum, c) => sum + c.unpaid_amount, 0),
     
-    // ✅ FIX: Total pending = sum of unpaid_amount for PENDING status
-    totalPending: filteredCommissions
+    // Total saldo yang sedang akumulasi (ada tapi < threshold)
+    totalAccumulating: filteredCommissions
       .filter(c => c.status === 'PENDING')
       .reduce((sum, c) => sum + c.unpaid_amount, 0),
     
     totalSuppliers: filteredCommissions.length,
-    
-    // ✅ FIX: Total ready to pay = sum of unpaid amounts (not total revenue)
-    totalReadyToPay: readyToPaySuppliers.reduce((sum, c) => sum + c.unpaid_amount, 0),
-    
-    // ✅ FIX: Total pending threshold = sum of unpaid amounts
     totalPendingThreshold: pendingThresholdSuppliers.reduce((sum, c) => sum + c.unpaid_amount, 0)
   }
 
@@ -783,10 +733,11 @@ export default function CommissionsPage() {
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Total Sudah Bayar</p>
+                <p className="text-sm text-gray-600">Siap Ditransfer</p>
                 <h3 className="text-2xl font-bold text-green-600 mt-1">
-                  Rp {stats.totalPaid.toLocaleString('id-ID')}
+                  Rp {stats.totalReadyToPay.toLocaleString('id-ID')}
                 </h3>
+                <p className="text-xs text-gray-500 mt-1">Saldo ≥ Rp {minThreshold.toLocaleString('id-ID')}</p>
               </div>
               <div className="p-3 bg-green-100 rounded-full">
                 <Check className="w-6 h-6 text-green-600" />
@@ -797,10 +748,11 @@ export default function CommissionsPage() {
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Pending Verifikasi</p>
+                <p className="text-sm text-gray-600">Sedang Akumulasi</p>
                 <h3 className="text-2xl font-bold text-orange-600 mt-1">
-                  Rp {stats.totalPending.toLocaleString('id-ID')}
+                  Rp {stats.totalAccumulating.toLocaleString('id-ID')}
                 </h3>
+                <p className="text-xs text-gray-500 mt-1">Belum cukup threshold</p>
               </div>
               <div className="p-3 bg-orange-100 rounded-full">
                 <Filter className="w-6 h-6 text-orange-600" />
@@ -848,9 +800,9 @@ export default function CommissionsPage() {
                 className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="ALL">Semua Status</option>
-                <option value="UNPAID">Belum Bayar</option>
-                <option value="PAID">Sudah Bayar</option>
-                <option value="PENDING">Pending</option>
+                <option value="UNPAID">Siap Dibayar</option>
+                <option value="PAID">Lunas</option>
+                <option value="PENDING">Sedang Akumulasi</option>
               </select>
             </div>
           </div>
@@ -873,13 +825,13 @@ export default function CommissionsPage() {
                   </div>
                   <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                     commission.status === 'PAID' 
-                      ? 'bg-green-100 text-green-800'
+                      ? 'bg-gray-100 text-gray-600'
                       : commission.status === 'PENDING'
                       ? 'bg-orange-100 text-orange-800'
-                      : 'bg-red-100 text-red-800'
+                      : 'bg-green-100 text-green-800'
                   }`}>
-                    {commission.status === 'PAID' ? '✅ Sudah Bayar' : 
-                     commission.status === 'PENDING' ? '⏳ Pending' : '❌ Belum Bayar'}
+                    {commission.status === 'PAID' ? 'Lunas' : 
+                     commission.status === 'PENDING' ? '⏳ Akumulasi' : '✅ Siap Dibayar'}
                   </span>
                 </div>
                 
@@ -1031,18 +983,18 @@ export default function CommissionsPage() {
                     </td>
                     <td className="px-6 py-4">
                       {commission.status === 'PAID' && (
-                        <span className="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">
-                          Sudah Bayar
+                        <span className="px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-600">
+                          Lunas
                         </span>
                       )}
                       {commission.status === 'UNPAID' && (
-                        <span className="px-2 py-1 text-xs font-medium rounded-full bg-red-100 text-red-800">
-                          Belum Bayar
+                        <span className="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">
+                          Siap Dibayar
                         </span>
                       )}
                       {commission.status === 'PENDING' && (
                         <span className="px-2 py-1 text-xs font-medium rounded-full bg-orange-100 text-orange-800">
-                          Pending
+                          Akumulasi
                         </span>
                       )}
                     </td>
