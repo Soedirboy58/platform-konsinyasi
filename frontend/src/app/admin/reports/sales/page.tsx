@@ -223,24 +223,37 @@ export default function SalesReport() {
   }
 
   const exportToCSV = () => {
-    const headers = ['Tanggal', 'Kode Transaksi', 'Produk', 'Supplier', 'Outlet', 'Qty', 'Harga Satuan', 'Subtotal', 'Komisi', 'Pendapatan Supplier', 'Payment']
-    const rows = filteredData.map(item => [
-      new Date(item.created_at).toLocaleString('id-ID'),
-      item.transaction_code,
-      item.product_name,
-      item.supplier_name,
-      item.location_name,
-      item.quantity,
-      item.unit_price,
-      item.subtotal,
-      item.commission_amount,
-      item.supplier_revenue,
-      item.payment_method || '-'
-    ])
+    const escapeCSV = (val: string | number) => {
+      const str = String(val)
+      return str.includes(',') || str.includes('"') || str.includes('\n')
+        ? `"${str.replace(/"/g, '""')}"`
+        : str
+    }
+
+    const headers = ['Tanggal', 'Waktu', 'Kode Transaksi', 'Produk', 'Supplier', 'Outlet', 'Qty', 'Harga Satuan', 'Subtotal', 'Komisi', 'Pendapatan Supplier', 'Payment']
+    const rows = filteredData.map(item => {
+      const d = new Date(item.created_at)
+      const tanggal = d.toLocaleDateString('id-ID')
+      const waktu = d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+      return [
+        tanggal,
+        waktu,
+        item.transaction_code,
+        item.product_name,
+        item.supplier_name,
+        item.location_name,
+        item.quantity,
+        item.unit_price,
+        item.subtotal,
+        item.commission_amount,
+        item.supplier_revenue,
+        item.payment_method || '-'
+      ]
+    })
 
     const csv = [
-      headers.join(','),
-      ...rows.map(row => row.join(','))
+      headers.map(escapeCSV).join(','),
+      ...rows.map(row => row.map(escapeCSV).join(','))
     ].join('\n')
 
     const blob = new Blob([csv], { type: 'text/csv' })
