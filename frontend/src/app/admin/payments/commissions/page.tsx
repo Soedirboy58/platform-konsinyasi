@@ -141,11 +141,14 @@ export default function CommissionsPage() {
 
       // OPTIMIZED: Single query with JOIN instead of loop
       // Get all sales with supplier info in one query
+      // FIX: tambah supplier_revenue & commission_amount agar tidak recalculate
       const { data: salesItems, error: salesError } = await supabase
         .from('sales_transaction_items')
         .select(`
           quantity,
           subtotal,
+          supplier_revenue,
+          commission_amount,
           sales_transactions!inner(
             id,
             status,
@@ -186,8 +189,9 @@ export default function CommissionsPage() {
         wallets?.map(w => [w.supplier_id, w]) || []
       )
 
-      // Get payment records for the period — filter by payment_date (bukan period_start)
-      // Ini memastikan payment ditemukan meski timezone berbeda atau period_start tersimpan berbeda
+      // FIX: ambil SEMUA payment all-time (tidak difilter per periode)
+      // Agar status PAID/UNPAID dihitung berdasarkan seluruh riwayat pembayaran,
+      // bukan hanya yang dibayar di periode yang dipilih
       const { data: paymentRecords, error: paymentError } = await supabase
         .from('supplier_payments')
         .select(`
@@ -200,7 +204,6 @@ export default function CommissionsPage() {
           status,
           created_at
         `)
-        .gte('payment_date', startDate.toISOString())
         .eq('status', 'COMPLETED')
         .order('payment_date', { ascending: false })
 
@@ -247,9 +250,12 @@ export default function CommissionsPage() {
         
         // Calculate totals
         const totalSales = sales.reduce((sum: number, item: any) => sum + (item.subtotal || 0), 0)
-        // Calculate commission and revenue manually since columns don't exist
-        const totalCommission = totalSales * (commissionRate / 100)
-        const totalRevenue = totalSales - totalCommission
+        // FIX: gunakan supplier_revenue yang tersimpan di DB (bukan recalculate dengan rate saat ini)
+        // Ini memastikan angka konsisten dengan yang dilihat supplier di wallet-nya
+        const totalRevenue = sales.reduce((sum: number, item: any) => sum + (item.supplier_revenue || 0), 0)
+        const totalPlatformFee = sales.reduce((sum: number, item: any) => sum + (item.commission_amount || 0), 0)
+        // Hitung effective rate dari data DB untuk keperluan tampilan
+        const effectiveRate = totalSales > 0 ? (totalPlatformFee / totalSales) * 100 : commissionRate
         const productsSold = sales.reduce((sum: number, item: any) => sum + (item.quantity || 0), 0)
         
         // Get unique transaction count
@@ -276,7 +282,7 @@ export default function CommissionsPage() {
           supplier_id: supplierId,
           supplier_name: supplier.business_name,
           total_sales: totalSales,
-          commission_rate: commissionRate / 100,
+          commission_rate: effectiveRate / 100,
           commission_amount: totalRevenue,
           unpaid_amount: unpaidAmount,
           products_sold: productsSold,
