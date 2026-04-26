@@ -289,35 +289,6 @@ export default function CheckoutPage() {
             </div>
           </div>
 
-          {/* QRIS */}
-          {checkoutResult.qris_image_url && (
-            <div className="bg-white rounded-xl shadow p-4">
-              <h2 className="text-center font-semibold text-gray-700 text-sm mb-3">Scan QRIS untuk Membayar</h2>
-              <div className="flex justify-center bg-gray-50 rounded-lg p-2">
-                <Image
-                  src={checkoutResult.qris_image_url}
-                  alt="QRIS Code"
-                  width={260}
-                  height={260}
-                  className="w-full h-auto max-w-[260px]"
-                  priority
-                />
-              </div>
-              <div className="mt-3 bg-orange-50 border border-orange-200 rounded-lg p-2.5 text-center">
-                <p className="text-xs text-orange-700">Masukkan nominal</p>
-                <p className="text-2xl font-bold text-orange-700">Rp {checkoutResult.total_amount.toLocaleString('id-ID')}</p>
-              </div>
-              <div className="flex gap-2 mt-3">
-                <button onClick={downloadQRIS} className="flex-1 bg-gray-100 text-gray-700 py-2.5 rounded-lg text-sm font-medium hover:bg-gray-200 transition flex items-center justify-center gap-1.5">
-                  <Download className="w-4 h-4" /> Simpan QR
-                </button>
-                <button onClick={shareQRIS} className="flex-1 bg-blue-600 text-white py-2.5 rounded-lg text-sm font-medium hover:bg-blue-700 transition flex items-center justify-center gap-1.5">
-                  <Share2 className="w-4 h-4" /> Bagikan QR
-                </button>
-              </div>
-            </div>
-          )}
-
           {/* Verifikasi — timer + upload bukti */}
           <div className="bg-white rounded-xl shadow border border-gray-200 p-5 space-y-4">
             <div className="flex items-center gap-2">
@@ -399,6 +370,35 @@ export default function CheckoutPage() {
               Transaksi dibatalkan otomatis jika tidak dikonfirmasi dalam 2 menit
             </p>
           </div>
+
+          {/* QRIS */}
+          {checkoutResult.qris_image_url && (
+            <div className="bg-white rounded-xl shadow p-4">
+              <h2 className="text-center font-semibold text-gray-700 text-sm mb-3">Scan QRIS untuk Membayar</h2>
+              <div className="flex justify-center bg-gray-50 rounded-lg p-2">
+                <Image
+                  src={checkoutResult.qris_image_url}
+                  alt="QRIS Code"
+                  width={260}
+                  height={260}
+                  className="w-full h-auto max-w-[260px]"
+                  priority
+                />
+              </div>
+              <div className="mt-3 bg-orange-50 border border-orange-200 rounded-lg p-2.5 text-center">
+                <p className="text-xs text-orange-700">Masukkan nominal</p>
+                <p className="text-2xl font-bold text-orange-700">Rp {checkoutResult.total_amount.toLocaleString('id-ID')}</p>
+              </div>
+              <div className="flex gap-2 mt-3">
+                <button onClick={downloadQRIS} className="flex-1 bg-gray-100 text-gray-700 py-2.5 rounded-lg text-sm font-medium hover:bg-gray-200 transition flex items-center justify-center gap-1.5">
+                  <Download className="w-4 h-4" /> Simpan QR
+                </button>
+                <button onClick={shareQRIS} className="flex-1 bg-blue-600 text-white py-2.5 rounded-lg text-sm font-medium hover:bg-blue-700 transition flex items-center justify-center gap-1.5">
+                  <Share2 className="w-4 h-4" /> Bagikan QR
+                </button>
+              </div>
+            </div>
+          )}
 
         </div>
       </div>
