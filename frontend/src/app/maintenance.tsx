@@ -39,10 +39,10 @@ export default function MaintenancePage() {
 
         {/* Heading */}
         <h1 className="text-4xl sm:text-5xl font-bold text-white mb-4 leading-tight">
-          Sedang dalam<br />
           <span className="bg-gradient-to-r from-emerald-400 to-teal-400 bg-clip-text text-transparent">
-            Peningkatan Layanan
+            Outlet SmartAlley
           </span>
+          <br />sedang dalam peningkatan layanan
         </h1>
 
         {/* Description */}
