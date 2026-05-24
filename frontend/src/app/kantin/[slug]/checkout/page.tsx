@@ -45,6 +45,11 @@ export default function CheckoutPage() {
   const [proofPreview, setProofPreview] = useState<string | null>(null)
   const [uploadingProof, setUploadingProof] = useState(false)
 
+  // Dynamic QRIS states (Midtrans)
+  const [dynamicQrUrl, setDynamicQrUrl] = useState<string | null>(null)
+  const [qrLoading, setQrLoading] = useState(false)
+  const [paymentDetected, setPaymentDetected] = useState(false)
+
   useEffect(() => {
     // Load cart data
     loadCart()
@@ -70,10 +75,10 @@ export default function CheckoutPage() {
     }
   }
 
-  // Countdown timer: starts at 15s when QRIS screen appears
+  // Countdown timer: 15 menit = expiry QRIS dinamis Midtrans
   useEffect(() => {
     if (!checkoutResult || selectedPaymentMethod !== 'QRIS') return
-    setTimerSeconds(15)
+    setTimerSeconds(15 * 60)
     const interval = setInterval(() => {
       setTimerSeconds(prev => {
         if (prev <= 1) { clearInterval(interval); return 0 }
@@ -123,6 +128,47 @@ export default function CheckoutPage() {
     }
   }
 
+  async function createDynamicQris(transactionId: string, amount: number, transactionCode: string) {
+    setQrLoading(true)
+    try {
+      const response = await fetch('/api/create-qris', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ transaction_id: transactionId, amount, transaction_code: transactionCode }),
+      })
+      if (!response.ok) throw new Error('Gagal membuat QR')
+      const qrData = await response.json()
+      if (qrData.qr_image_url) setDynamicQrUrl(qrData.qr_image_url)
+      subscribeToPayment(transactionId, transactionCode)
+    } catch (error) {
+      console.error('Create dynamic QRIS error:', error)
+      // Fallback ke QRIS statis — tidak tampilkan error ke user
+    } finally {
+      setQrLoading(false)
+    }
+  }
+
+  function subscribeToPayment(transactionId: string, transactionCode: string) {
+    const supabase = createClient()
+    supabase
+      .channel(`payment-${transactionId}`)
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'sales_transactions',
+        filter: `id=eq.${transactionId}`,
+      }, (payload: any) => {
+        if (payload.new?.status === 'COMPLETED') {
+          setPaymentDetected(true)
+          toast.success('Pembayaran berhasil dikonfirmasi otomatis!')
+          sessionStorage.removeItem(`cart_${locationSlug}`)
+          sessionStorage.removeItem(`checkout_processed_${locationSlug}`)
+          router.push(`/kantin/${locationSlug}/success?code=${transactionCode}`)
+        }
+      })
+      .subscribe()
+  }
+
   async function processCheckout(paymentMethod: 'QRIS' | 'CASH') {
     if (cart.length === 0) return
 
@@ -160,14 +206,17 @@ export default function CheckoutPage() {
         setHasProcessed(true)
         sessionStorage.setItem(`checkout_processed_${locationSlug}`, 'true')
 
-        // Function returns: transaction_id, transaction_code, total_amount, qris_code, qris_image_url
         setCheckoutResult({
           ...result,
           success: true,
           message: 'Checkout berhasil'
         })
-        
-        // Show success message
+
+        // Buat dynamic QRIS via Midtrans (non-blocking)
+        if (paymentMethod === 'QRIS') {
+          createDynamicQris(result.transaction_id, result.total_amount, result.transaction_code)
+        }
+
         toast.success('Checkout berhasil! Silakan scan QRIS untuk pembayaran')
       } else {
         toast.error('Tidak ada data transaksi')
@@ -289,13 +338,13 @@ export default function CheckoutPage() {
             </div>
           </div>
 
-          {/* Verifikasi — timer + upload bukti */}
+          {/* Status Konfirmasi Otomatis */}
           <div className="bg-white rounded-xl shadow border border-gray-200 p-5 space-y-4">
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 bg-red-500 rounded-full flex items-center justify-center flex-shrink-0">
                 <AlertCircle className="w-5 h-5 text-white" />
               </div>
-              <h2 className="text-red-700 font-bold text-base uppercase tracking-wide">Wajib Verifikasi Pembayaran</h2>
+              <h2 className="text-red-700 font-bold text-base uppercase tracking-wide">Verifikasi Pembayaran</h2>
             </div>
 
             {/* Step 1: Bayar via QR */}
@@ -304,87 +353,102 @@ export default function CheckoutPage() {
               <p className="text-sm text-blue-800">Scan & bayar QRIS di aplikasi bank / e-wallet kamu</p>
             </div>
 
-            {/* Step 2: Tunggu timer */}
-            {timerSeconds > 0 ? (
+            {/* Status auto-detect atau timer expired */}
+            {paymentDetected ? (
+              <div className="flex items-center gap-3 bg-green-50 border border-green-300 rounded-lg p-3">
+                <Check className="w-5 h-5 text-green-600 shrink-0" />
+                <p className="text-sm font-semibold text-green-800">Pembayaran terdeteksi! Mengalihkan...</p>
+              </div>
+            ) : timerSeconds > 0 ? (
               <div className="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-lg p-3">
-                <Clock className="w-5 h-5 text-amber-600 shrink-0 animate-pulse" />
+                <Loader2 className="w-5 h-5 text-amber-600 shrink-0 animate-spin" />
                 <div>
-                  <p className="text-sm font-semibold text-amber-800">Tunggu konfirmasi bank...</p>
-                  <p className="text-xs text-amber-600 mt-0.5">Upload bukti tersedia dalam <span className="font-bold text-lg">{timerSeconds}</span> detik</p>
+                  <p className="text-sm font-semibold text-amber-800">Menunggu konfirmasi otomatis dari bank...</p>
+                  <p className="text-xs text-amber-600 mt-0.5">
+                    QR berlaku <span className="font-bold">{Math.floor(timerSeconds / 60)}:{String(timerSeconds % 60).padStart(2, '0')}</span> menit lagi
+                  </p>
                 </div>
               </div>
             ) : (
-              /* Step 2: Upload bukti */
-              <div className="space-y-3">
-                <div className="flex items-start gap-3 bg-green-50 rounded-lg p-3">
-                  <span className="w-6 h-6 rounded-full bg-green-600 text-white text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">2</span>
-                  <p className="text-sm text-green-800">Upload screenshot <strong>bukti pembayaran sukses</strong> dari aplikasi bank / e-wallet kamu</p>
-                </div>
-
-                {proofPreview ? (
-                  <div className="relative rounded-lg overflow-hidden border-2 border-green-400">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={proofPreview} alt="Bukti bayar" className="w-full max-h-48 object-contain bg-gray-50" />
-                    <button
-                      onClick={() => { setProofFile(null); setProofPreview(null) }}
-                      className="absolute top-2 right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold"
-                    >×</button>
-                    <div className="bg-green-100 text-green-700 text-xs text-center py-1 font-medium">
-                      ✓ Bukti bayar dipilih — {proofFile?.name}
-                    </div>
-                  </div>
-                ) : (
-                  <label className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-gray-300 rounded-xl p-6 cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-colors">
-                    <ImageIcon className="w-8 h-8 text-gray-400" />
-                    <span className="text-sm font-medium text-gray-600">Ketuk untuk pilih foto bukti bayar</span>
-                    <span className="text-xs text-gray-400">JPG, PNG, PDF — Maks 5MB</span>
-                    <input
-                      type="file"
-                      accept="image/jpeg,image/png,image/webp,application/pdf"
-                      className="hidden"
-                      onChange={handleProofSelect}
-                    />
-                  </label>
-                )}
+              <div className="flex items-center gap-3 bg-red-50 border border-red-200 rounded-lg p-3">
+                <AlertCircle className="w-5 h-5 text-red-600 shrink-0" />
+                <p className="text-sm font-semibold text-red-800">QR kadaluarsa. Gunakan bukti manual di bawah.</p>
               </div>
             )}
 
-            {/* Confirm button */}
-            <button
-              onClick={uploadProofAndConfirm}
-              disabled={timerSeconds > 0 || !proofFile || confirming || uploadingProof}
-              className="w-full bg-red-600 text-white py-4 rounded-xl font-bold text-base hover:bg-red-700 active:scale-95 transition-all disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow"
-            >
-              {confirming || uploadingProof ? (
-                <><Loader2 className="w-5 h-5 animate-spin" /> {uploadingProof ? 'Mengupload bukti...' : 'Memproses...'}</>
-              ) : timerSeconds > 0 ? (
-                <><Clock className="w-5 h-5" /> Tunggu {timerSeconds} detik...</>
-              ) : !proofFile ? (
-                <><Upload className="w-5 h-5" /> Upload Bukti Bayar Dulu</>
-              ) : (
-                <><Check className="w-5 h-5" /> Konfirmasi Pembayaran</>
-              )}
-            </button>
+            {/* Step 2: Upload bukti manual (fallback) */}
+            <div className="space-y-3">
+              <div className="flex items-start gap-3 bg-gray-50 rounded-lg p-3">
+                <span className="w-6 h-6 rounded-full bg-gray-400 text-white text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">2</span>
+                <p className="text-sm text-gray-600">Jika tidak otomatis terkonfirmasi, upload <strong>screenshot bukti bayar</strong> dari aplikasi bank</p>
+              </div>
 
-            <p className="text-xs text-gray-400 text-center">
-              Transaksi dibatalkan otomatis jika tidak dikonfirmasi dalam 2 menit
-            </p>
+              {proofPreview ? (
+                <div className="relative rounded-lg overflow-hidden border-2 border-green-400">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={proofPreview} alt="Bukti bayar" className="w-full max-h-48 object-contain bg-gray-50" />
+                  <button
+                    onClick={() => { setProofFile(null); setProofPreview(null) }}
+                    className="absolute top-2 right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold"
+                  >×</button>
+                  <div className="bg-green-100 text-green-700 text-xs text-center py-1 font-medium">
+                    ✓ Bukti bayar dipilih — {proofFile?.name}
+                  </div>
+                </div>
+              ) : (
+                <label className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-gray-300 rounded-xl p-6 cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-colors">
+                  <ImageIcon className="w-8 h-8 text-gray-400" />
+                  <span className="text-sm font-medium text-gray-600">Ketuk untuk pilih foto bukti bayar</span>
+                  <span className="text-xs text-gray-400">JPG, PNG, PDF — Maks 5MB</span>
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,application/pdf"
+                    className="hidden"
+                    onChange={handleProofSelect}
+                  />
+                </label>
+              )}
+            </div>
+
+            {/* Confirm button manual (fallback) */}
+            {!paymentDetected && (
+              <button
+                onClick={uploadProofAndConfirm}
+                disabled={!proofFile || confirming || uploadingProof}
+                className="w-full bg-red-600 text-white py-4 rounded-xl font-bold text-base hover:bg-red-700 active:scale-95 transition-all disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow"
+              >
+                {confirming || uploadingProof ? (
+                  <><Loader2 className="w-5 h-5 animate-spin" /> {uploadingProof ? 'Mengupload bukti...' : 'Memproses...'}</>
+                ) : !proofFile ? (
+                  <><Upload className="w-5 h-5" /> Upload Bukti Bayar (Opsional)</>
+                ) : (
+                  <><Check className="w-5 h-5" /> Konfirmasi Manual</>
+                )}
+              </button>
+            )}
           </div>
 
-          {/* QRIS */}
-          {checkoutResult.qris_image_url && (
+          {/* QRIS — dynamic (Midtrans) atau fallback ke static */}
+          {(dynamicQrUrl || checkoutResult.qris_image_url) && (
             <div className="bg-white rounded-xl shadow p-4">
               <h2 className="text-center font-semibold text-gray-700 text-sm mb-3">Scan QRIS untuk Membayar</h2>
-              <div className="flex justify-center bg-gray-50 rounded-lg p-2">
-                <Image
-                  src={checkoutResult.qris_image_url}
-                  alt="QRIS Code"
-                  width={260}
-                  height={260}
-                  className="w-full h-auto max-w-[260px]"
-                  priority
-                />
-              </div>
+              {qrLoading ? (
+                <div className="flex flex-col items-center justify-center py-10 gap-3">
+                  <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+                  <p className="text-sm text-gray-500">Membuat QR pembayaran...</p>
+                </div>
+              ) : (
+                <div className="flex justify-center bg-gray-50 rounded-lg p-2">
+                  <Image
+                    src={dynamicQrUrl || checkoutResult.qris_image_url!}
+                    alt="QRIS Code"
+                    width={260}
+                    height={260}
+                    className="w-full h-auto max-w-[260px]"
+                    priority
+                  />
+                </div>
+              )}
               <div className="mt-3 bg-orange-50 border border-orange-200 rounded-lg p-2.5 text-center">
                 <p className="text-xs text-orange-700">Masukkan nominal</p>
                 <p className="text-2xl font-bold text-orange-700">Rp {checkoutResult.total_amount.toLocaleString('id-ID')}</p>
