@@ -50,6 +50,11 @@ export default function CheckoutPage() {
   const [qrLoading, setQrLoading] = useState(false)
   const [paymentDetected, setPaymentDetected] = useState(false)
 
+  // Render QR dari qr_string Midtrans via qrserver.com (tidak perlu auth)
+  function buildQrImageUrl(qrString: string): string {
+    return `https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=${encodeURIComponent(qrString)}`
+  }
+
   useEffect(() => {
     // Load cart data
     loadCart()
@@ -138,7 +143,12 @@ export default function CheckoutPage() {
       })
       if (!response.ok) throw new Error('Gagal membuat QR')
       const qrData = await response.json()
-      if (qrData.qr_image_url) setDynamicQrUrl(qrData.qr_image_url)
+      // Gunakan qr_string untuk render QR via qrserver.com (tidak perlu auth Midtrans)
+      if (qrData.qr_string) {
+        setDynamicQrUrl(buildQrImageUrl(qrData.qr_string))
+      } else if (qrData.qr_image_url) {
+        setDynamicQrUrl(qrData.qr_image_url)
+      }
       subscribeToPayment(transactionId, transactionCode)
     } catch (error) {
       console.error('Create dynamic QRIS error:', error)

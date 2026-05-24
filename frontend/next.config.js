@@ -157,6 +157,11 @@ const nextConfig = {
         hostname: 'rpzoacwlswlhfqaiicho.supabase.co',
         pathname: '/storage/v1/object/public/**',
       },
+      {
+        // Untuk render QR code dari qr_string Midtrans
+        protocol: 'https',
+        hostname: 'api.qrserver.com',
+      },
     ],
   },
 }
