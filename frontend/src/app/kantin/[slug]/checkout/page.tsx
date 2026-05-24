@@ -141,9 +141,13 @@ export default function CheckoutPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ transaction_id: transactionId, amount, transaction_code: transactionCode }),
       })
-      if (!response.ok) throw new Error('Gagal membuat QR')
       const qrData = await response.json()
       console.log('create-qris response:', JSON.stringify(qrData))
+      if (!response.ok) {
+        const errDetail = qrData?.detail || qrData?.error || 'Tidak diketahui'
+        const mtStatus = qrData?.midtrans_status ? ` (Midtrans status: ${qrData.midtrans_status})` : ''
+        throw new Error(`Gagal membuat QR: ${errDetail}${mtStatus}`)
+      }
       // Gunakan qr_string untuk render QR via qrserver.com (tidak perlu auth Midtrans)
       if (qrData.qr_string) {
         setDynamicQrUrl(buildQrImageUrl(qrData.qr_string))

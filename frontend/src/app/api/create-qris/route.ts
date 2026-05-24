@@ -62,10 +62,18 @@ export async function POST(request: NextRequest) {
     console.log('Midtrans response status:', midtransRes.status)
     console.log('Midtrans response body:', JSON.stringify(data))
 
-    if (!midtransRes.ok) {
+    // Cek error: HTTP error ATAU Midtrans status_code bukan 200/201
+    const midtransStatusCode = data?.status_code?.toString()
+    const isSuccess = midtransRes.ok && (midtransStatusCode === '200' || midtransStatusCode === '201')
+
+    if (!isSuccess) {
       console.error('Midtrans API error:', data)
       return NextResponse.json(
-        { error: 'Failed to create dynamic QR', detail: data?.error_messages?.[0] || data?.status_message },
+        {
+          error: 'Failed to create dynamic QR',
+          midtrans_status: midtransStatusCode,
+          detail: data?.error_messages?.[0] || data?.status_message || 'Unknown error',
+        },
         { status: 502 }
       )
     }
@@ -74,6 +82,19 @@ export async function POST(request: NextRequest) {
     const qrAction = data.actions?.find((a: { name: string; url: string }) => a.name === 'generate-qr-code')
     const qrImageUrl: string | null = qrAction?.url ?? null
     const qrString: string | null = data.qr_string ?? null
+
+    // Jika qr_string tidak ada padahal status 201, berarti QRIS belum aktif
+    if (!qrString && !qrImageUrl) {
+      console.error('Midtrans QRIS tidak mengembalikan qr_string:', data)
+      return NextResponse.json(
+        {
+          error: 'QRIS not available',
+          midtrans_status: midtransStatusCode,
+          detail: 'qr_string kosong — QRIS mungkin belum aktif di akun Midtrans',
+        },
+        { status: 502 }
+      )
+    }
     const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString()
 
     // Simpan payment_reference ke database
