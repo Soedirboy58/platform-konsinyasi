@@ -143,6 +143,7 @@ export default function CheckoutPage() {
       })
       if (!response.ok) throw new Error('Gagal membuat QR')
       const qrData = await response.json()
+      console.log('create-qris response:', JSON.stringify(qrData))
       // Gunakan qr_string untuk render QR via qrserver.com (tidak perlu auth Midtrans)
       if (qrData.qr_string) {
         setDynamicQrUrl(buildQrImageUrl(qrData.qr_string))

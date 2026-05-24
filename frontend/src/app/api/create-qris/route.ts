@@ -48,11 +48,8 @@ export async function POST(request: NextRequest) {
       body: JSON.stringify({
         payment_type: 'qris',
         transaction_details: {
-          order_id: transaction_code,       // harus unik, cocok dengan transaction_code
-          gross_amount: Math.round(amount), // harus integer
-        },
-        qris: {
-          acquirer: 'gopay',               // acquirer sesuai approval Midtrans
+          order_id: transaction_code,
+          gross_amount: Math.round(amount),
         },
         custom_expiry: {
           expiry_duration: 15,
@@ -61,16 +58,17 @@ export async function POST(request: NextRequest) {
       }),
     })
 
+    const data = await midtransRes.json().catch(() => ({}))
+    console.log('Midtrans response status:', midtransRes.status)
+    console.log('Midtrans response body:', JSON.stringify(data))
+
     if (!midtransRes.ok) {
-      const midtransError = await midtransRes.json().catch(() => ({}))
-      console.error('Midtrans API error:', midtransError)
+      console.error('Midtrans API error:', data)
       return NextResponse.json(
-        { error: 'Failed to create dynamic QR', detail: midtransError?.error_messages?.[0] },
+        { error: 'Failed to create dynamic QR', detail: data?.error_messages?.[0] || data?.status_message },
         { status: 502 }
       )
     }
-
-    const data = await midtransRes.json()
 
     // Midtrans mengembalikan QR URL di dalam array actions
     const qrAction = data.actions?.find((a: { name: string; url: string }) => a.name === 'generate-qr-code')
