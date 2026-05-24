@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 
+const MIDTRANS_BASE_URL =
+  process.env.MIDTRANS_IS_PRODUCTION === 'true'
+    ? 'https://api.midtrans.com'
+    : 'https://api.sandbox.midtrans.com'
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
@@ -21,48 +26,59 @@ export async function POST(request: NextRequest) {
     }
 
     // Pastikan env variable ada
-    const xenditSecretKey = process.env.XENDIT_SECRET_KEY
-    if (!xenditSecretKey) {
-      console.error('XENDIT_SECRET_KEY not configured')
+    const serverKey = process.env.MIDTRANS_SERVER_KEY
+    if (!serverKey) {
+      console.error('MIDTRANS_SERVER_KEY not configured')
       return NextResponse.json(
         { error: 'Payment gateway not configured' },
         { status: 503 }
       )
     }
 
-    // Expired 15 menit dari sekarang
-    const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString()
+    const authHeader = `Basic ${Buffer.from(serverKey + ':').toString('base64')}`
 
-    // Panggil Xendit API — buat dynamic QRIS
-    const xenditRes = await fetch('https://api.xendit.co/qr_codes', {
+    // Panggil Midtrans Core API — QRIS charge
+    const midtransRes = await fetch(`${MIDTRANS_BASE_URL}/v2/charge`, {
       method: 'POST',
       headers: {
-        'Authorization': `Basic ${Buffer.from(xenditSecretKey + ':').toString('base64')}`,
+        'Authorization': authHeader,
         'Content-Type': 'application/json',
-        'api-version': '2022-07-31',
+        'Accept': 'application/json',
       },
       body: JSON.stringify({
-        reference_id: transaction_code,   // Unique ID per transaksi
-        type: 'DYNAMIC',
-        currency: 'IDR',
-        amount: Math.round(amount),        // Harus integer
-        expires_at: expiresAt,
+        payment_type: 'qris',
+        transaction_details: {
+          order_id: transaction_code,       // harus unik, cocok dengan transaction_code
+          gross_amount: Math.round(amount), // harus integer
+        },
+        qris: {
+          acquirer: 'gopay',               // acquirer sesuai approval Midtrans
+        },
+        custom_expiry: {
+          expiry_duration: 15,
+          unit: 'minute',
+        },
       }),
     })
 
-    if (!xenditRes.ok) {
-      const xenditError = await xenditRes.json().catch(() => ({}))
-      console.error('Xendit API error:', xenditError)
+    if (!midtransRes.ok) {
+      const midtransError = await midtransRes.json().catch(() => ({}))
+      console.error('Midtrans API error:', midtransError)
       return NextResponse.json(
-        { error: 'Failed to create dynamic QR', detail: xenditError?.message },
+        { error: 'Failed to create dynamic QR', detail: midtransError?.error_messages?.[0] },
         { status: 502 }
       )
     }
 
-    const qrData = await xenditRes.json()
+    const data = await midtransRes.json()
 
-    // Simpan payment_reference ke database (opsional — untuk audit trail)
-    // Gunakan service role key jika tersedia
+    // Midtrans mengembalikan QR URL di dalam array actions
+    const qrAction = data.actions?.find((a: { name: string; url: string }) => a.name === 'generate-qr-code')
+    const qrImageUrl: string | null = qrAction?.url ?? null
+    const qrString: string | null = data.qr_string ?? null
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString()
+
+    // Simpan payment_reference ke database
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
     if (supabaseUrl && serviceRoleKey) {
@@ -77,19 +93,21 @@ export async function POST(request: NextRequest) {
             'Prefer': 'return=minimal',
           },
           body: JSON.stringify({
-            payment_provider: 'XENDIT',
-            payment_reference: qrData.id,
-            payment_qr_string: qrData.qr_string,
-            payment_expired_at: qrData.expires_at,
+            payment_provider: 'MIDTRANS',
+            payment_reference: data.transaction_id, // Midtrans transaction_id
+            payment_qr_string: qrString,
+            payment_qr_url: qrImageUrl,
+            payment_expired_at: expiresAt,
           }),
         }
       ).catch((err) => console.warn('DB update optional step failed:', err))
     }
 
     return NextResponse.json({
-      qr_string: qrData.qr_string,
-      expires_at: qrData.expires_at,
-      xendit_id: qrData.id,
+      qr_string: qrString,
+      qr_image_url: qrImageUrl,
+      expires_at: expiresAt,
+      midtrans_id: data.transaction_id,
     })
 
   } catch (error) {
