@@ -1,4 +1,3 @@
-import Link from 'next/link'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
@@ -65,33 +64,6 @@ export default function MaintenancePage() {
               <span className="text-slate-300 text-sm leading-relaxed">{item.text}</span>
             </div>
           ))}
-        </div>
-
-        {/* Access links for internal users */}
-        <div className="bg-emerald-950/40 border border-emerald-800/40 rounded-2xl p-5 mb-8">
-          <p className="text-emerald-400 text-sm font-medium mb-3">Akses internal tetap tersedia</p>
-          <div className="flex flex-col sm:flex-row gap-2 justify-center">
-            <Link
-              href="/supplier/login"
-              className="inline-flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-medium px-5 py-2.5 rounded-xl transition-colors"
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4">
-                <path d="M20 7H4a2 2 0 00-2 2v10a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2z" />
-                <path d="M16 3H8a2 2 0 00-2 2v2h12V5a2 2 0 00-2-2z" />
-              </svg>
-              Portal Supplier
-            </Link>
-            <Link
-              href="/admin"
-              className="inline-flex items-center justify-center gap-2 bg-white/10 hover:bg-white/20 text-white text-sm font-medium px-5 py-2.5 rounded-xl transition-colors border border-white/10"
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4">
-                <circle cx="12" cy="8" r="4" />
-                <path d="M20 21a8 8 0 10-16 0" />
-              </svg>
-              Panel Admin
-            </Link>
-          </div>
         </div>
 
         {/* Footer note */}
