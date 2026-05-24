@@ -152,7 +152,8 @@ export default function CheckoutPage() {
       subscribeToPayment(transactionId, transactionCode)
     } catch (error) {
       console.error('Create dynamic QRIS error:', error)
-      // Fallback ke QRIS statis — tidak tampilkan error ke user
+      toast.error('QR dinamis gagal dibuat, gunakan QRIS di bawah')
+      // Fallback ke QRIS statis — halaman tetap bisa digunakan
     } finally {
       setQrLoading(false)
     }

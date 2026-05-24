@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 
 const MIDTRANS_BASE_URL =
-  process.env.MIDTRANS_IS_PRODUCTION === 'true'
-    ? 'https://api.midtrans.com'
-    : 'https://api.sandbox.midtrans.com'
+  process.env.MIDTRANS_IS_PRODUCTION === 'false'
+    ? 'https://api.sandbox.midtrans.com'
+    : 'https://api.midtrans.com'  // default: production
 
 export async function POST(request: NextRequest) {
   try {
