@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useSearchParams } from 'next/navigation'
 import ConfirmDialog from '@/components/admin/ConfirmDialog'
 import AlertDialog from '@/components/admin/AlertDialog'
+import { getCdnUrl } from '@/lib/cdn'
 
 interface Product {
   id: string
@@ -605,7 +606,7 @@ function ProductsApprovalContent() {
                       <div className="flex items-start gap-3 mb-2">
                         <div className="flex-shrink-0 w-16 h-16 bg-gray-200 rounded flex items-center justify-center">
                           {product.photo_url ? (
-                            <img src={product.photo_url} alt={product.name} className="w-16 h-16 rounded object-cover" />
+                            <img src={getCdnUrl(product.photo_url) ?? ''} alt={product.name} className="w-16 h-16 rounded object-cover" />
                           ) : (
                             <ImageIcon className="w-8 h-8 text-gray-400" />
                           )}
@@ -713,7 +714,7 @@ function ProductsApprovalContent() {
                         <div className="flex items-center">
                           <div className="flex-shrink-0 h-10 w-10 bg-gray-200 rounded flex items-center justify-center">
                             {product.photo_url ? (
-                              <img src={product.photo_url} alt={product.name} className="h-10 w-10 rounded object-cover" />
+                              <img src={getCdnUrl(product.photo_url) ?? ''} alt={product.name} className="h-10 w-10 rounded object-cover" />
                             ) : (
                               <ImageIcon className="w-6 h-6 text-gray-400" />
                             )}

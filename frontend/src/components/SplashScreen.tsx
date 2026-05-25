@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { usePathname } from 'next/navigation'
+import { getCdnUrl } from '@/lib/cdn'
 
 export default function SplashScreen() {
   const [isLoading, setIsLoading] = useState(true)
@@ -29,7 +30,7 @@ export default function SplashScreen() {
         {/* Logo dengan animasi */}
         <div className="mb-8 animate-bounce">
           <img
-            src="https://rpzoacwlswlhfqaiicho.supabase.co/storage/v1/object/public/assets/store.png"
+            src={getCdnUrl('https://rpzoacwlswlhfqaiicho.supabase.co/storage/v1/object/public/assets/store.png') ?? ''}
             alt="Katalara"
             className="w-32 h-32 mx-auto rounded-3xl shadow-2xl"
           />

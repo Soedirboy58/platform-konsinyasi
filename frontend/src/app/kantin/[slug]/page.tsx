@@ -7,6 +7,7 @@ import { ShoppingCart, Scan, Plus, Minus, Search, Filter, X, AlertTriangle, Stor
 import { toast } from 'sonner'
 import ReportProductModal from '@/components/ReportProductModal'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
+import { getCdnUrl } from '@/lib/cdn'
 
 type Product = {
   product_id: string
@@ -384,7 +385,7 @@ export default function KantinPage() {
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-3">
               {locationLogo ? (
-                <img src={locationLogo} alt="logo" className="w-10 h-10 rounded-lg object-cover bg-white/20" />
+                <img src={getCdnUrl(locationLogo) ?? ''} alt="logo" className="w-10 h-10 rounded-lg object-cover bg-white/20" />
               ) : (
                 <Store className="w-8 h-8" />
               )}
@@ -746,7 +747,7 @@ export default function KantinPage() {
                   <div key={item.product_id} className="flex items-center gap-3 bg-gray-50 p-3 rounded-xl">
                     <div className="w-16 h-16 bg-gray-200 rounded-lg flex items-center justify-center flex-shrink-0">
                       {item.photo_url ? (
-                        <img src={item.photo_url} alt={item.name} className="w-full h-full object-cover rounded-lg" />
+                        <img src={getCdnUrl(item.photo_url) ?? ''} alt={item.name} className="w-full h-full object-cover rounded-lg" />
                       ) : (
                         <span className="text-2xl">�</span>
                       )}

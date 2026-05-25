@@ -7,6 +7,7 @@ import Link from 'next/link'
 import { Package, Edit, Trash2, Plus, Boxes } from 'lucide-react'
 import { toast } from 'sonner'
 import ConfirmDialog from '@/components/supplier/ConfirmDialog'
+import { getCdnUrl } from '@/lib/cdn'
 
 type Product = {
   id: string
@@ -340,7 +341,7 @@ export default function ProductsPage() {
                           <div className="flex items-center">
                             <div className="flex-shrink-0 h-10 w-10 bg-gray-200 rounded flex items-center justify-center">
                               {product.photo_url ? (
-                                <img src={product.photo_url} alt={product.name} className="h-10 w-10 rounded object-cover" />
+                                <img src={getCdnUrl(product.photo_url) ?? ''} alt={product.name} className="h-10 w-10 rounded object-cover" />
                               ) : (
                                 <Package className="w-6 h-6 text-gray-400" />
                               )}
@@ -426,7 +427,7 @@ export default function ProductsPage() {
                         />
                         <div className="flex-shrink-0 h-16 w-16 bg-gray-200 rounded-lg flex items-center justify-center overflow-hidden">
                           {product.photo_url ? (
-                            <img src={product.photo_url} alt={product.name} className="h-16 w-16 object-cover" />
+                            <img src={getCdnUrl(product.photo_url) ?? ''} alt={product.name} className="h-16 w-16 object-cover" />
                           ) : (
                             <Package className="w-8 h-8 text-gray-400" />
                           )}

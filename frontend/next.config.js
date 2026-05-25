@@ -158,6 +158,12 @@ const nextConfig = {
         pathname: '/storage/v1/object/public/**',
       },
       {
+        // CDN domain untuk image dari Cloudflare CDN
+        protocol: 'https',
+        hostname: 'cdn.katalara.com',
+        pathname: '/storage/v1/object/public/**',
+      },
+      {
         // Untuk render QR code dari qr_string Midtrans
         protocol: 'https',
         hostname: 'api.qrserver.com',

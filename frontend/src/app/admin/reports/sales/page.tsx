@@ -17,6 +17,7 @@ import {
   X
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { getCdnUrl } from '@/lib/cdn'
 
 interface SalesData {
   id: string
@@ -678,7 +679,7 @@ export default function SalesReport() {
               </button>
             </div>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={previewProof} alt="Bukti Bayar" className="w-full rounded-lg object-contain max-h-[70vh]" />
+            <img src={getCdnUrl(previewProof) ?? previewProof} alt="Bukti Bayar" className="w-full rounded-lg object-contain max-h-[70vh]" />
             <a
               href={previewProof}
               target="_blank"

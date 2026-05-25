@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import ConfirmDialog from '@/components/admin/ConfirmDialog'
 import dynamic from 'next/dynamic'
+import { getCdnUrl } from '@/lib/cdn'
 
 // Dynamic imports to avoid SSR issues
 const QRCodeLib = require('qrcode')
@@ -1011,7 +1012,7 @@ export default function Settings() {
                       </label>
                       <div className="flex items-center gap-3">
                         {outletForm.qris_image_url && (
-                          <img src={outletForm.qris_image_url} alt="QRIS" className="w-16 h-16 object-contain rounded-lg border border-gray-200 bg-white p-1" />
+                          <img src={getCdnUrl(outletForm.qris_image_url) ?? ''} alt="QRIS" className="w-16 h-16 object-contain rounded-lg border border-gray-200 bg-white p-1" />
                         )}
                         <label className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-400 cursor-pointer transition-colors">
                           <Upload className="w-4 h-4 text-gray-500" />
@@ -1070,7 +1071,7 @@ export default function Settings() {
                         </label>
                         <div className="flex items-center gap-3">
                           {outletForm.logo_url && (
-                            <img src={outletForm.logo_url} alt="logo" className="w-12 h-12 rounded-lg object-cover border border-gray-200" />
+                            <img src={getCdnUrl(outletForm.logo_url) ?? ''} alt="logo" className="w-12 h-12 rounded-lg object-cover border border-gray-200" />
                           )}
                           <label className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 border-2 border-dashed border-gray-300 rounded-lg hover:border-purple-400 cursor-pointer transition-colors">
                             <Upload className="w-4 h-4 text-gray-500" />
@@ -1152,7 +1153,7 @@ export default function Settings() {
                         style={{ background: `linear-gradient(to right, ${outletForm.header_color_from || '#dc2626'}, ${outletForm.header_color_to || '#ea580c'})` }}
                       >
                         {outletForm.logo_url
-                          ? <img src={outletForm.logo_url} alt="logo" className="w-8 h-8 rounded-lg object-cover bg-white/20" />
+                          ? <img src={getCdnUrl(outletForm.logo_url) ?? ''} alt="logo" className="w-8 h-8 rounded-lg object-cover bg-white/20" />
                           : <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center text-lg">🏪</div>
                         }
                         <div>
@@ -1204,7 +1205,7 @@ export default function Settings() {
                           style={{ background: `linear-gradient(to right, ${outlet.header_color_from || '#dc2626'}, ${outlet.header_color_to || '#ea580c'})` }}
                         >
                           {outlet.logo_url
-                            ? <img src={outlet.logo_url} alt="logo" className="w-6 h-6 rounded object-cover" />
+                            ? <img src={getCdnUrl(outlet.logo_url) ?? ''} alt="logo" className="w-6 h-6 rounded object-cover" />
                             : <span>🏪</span>
                           }
                           <span className="font-semibold">{outlet.brand_name || 'Bisnis & Partnership'}</span>
@@ -1335,7 +1336,7 @@ export default function Settings() {
                               <div className="space-y-2 mb-4">
                                 {carouselSlides.map((slide, idx) => (
                                   <div key={slide.id} className="flex items-center gap-3 bg-white rounded-lg p-2.5 border border-gray-200">
-                                    <img src={slide.image_url} alt={slide.title || `Slide ${idx+1}`} className="w-16 h-10 object-cover rounded flex-shrink-0" />
+                                    <img src={getCdnUrl(slide.image_url) ?? ''} alt={slide.title || `Slide ${idx+1}`} className="w-16 h-10 object-cover rounded flex-shrink-0" />
                                     <div className="flex-1 min-w-0">
                                       <p className="text-sm font-medium text-gray-800 truncate">{slide.title || `Slide ${idx+1}`}</p>
                                       {slide.subtitle && <p className="text-xs text-gray-500 truncate">{slide.subtitle}</p>}
@@ -1624,7 +1625,7 @@ export default function Settings() {
                         className="flex items-center gap-1.5 text-sm bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-full transition-colors border-l-4"
                         style={{ borderColor: outlet.header_color_from || '#dc2626' }}
                       >
-                        {outlet.logo_url && <img src={outlet.logo_url} className="w-4 h-4 rounded object-cover" alt="" />}
+                        {outlet.logo_url && <img src={getCdnUrl(outlet.logo_url) ?? ''} className="w-4 h-4 rounded object-cover" alt="" />}
                         {outlet.brand_name || outlet.name}
                       </button>
                     ))}
@@ -1663,7 +1664,7 @@ export default function Settings() {
                     <label className="block text-sm font-medium text-gray-700 mb-1">Gambar Banner (opsional)</label>
                     {bannerForm.image_url && (
                       <div className="relative w-full h-32 rounded-lg overflow-hidden mb-2">
-                        <img src={bannerForm.image_url} alt="preview" className="w-full h-full object-cover" />
+                        <img src={getCdnUrl(bannerForm.image_url) ?? ''} alt="preview" className="w-full h-full object-cover" />
                         <button onClick={() => setBannerForm(prev => ({ ...prev, image_url: '' }))} className="absolute top-2 right-2 p-1 bg-red-600 text-white rounded-full">
                           <Trash2 className="w-3 h-3" />
                         </button>
@@ -1692,7 +1693,7 @@ export default function Settings() {
                   <div className="md:col-span-2">
                     <label className="block text-sm font-medium text-gray-700 mb-1">Preview</label>
                     <div className="relative h-24 rounded-xl overflow-hidden flex items-center px-6 text-white" style={{ background: bannerForm.image_url ? undefined : `linear-gradient(135deg, ${bannerForm.bg_color_from}, ${bannerForm.bg_color_to})` }}>
-                      {bannerForm.image_url && <img src={bannerForm.image_url} alt="" className="absolute inset-0 w-full h-full object-cover opacity-60" />}
+                      {bannerForm.image_url && <img src={getCdnUrl(bannerForm.image_url) ?? ''} alt="" className="absolute inset-0 w-full h-full object-cover opacity-60" />}
                       <div className="relative z-10">
                         {bannerForm.badge_text && <span className="text-xs bg-white/20 px-2 py-0.5 rounded-full mr-2">{bannerForm.badge_text}</span>}
                         <p className="font-bold text-lg leading-tight">{bannerForm.title || 'Judul Banner'}</p>
@@ -1723,7 +1724,7 @@ export default function Settings() {
                   {homepageBanners.map((banner, idx) => (
                     <div key={banner.id} className="p-4 flex gap-4 items-center">
                       <div className="w-28 h-16 rounded-lg flex-shrink-0 overflow-hidden flex items-center justify-center text-white text-xs font-medium relative" style={{ background: banner.image_url ? undefined : `linear-gradient(135deg, ${banner.bg_color_from}, ${banner.bg_color_to})` }}>
-                        {banner.image_url && <img src={banner.image_url} alt="" className="w-full h-full object-cover" />}
+                        {banner.image_url && <img src={getCdnUrl(banner.image_url) ?? ''} alt="" className="w-full h-full object-cover" />}
                         {!banner.image_url && <span className="px-1 text-center leading-tight">{banner.title.slice(0, 18)}</span>}
                         <span className="absolute top-1 left-1 text-xs bg-black/30 px-1 rounded">#{idx + 1}</span>
                       </div>

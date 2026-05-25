@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import { ArrowLeft, Check, Loader2, Download, Share2, Upload, Clock, AlertCircle, ImageIcon } from 'lucide-react'
 import { toast } from 'sonner'
 import Image from 'next/image'
+import { getCdnUrl } from '@/lib/cdn'
 
 type CartItem = {
   product_id: string
@@ -456,7 +457,7 @@ export default function CheckoutPage() {
               ) : (
                 <div className="flex justify-center bg-gray-50 rounded-lg p-2">
                   <Image
-                    src={dynamicQrUrl || checkoutResult.qris_image_url!}
+                    src={dynamicQrUrl || getCdnUrl(checkoutResult.qris_image_url) || checkoutResult.qris_image_url!}
                     alt="QRIS Code"
                     width={260}
                     height={260}
