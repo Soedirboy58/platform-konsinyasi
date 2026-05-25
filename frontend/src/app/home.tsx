@@ -3,37 +3,31 @@
 import Link from 'next/link'
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { getCdnUrl } from '@/lib/cdn'
 import {
   QrCode, BarChart3, Package, Users, ShieldCheck, Zap,
-  ArrowRight, ChevronRight, Store, TrendingUp, CheckCircle
+  ArrowRight, CheckCircle
 } from 'lucide-react'
 
-interface CarouselOutlet {
+interface SupplierCard {
   id: string
-  name: string
-  brand_name: string | null
-  logo_url: string | null
-  header_color_from: string
-  header_color_to: string
-  qr_code: string | null
+  business_name: string
 }
 
 export default function HomePage() {
-  const [outlets, setOutlets] = useState<CarouselOutlet[]>([])
+  const [mitras, setMitras] = useState<SupplierCard[]>([])
   const [stats, setStats] = useState({ suppliers: 0, products: 0, transactions: 0 })
 
   useEffect(() => {
     async function load() {
       try {
         const supabase = createClient()
-        const [{ data: locs }, { count: supCount }, { count: txCount }, { count: prodCount }] = await Promise.all([
-          supabase.from('locations').select('id, name, brand_name, logo_url, header_color_from, header_color_to, qr_code').eq('is_active', true).limit(6),
+        const [{ data: mitrasData }, { count: supCount }, { count: txCount }, { count: prodCount }] = await Promise.all([
+          supabase.from('suppliers').select('id, business_name').eq('status', 'APPROVED').order('created_at'),
           supabase.from('suppliers').select('id', { count: 'exact', head: true }),
           supabase.from('sales_transactions').select('id', { count: 'exact', head: true }),
           supabase.from('products').select('id', { count: 'exact', head: true }).eq('status', 'APPROVED'),
         ])
-        setOutlets(locs || [])
+        setMitras(mitrasData || [])
         setStats({
           suppliers: supCount || 0,
           products: prodCount || 0,
@@ -255,36 +249,33 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ─── OUTLETS ─────────────────────────────────────────────────────────────── */}
-      {outlets.length > 0 && (
+      {/* ─── MITRA CAROUSEL ──────────────────────────────────────────────────────── */}
+      {mitras.length > 0 && (
         <section id="outlet" className="py-20 bg-gray-50">
-          <div className="max-w-6xl mx-auto px-4">
-            <div className="text-center mb-10">
-              <h2 className="text-3xl font-bold text-gray-900 mb-3">Outlet Bergabung</h2>
-              <p className="text-gray-500">Produk Anda akan tersedia di outlet-outlet ini</p>
-            </div>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              {outlets.map(outlet => (
-                <div
-                  key={outlet.id}
-                  className="bg-white rounded-2xl overflow-hidden border border-gray-100 hover:shadow-md transition-all"
-                >
-                  <div
-                    className="h-14 flex items-center gap-3 px-4 text-white"
-                    style={{ background: `linear-gradient(to right, ${outlet.header_color_from || '#10b981'}, ${outlet.header_color_to || '#0d9488'})` }}
-                  >
-                    {outlet.logo_url ? (
-                      <img src={getCdnUrl(outlet.logo_url) ?? ''} alt="" className="w-7 h-7 rounded-lg object-cover bg-white/20" />
-                    ) : (
-                      <Store className="w-5 h-5 opacity-80" />
-                    )}
-                    <span className="font-semibold text-sm truncate">{outlet.brand_name || outlet.name}</span>
+          <style>{`
+            @keyframes marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+            .marquee-track { animation: marquee 30s linear infinite; }
+            .marquee-track:hover { animation-play-state: paused; }
+          `}</style>
+          <div className="max-w-6xl mx-auto px-4 text-center mb-10">
+            <h2 className="text-3xl font-bold text-gray-900 mb-3">Mitra Bergabung</h2>
+            <p className="text-gray-500">Supplier yang sudah aktif berjualan di platform Katalara</p>
+          </div>
+          <div className="overflow-hidden">
+            <div className="marquee-track flex gap-4 px-4" style={{ width: 'max-content' }}>
+              {[...mitras, ...mitras].map((s, i) => {
+                const palette = ['bg-sky-500','bg-amber-500','bg-blue-600','bg-violet-500','bg-rose-500','bg-emerald-500','bg-orange-500','bg-teal-500']
+                const color = palette[i % palette.length]
+                const initials = s.business_name.split(' ').slice(0, 2).map((w: string) => w[0]).join('').toUpperCase()
+                return (
+                  <div key={i} className="flex items-center gap-3 bg-white rounded-2xl px-5 py-3 border border-gray-100 shadow-sm flex-shrink-0 hover:shadow-md transition-shadow cursor-default">
+                    <div className={`w-10 h-10 rounded-xl ${color} flex items-center justify-center text-white font-bold text-sm flex-shrink-0`}>
+                      {initials}
+                    </div>
+                    <span className="text-gray-800 font-semibold text-sm whitespace-nowrap">{s.business_name}</span>
                   </div>
-                  <div className="px-4 py-3">
-                    <p className="text-xs text-gray-500 truncate">{outlet.name}</p>
-                  </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           </div>
         </section>
