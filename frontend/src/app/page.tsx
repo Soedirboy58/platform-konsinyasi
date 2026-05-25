@@ -1,1 +1,1 @@
-export { default } from './maintenance'
+export { default } from './home'

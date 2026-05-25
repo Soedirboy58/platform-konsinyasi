@@ -15,7 +15,7 @@ export async function GET(request: Request) {
     if (error) {
       console.error('Auth callback error:', error)
       // Redirect to login with error
-      return NextResponse.redirect(`${requestUrl.origin}/supplier/login?error=verification_failed`)
+      return NextResponse.redirect(`${requestUrl.origin}/login?error=verification_failed`)
     }
     
     // Get user profile to determine redirect
@@ -46,7 +46,7 @@ export async function GET(request: Request) {
       } else if (profile?.role === 'SUPPLIER') {
         // If email verification (signup type), redirect to login with success message
         if (type === 'signup') {
-          return NextResponse.redirect(`${requestUrl.origin}/supplier/login?verified=true`)
+          return NextResponse.redirect(`${requestUrl.origin}/login?verified=true`)
         }
         
         // If no supplier record yet, go to onboarding
