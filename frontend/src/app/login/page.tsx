@@ -159,17 +159,16 @@ function LoginContent() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-emerald-50/30 to-teal-50/30 flex flex-col items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-sky-50/30 to-amber-50/30 flex flex-col items-center justify-center p-4">
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center gap-2 group mb-6">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-md group-hover:shadow-emerald-200 transition-shadow">
-              <svg viewBox="0 0 24 24" fill="none" className="w-5 h-5 text-white" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
-                <polyline points="9 22 9 12 15 12 15 22" />
-              </svg>
-            </div>
+            <img
+              src="https://rpzoacwlswlhfqaiicho.supabase.co/storage/v1/object/public/assets/Logo.jpg"
+              alt="Katalara"
+              className="w-10 h-10 rounded-xl object-contain bg-white shadow-md group-hover:shadow-sky-200 transition-shadow"
+            />
             <span className="text-xl font-bold text-gray-900">Katalara</span>
           </Link>
           <h1 className="text-2xl font-bold text-gray-900">
@@ -192,7 +191,7 @@ function LoginContent() {
                 onClick={() => setTab('login')}
                 className={`flex-1 py-3.5 text-sm font-semibold transition-colors ${
                   tab === 'login'
-                    ? 'text-emerald-600 border-b-2 border-emerald-500 bg-emerald-50/50'
+                    ? 'text-sky-600 border-b-2 border-sky-500 bg-sky-50/50'
                     : 'text-gray-500 hover:text-gray-700'
                 }`}
               >
@@ -202,7 +201,7 @@ function LoginContent() {
                 onClick={() => setTab('register')}
                 className={`flex-1 py-3.5 text-sm font-semibold transition-colors ${
                   tab === 'register'
-                    ? 'text-emerald-600 border-b-2 border-emerald-500 bg-emerald-50/50'
+                    ? 'text-sky-600 border-b-2 border-sky-500 bg-sky-50/50'
                     : 'text-gray-500 hover:text-gray-700'
                 }`}
               >
@@ -223,13 +222,13 @@ function LoginContent() {
                     onChange={e => setForgotEmail(e.target.value)}
                     required
                     placeholder="email@contoh.com"
-                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-sm"
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent text-sm"
                   />
                 </div>
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white font-semibold rounded-xl transition-colors flex items-center justify-center gap-2"
+                  className="w-full py-2.5 bg-gradient-to-r from-sky-500 to-amber-500 hover:from-sky-600 hover:to-amber-600 disabled:opacity-60 text-white font-semibold rounded-xl transition-all flex items-center justify-center gap-2 shadow-md"
                 >
                   {loading && <Loader2 className="w-4 h-4 animate-spin" />}
                   Kirim Link Reset
@@ -251,7 +250,7 @@ function LoginContent() {
                     onChange={e => set('email', e.target.value)}
                     required
                     placeholder="email@contoh.com"
-                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-sm"
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent text-sm"
                   />
                 </div>
                 <div>
@@ -263,7 +262,7 @@ function LoginContent() {
                       onChange={e => set('password', e.target.value)}
                       required
                       placeholder="Masukkan password"
-                      className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-sm pr-10"
+                      className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent text-sm pr-10"
                     />
                     <button type="button" onClick={() => setShowPassword(p => !p)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
                       {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -271,21 +270,21 @@ function LoginContent() {
                   </div>
                 </div>
                 <div className="flex justify-end">
-                  <button type="button" onClick={() => setIsForgot(true)} className="text-sm text-emerald-600 hover:text-emerald-700 hover:underline">
+                  <button type="button" onClick={() => setIsForgot(true)} className="text-sm text-sky-600 hover:text-sky-700 hover:underline">
                     Lupa password?
                   </button>
                 </div>
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full py-2.5 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 disabled:opacity-60 text-white font-semibold rounded-xl transition-all flex items-center justify-center gap-2 shadow-md hover:shadow-emerald-200"
+                  className="w-full py-2.5 bg-gradient-to-r from-sky-500 to-amber-500 hover:from-sky-600 hover:to-amber-600 disabled:opacity-60 text-white font-semibold rounded-xl transition-all flex items-center justify-center gap-2 shadow-md hover:shadow-sky-200"
                 >
                   {loading && <Loader2 className="w-4 h-4 animate-spin" />}
                   Masuk
                 </button>
                 <p className="text-center text-sm text-gray-500 pt-1">
                   Belum punya akun?{' '}
-                  <button type="button" onClick={() => setTab('register')} className="text-emerald-600 font-medium hover:underline">
+                  <button type="button" onClick={() => setTab('register')} className="text-sky-600 font-medium hover:underline">
                     Daftar sebagai Mitra
                   </button>
                 </p>
@@ -303,7 +302,7 @@ function LoginContent() {
                     onChange={e => set('fullName', e.target.value)}
                     required
                     placeholder="Nama lengkap Anda"
-                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-sm"
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent text-sm"
                   />
                 </div>
                 <div>
@@ -314,7 +313,7 @@ function LoginContent() {
                     onChange={e => set('email', e.target.value)}
                     required
                     placeholder="email@contoh.com"
-                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-sm"
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent text-sm"
                   />
                 </div>
                 <div>
@@ -327,7 +326,7 @@ function LoginContent() {
                       required
                       minLength={8}
                       placeholder="Minimal 8 karakter"
-                      className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-sm pr-10"
+                      className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent text-sm pr-10"
                     />
                     <button type="button" onClick={() => setShowPassword(p => !p)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
                       {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -342,13 +341,13 @@ function LoginContent() {
                     onChange={e => set('confirmPassword', e.target.value)}
                     required
                     placeholder="Ulangi password"
-                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-sm"
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent text-sm"
                   />
                 </div>
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full py-2.5 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 disabled:opacity-60 text-white font-semibold rounded-xl transition-all flex items-center justify-center gap-2 shadow-md"
+                  className="w-full py-2.5 bg-gradient-to-r from-sky-500 to-amber-500 hover:from-sky-600 hover:to-amber-600 disabled:opacity-60 text-white font-semibold rounded-xl transition-all flex items-center justify-center gap-2 shadow-md"
                 >
                   {loading && <Loader2 className="w-4 h-4 animate-spin" />}
                   Buat Akun Mitra
@@ -358,7 +357,7 @@ function LoginContent() {
                 </p>
                 <p className="text-center text-sm text-gray-500">
                   Sudah punya akun?{' '}
-                  <button type="button" onClick={() => setTab('login')} className="text-emerald-600 font-medium hover:underline">
+                  <button type="button" onClick={() => setTab('login')} className="text-sky-600 font-medium hover:underline">
                     Masuk di sini
                   </button>
                 </p>
@@ -377,7 +376,7 @@ function LoginContent() {
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-emerald-500" /></div>}>
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-sky-500" /></div>}>
       <LoginContent />
     </Suspense>
   )

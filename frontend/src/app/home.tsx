@@ -51,7 +51,7 @@ export default function HomePage() {
       icon: <QrCode className="w-6 h-6" />,
       title: 'Self-Checkout QRIS',
       desc: 'Pelanggan scan QR, pilih produk, bayar sendiri dengan QRIS. Semua transaksi tercatat otomatis.',
-      color: 'from-emerald-400 to-teal-500',
+      color: 'from-sky-400 to-blue-500',
     },
     {
       icon: <Package className="w-6 h-6" />,
@@ -75,7 +75,7 @@ export default function HomePage() {
       icon: <ShieldCheck className="w-6 h-6" />,
       title: 'Aman & Terverifikasi',
       desc: 'Sistem verifikasi supplier, autentikasi aman, dan audit trail setiap transaksi.',
-      color: 'from-green-400 to-emerald-500',
+      color: 'from-cyan-400 to-sky-500',
     },
     {
       icon: <Zap className="w-6 h-6" />,
@@ -115,24 +115,23 @@ export default function HomePage() {
       <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-100">
         <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-sm">
-              <svg viewBox="0 0 24 24" fill="none" className="w-4 h-4 text-white" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
-                <polyline points="9 22 9 12 15 12 15 22" />
-              </svg>
-            </div>
+            <img
+              src="https://rpzoacwlswlhfqaiicho.supabase.co/storage/v1/object/public/assets/Logo.jpg"
+              alt="Katalara"
+              className="w-8 h-8 rounded-lg object-contain"
+            />
             <span className="font-bold text-gray-900 text-lg">Katalara</span>
           </div>
           <nav className="hidden md:flex items-center gap-6 text-sm text-gray-600">
-            <a href="#fitur" className="hover:text-emerald-600 transition-colors">Fitur</a>
-            <a href="#cara-kerja" className="hover:text-emerald-600 transition-colors">Cara Kerja</a>
-            <a href="#outlet" className="hover:text-emerald-600 transition-colors">Outlet</a>
+            <a href="#fitur" className="hover:text-sky-600 transition-colors">Fitur</a>
+            <a href="#cara-kerja" className="hover:text-sky-600 transition-colors">Cara Kerja</a>
+            <a href="#outlet" className="hover:text-sky-600 transition-colors">Outlet</a>
           </nav>
           <div className="flex items-center gap-2">
             <Link href="/login" className="text-sm text-gray-600 hover:text-gray-900 font-medium px-3 py-1.5 rounded-lg hover:bg-gray-100 transition-colors">
               Masuk
             </Link>
-            <Link href="/login?mode=register" className="text-sm bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-4 py-1.5 rounded-lg transition-colors">
+            <Link href="/login?mode=register" className="text-sm bg-gradient-to-r from-sky-500 to-amber-500 hover:from-sky-600 hover:to-amber-600 text-white font-medium px-4 py-1.5 rounded-lg transition-all">
               Daftar Mitra
             </Link>
           </div>
@@ -140,23 +139,23 @@ export default function HomePage() {
       </header>
 
       {/* ─── HERO ────────────────────────────────────────────────────────────────── */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-emerald-950 to-teal-900 text-white">
+      <section className="relative overflow-hidden bg-gradient-to-br from-sky-950 via-blue-950 to-slate-900 text-white">
         {/* Background blobs */}
         <div className="absolute inset-0 pointer-events-none overflow-hidden">
-          <div className="absolute -top-20 -right-20 w-96 h-96 bg-emerald-500/20 rounded-full blur-3xl" />
-          <div className="absolute bottom-0 -left-20 w-80 h-80 bg-teal-500/15 rounded-full blur-3xl" />
+          <div className="absolute -top-20 -right-20 w-96 h-96 bg-sky-500/20 rounded-full blur-3xl" />
+          <div className="absolute bottom-0 -left-20 w-80 h-80 bg-amber-500/15 rounded-full blur-3xl" />
         </div>
 
         <div className="relative max-w-6xl mx-auto px-4 py-20 md:py-28">
           <div className="max-w-3xl">
-            <div className="inline-flex items-center gap-2 bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs font-medium px-3 py-1.5 rounded-full mb-6">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            <div className="inline-flex items-center gap-2 bg-sky-500/15 border border-sky-500/30 text-sky-300 text-xs font-medium px-3 py-1.5 rounded-full mb-6">
+              <span className="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse" />
               Platform Konsinyasi Digital Indonesia
             </div>
             <h1 className="text-4xl md:text-6xl font-extrabold leading-tight mb-6">
               Titip Produk,
               <br />
-              <span className="bg-gradient-to-r from-emerald-400 to-teal-300 bg-clip-text text-transparent">
+              <span className="bg-gradient-to-r from-sky-400 to-amber-400 bg-clip-text text-transparent">
                 Jual Tanpa Ribet
               </span>
             </h1>
@@ -167,7 +166,7 @@ export default function HomePage() {
             <div className="flex flex-col sm:flex-row gap-3">
               <Link
                 href="/login?mode=register"
-                className="inline-flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-white font-semibold px-6 py-3 rounded-xl transition-colors shadow-lg shadow-emerald-500/30"
+                className="inline-flex items-center justify-center gap-2 bg-gradient-to-r from-sky-500 to-amber-500 hover:from-sky-400 hover:to-amber-400 text-white font-semibold px-6 py-3 rounded-xl transition-all shadow-lg shadow-sky-500/30"
               >
                 Daftar Jadi Mitra
                 <ArrowRight className="w-4 h-4" />
@@ -241,10 +240,10 @@ export default function HomePage() {
             {steps.map((s, i) => (
               <div key={i} className="relative">
                 {i < steps.length - 1 && (
-                  <div className="hidden lg:block absolute top-8 left-full w-full h-px bg-gradient-to-r from-emerald-200 to-transparent z-0" />
+                  <div className="hidden lg:block absolute top-8 left-full w-full h-px bg-gradient-to-r from-sky-200 to-transparent z-0" />
                 )}
                 <div className="relative z-10 text-center">
-                  <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center mx-auto mb-4 shadow-lg shadow-emerald-100">
+                  <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-sky-500 to-blue-600 flex items-center justify-center mx-auto mb-4 shadow-lg shadow-sky-100">
                     <span className="text-white font-bold text-lg">{s.n}</span>
                   </div>
                   <h3 className="font-bold text-gray-900 mb-2">{s.title}</h3>
@@ -292,27 +291,27 @@ export default function HomePage() {
       )}
 
       {/* ─── CTA ─────────────────────────────────────────────────────────────────── */}
-      <section className="py-20 bg-gradient-to-br from-emerald-600 to-teal-700 text-white">
+      <section className="py-20 bg-gradient-to-r from-sky-600 to-amber-500 text-white">
         <div className="max-w-3xl mx-auto px-4 text-center">
-          <div className="inline-flex items-center gap-2 bg-white/15 text-emerald-100 text-sm font-medium px-4 py-1.5 rounded-full mb-6">
+          <div className="inline-flex items-center gap-2 bg-white/15 text-sky-100 text-sm font-medium px-4 py-1.5 rounded-full mb-6">
             <CheckCircle className="w-4 h-4" />
             Gratis mendaftar, tanpa biaya setup
           </div>
           <h2 className="text-3xl md:text-4xl font-bold mb-4">Siap titipkan produk Anda?</h2>
-          <p className="text-emerald-100 text-lg mb-8 max-w-xl mx-auto">
+          <p className="text-sky-100 text-lg mb-8 max-w-xl mx-auto">
             Bergabung sekarang dan mulai jual produk Anda di outlet Katalara tanpa perlu membuka toko sendiri.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <Link
               href="/login?mode=register"
-              className="inline-flex items-center justify-center gap-2 bg-white text-emerald-700 font-bold px-8 py-3.5 rounded-xl hover:bg-emerald-50 transition-colors shadow-lg"
+              className="inline-flex items-center justify-center gap-2 bg-white text-sky-700 font-bold px-8 py-3.5 rounded-xl hover:bg-sky-50 transition-colors shadow-lg"
             >
               Daftar Sekarang — Gratis
               <ArrowRight className="w-4 h-4" />
             </Link>
             <Link
               href="/login"
-              className="inline-flex items-center justify-center gap-2 bg-emerald-500/30 hover:bg-emerald-500/50 text-white font-semibold px-8 py-3.5 rounded-xl transition-colors border border-white/20"
+              className="inline-flex items-center justify-center gap-2 bg-white/15 hover:bg-white/25 text-white font-semibold px-8 py-3.5 rounded-xl transition-colors border border-white/20"
             >
               Sudah punya akun? Masuk
             </Link>
@@ -325,12 +324,11 @@ export default function HomePage() {
         <div className="max-w-6xl mx-auto px-4">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-2.5">
-              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center">
-                <svg viewBox="0 0 24 24" fill="none" className="w-3.5 h-3.5 text-white" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
-                  <polyline points="9 22 9 12 15 12 15 22" />
-                </svg>
-              </div>
+              <img
+                src="https://rpzoacwlswlhfqaiicho.supabase.co/storage/v1/object/public/assets/Logo.jpg"
+                alt="Katalara"
+                className="w-7 h-7 rounded-lg object-contain bg-white"
+              />
               <span className="text-white font-bold">Katalara</span>
               <span className="text-slate-600 text-sm">— Platform Konsinyasi Digital</span>
             </div>
