@@ -26,6 +26,10 @@ interface Commission {
   unpaid_amount: number
   products_sold: number
   transactions: number
+  total_revenue_alltime: number
+  total_paid_alltime: number
+  products_shipped: number
+  total_transactions_alltime: number
   status: 'UNPAID' | 'PAID' | 'PENDING'
   payment_date?: string
   payment_proof?: string
@@ -175,11 +179,32 @@ export default function CommissionsPage() {
         .eq('status', 'COMPLETED')
         .order('payment_date', { ascending: false })
 
+      // ALL-TIME stock movements — produk dikirim supplier ke platform
+      const { data: stockMovementsData } = await supabase
+        .from('stock_movements')
+        .select(`
+          supplier_id,
+          stock_movement_items(quantity)
+        `)
+        .eq('movement_type', 'IN')
+        .in('status', ['APPROVED', 'COMPLETED'])
+
       // Build payment map (all-time)
       const paymentMap = new Map<string, any[]>()
       for (const payment of paymentRecords || []) {
         if (!paymentMap.has(payment.supplier_id)) paymentMap.set(payment.supplier_id, [])
         paymentMap.get(payment.supplier_id)!.push(payment)
+      }
+
+      // Build shipped quantity map (all-time stock IN)
+      const shippedMap = new Map<string, number>()
+      for (const movement of stockMovementsData || []) {
+        const supplierId = movement.supplier_id
+        if (!supplierId) continue
+        const totalQty = (movement.stock_movement_items as any[])?.reduce(
+          (sum: number, item: any) => sum + (item.quantity || 0), 0
+        ) || 0
+        shippedMap.set(supplierId, (shippedMap.get(supplierId) || 0) + totalQty)
       }
 
       // Kelompokkan sales per supplier — ALL-TIME + PERIOD (in-memory split)
@@ -242,15 +267,27 @@ export default function CommissionsPage() {
 
         const latestPayment = payments[0] || null
 
+        // ALL-TIME unique transaction count
+        const allTimeUniqueTransactions = new Set(
+          allSales.map((item: any) => {
+            const tx = item.sales_transactions
+            return Array.isArray(tx) ? tx[0]?.id : tx?.id
+          }).filter(Boolean)
+        ).size
+
         commissionsData.push({
           supplier_id: supplierId,
           supplier_name: supplier.business_name,
           total_sales: periodTotalSales,           // display: penjualan di periode dipilih
           commission_rate: effectiveRate / 100,
-          commission_amount: Math.max(0, currentBalance), // saldo berjalan yang harus dibayar
+          commission_amount: Math.max(0, currentBalance), // outstanding saldo berjalan
           unpaid_amount: Math.max(0, currentBalance),     // sama dengan commission_amount
           products_sold: periodProductsSold,
           transactions: periodUniqueTransactions,
+          total_revenue_alltime: Math.max(0, alltimeRevenue),
+          total_paid_alltime: Math.max(0, alltimePaid),
+          products_shipped: shippedMap.get(supplierId) || 0,
+          total_transactions_alltime: allTimeUniqueTransactions,
           status,
           payment_date: latestPayment?.payment_date,
           payment_reference: latestPayment?.payment_reference,
@@ -800,226 +837,122 @@ export default function CommissionsPage() {
           </div>
         </div>
 
-        {/* Table */}
-        <div className="bg-white rounded-lg shadow overflow-hidden">
-          {/* Mobile Card View */}
-          <div className="block lg:hidden p-4 space-y-4">
-            {filteredCommissions.map((commission) => (
-              <div key={commission.supplier_id} className="bg-white border rounded-lg p-4 shadow-sm">
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex-1">
-                    <h3 className="text-sm font-semibold text-gray-900">
-                      {commission.supplier_name}
-                    </h3>
-                    <p className="text-xs text-gray-500 mt-1">
-                      {commission.bank_name} - {commission.bank_account}
-                    </p>
-                  </div>
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                    commission.status === 'PAID' 
-                      ? 'bg-gray-100 text-gray-600'
-                      : commission.status === 'PENDING'
-                      ? 'bg-orange-100 text-orange-800'
-                      : 'bg-green-100 text-green-800'
-                  }`}>
-                    {commission.status === 'PAID' ? 'Lunas' : 
-                     commission.status === 'PENDING' ? '⏳ Akumulasi' : '✅ Siap Dibayar'}
-                  </span>
-                </div>
-                
-                <div className="space-y-2 mb-3">
-                  <div className="flex justify-between items-center text-xs">
-                    <span className="text-gray-500">Total Penjualan:</span>
-                    <span className="font-medium text-gray-900">
-                      Rp {commission.total_sales.toLocaleString('id-ID')}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center text-xs">
-                    <span className="text-gray-500">Produk Terjual:</span>
-                    <span className="font-medium text-gray-700">{commission.products_sold} produk</span>
-                  </div>
-                  <div className="flex justify-between items-center text-xs">
-                    <span className="text-gray-500">Transaksi:</span>
-                    <span className="font-medium text-gray-700">{commission.transactions} transaksi</span>
-                  </div>
-                  <div className="bg-green-50 rounded p-2 border border-green-200">
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs text-green-700 font-medium">Transfer ke Supplier:</span>
-                      <span className="text-sm font-bold text-green-700">
-                        Rp {commission.commission_amount.toLocaleString('id-ID')}
-                      </span>
-                    </div>
-                    
-                    {commission.unpaid_amount < -0.01 && (
-                      <p className="text-xs text-red-600 mt-1 font-semibold">
-                        ⚠️ Over-payment: Rp {Math.abs(commission.unpaid_amount).toLocaleString('id-ID')}
-                      </p>
-                    )}
-                    
-                    {commission.unpaid_amount > 0.01 && (
-                      <p className="text-xs text-orange-600 mt-1 font-semibold">
-                        ⚠️ Belum dibayar: Rp {commission.unpaid_amount.toLocaleString('id-ID')}
-                      </p>
-                    )}
-                    
-                    {Math.abs(commission.unpaid_amount) <= 0.01 && (
-                      <p className="text-xs text-green-600 mt-1">
-                        Fee platform: {(commission.commission_rate * 100).toFixed(0)}%
-                      </p>
-                    )}
-                  </div>
-                </div>
-                
-                <div className="flex gap-2">
-                  {commission.status === 'UNPAID' && (
-                    <button
-                      onClick={() => handleOpenPaymentModal(commission)}
-                      className="flex-1 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-xs font-medium flex items-center justify-center gap-1"
-                    >
-                      <Upload className="w-3 h-3" />
-                      Bayar
-                    </button>
-                  )}
-                  {commission.status === 'PENDING' && (
-                    <button
-                      onClick={() => showToast('Fitur verifikasi pembayaran segera hadir.', 'info')}
-                      className="flex-1 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-xs font-medium flex items-center justify-center gap-1"
-                    >
-                      <Check className="w-3 h-3" />
-                      Verifikasi
-                    </button>
-                  )}
-                  <button 
-                    onClick={() => handleOpenDetailModal(commission)}
-                    className="flex-1 px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 text-xs font-medium flex items-center justify-center gap-1"
-                  >
-                    <Eye className="w-3 h-3" />
-                    Detail
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Desktop Table View */}
-          <div className="hidden lg:block overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Supplier
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Total Penjualan
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Transfer ke Supplier
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Transaksi
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Status
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
-                    Aksi
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {filteredCommissions.map((commission) => (
-                  <tr key={commission.supplier_id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4">
-                      <div className="text-sm font-medium text-gray-900">
-                        {commission.supplier_name}
-                      </div>
-                      <div className="text-sm text-gray-500">
-                        {commission.bank_name} - {commission.bank_account}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="text-sm text-gray-900">
-                        Rp {commission.total_sales.toLocaleString('id-ID')}
-                      </div>
-                      <div className="text-xs text-gray-500">
-                        {commission.products_sold} produk terjual
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div>
-                        <div className="text-sm font-bold text-green-600">
-                          Rp {commission.commission_amount.toLocaleString('id-ID')}
-                        </div>
-                        
-                        {commission.unpaid_amount < -0.01 && (
-                          <div className="text-xs text-red-600 font-semibold mt-1">
-                            ⚠️ Over-payment: Rp {Math.abs(commission.unpaid_amount).toLocaleString('id-ID')}
-                          </div>
-                        )}
-                        
-                        {commission.unpaid_amount > 0.01 && (
-                          <div className="text-xs text-orange-600 font-semibold mt-1">
-                            ⚠️ Belum dibayar: Rp {commission.unpaid_amount.toLocaleString('id-ID')}
-                          </div>
-                        )}
-                        
-                        {Math.abs(commission.unpaid_amount) <= 0.01 && (
-                          <div className="text-xs text-gray-500">
-                            Sudah dipotong fee {(commission.commission_rate * 100).toFixed(0)}%
-                          </div>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-900">
-                      {commission.transactions} transaksi
-                    </td>
-                    <td className="px-6 py-4">
-                      {commission.status === 'PAID' && (
-                        <span className="px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-600">
-                          Lunas
-                        </span>
-                      )}
-                      {commission.status === 'UNPAID' && (
-                        <span className="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">
-                          Siap Dibayar
-                        </span>
-                      )}
-                      {commission.status === 'PENDING' && (
-                        <span className="px-2 py-1 text-xs font-medium rounded-full bg-orange-100 text-orange-800">
-                          Akumulasi
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 text-right text-sm space-x-2">
-                      <button
-                        onClick={() => handleOpenDetailModal(commission)}
-                        className="text-blue-600 hover:text-blue-900"
-                      >
-                        <Eye className="w-5 h-5" />
-                      </button>
-                      {commission.status === 'UNPAID' && (
-                        <button
-                          onClick={() => handleOpenPaymentModal(commission)}
-                          className="inline-flex items-center px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
-                        >
-                          <Upload className="w-4 h-4 mr-1" />
-                          Bayar
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Empty State */}
-          {filteredCommissions.length === 0 && (
-            <div className="p-12 text-center">
+        {/* Card Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+          {filteredCommissions.length === 0 ? (
+            <div className="col-span-full py-16 text-center">
               <DollarSign className="w-16 h-16 text-gray-300 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-gray-900 mb-2">Tidak ada data komisi</h3>
-              <p className="text-gray-600">Ubah filter untuk melihat data lain</p>
+              <p className="text-gray-500 text-sm">Ubah filter untuk melihat data lain</p>
             </div>
+          ) : (
+            filteredCommissions.map((commission, idx) => {
+              const outstanding = Math.max(0, commission.unpaid_amount)
+              const initials = commission.supplier_name.split(' ').map((w: string) => w[0] || '').join('').slice(0, 2).toUpperCase()
+              const avatarColors = ['bg-sky-500','bg-amber-500','bg-blue-600','bg-violet-500','bg-rose-500','bg-emerald-500','bg-orange-500','bg-teal-500']
+              const avatarColor = avatarColors[idx % avatarColors.length]
+              const borderClass = commission.status === 'UNPAID'
+                ? 'border-blue-300 shadow-md shadow-blue-100'
+                : commission.status === 'PENDING'
+                ? 'border-amber-200'
+                : 'border-gray-200'
+              return (
+                <div key={commission.supplier_id} className={`bg-white rounded-2xl border-2 ${borderClass} overflow-hidden flex flex-col`}>
+                  {/* Header */}
+                  <div className="p-4 pb-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className={`w-11 h-11 rounded-full ${avatarColor} flex items-center justify-center shrink-0`}>
+                          <span className="text-white font-bold text-sm">{initials}</span>
+                        </div>
+                        <div className="min-w-0">
+                          <p className="font-semibold text-gray-900 text-sm leading-tight truncate">{commission.supplier_name}</p>
+                          <p className="text-xs text-gray-400 mt-0.5 truncate">
+                            {commission.bank_name || '—'} · {commission.bank_account || '—'}
+                          </p>
+                        </div>
+                      </div>
+                      <span className={`px-2.5 py-1 rounded-full text-xs font-semibold shrink-0 ${
+                        commission.status === 'PAID'
+                          ? 'bg-gray-100 text-gray-600'
+                          : commission.status === 'PENDING'
+                          ? 'bg-amber-100 text-amber-800'
+                          : 'bg-blue-100 text-blue-800'
+                      }`}>
+                        {commission.status === 'PAID' ? 'Lunas'
+                          : commission.status === 'PENDING' ? '⏳ Akumulasi'
+                          : '✅ Siap Dibayar'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Outstanding / Paid Split */}
+                  <div className="grid grid-cols-2 divide-x border-y border-gray-100 bg-gray-50/50">
+                    <div className="px-4 py-3">
+                      <p className="text-xs text-gray-500 mb-1">🔴 Belum Ditransfer</p>
+                      <p className={`text-base font-bold ${outstanding > 0.01 ? 'text-red-600' : 'text-gray-400'}`}>
+                        Rp {outstanding.toLocaleString('id-ID')}
+                      </p>
+                    </div>
+                    <div className="px-4 py-3">
+                      <p className="text-xs text-gray-500 mb-1">🟢 Sudah Ditransfer</p>
+                      <p className={`text-base font-bold ${commission.total_paid_alltime > 0.01 ? 'text-emerald-600' : 'text-gray-400'}`}>
+                        Rp {commission.total_paid_alltime.toLocaleString('id-ID')}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Stats Row */}
+                  <div className="grid grid-cols-3 divide-x border-b border-gray-100">
+                    <div className="px-2 py-3 text-center">
+                      <p className="text-sm font-bold text-gray-900">{commission.products_shipped.toLocaleString('id-ID')}</p>
+                      <p className="text-xs text-gray-500">Produk dikirim</p>
+                    </div>
+                    <div className="px-2 py-3 text-center">
+                      <p className="text-sm font-bold text-gray-900">{commission.total_transactions_alltime.toLocaleString('id-ID')}</p>
+                      <p className="text-xs text-gray-500">Transaksi</p>
+                    </div>
+                    <div className="px-2 py-3 text-center">
+                      <p className="text-xs font-bold text-emerald-700 leading-tight">
+                        Rp {commission.total_revenue_alltime.toLocaleString('id-ID')}
+                      </p>
+                      <p className="text-xs text-gray-500">Total penerimaan</p>
+                    </div>
+                  </div>
+
+                  {/* Action */}
+                  <div className="p-3 flex gap-2 mt-auto">
+                    {commission.status === 'UNPAID' ? (
+                      <button
+                        onClick={() => handleOpenPaymentModal(commission)}
+                        className="flex-1 py-2.5 bg-gradient-to-r from-blue-600 to-blue-500 text-white rounded-xl font-semibold text-xs hover:from-blue-700 hover:to-blue-600 transition-all shadow-sm"
+                      >
+                        💳 Bayar — Rp {outstanding.toLocaleString('id-ID')}
+                      </button>
+                    ) : commission.status === 'PENDING' ? (
+                      <button
+                        disabled
+                        title={`Kurang Rp ${Math.max(0, minThreshold - outstanding).toLocaleString('id-ID')} lagi untuk bisa dibayar`}
+                        className="flex-1 py-2.5 bg-gray-100 text-gray-400 rounded-xl font-semibold text-xs cursor-not-allowed"
+                      >
+                        ⏳ Rp {outstanding.toLocaleString('id-ID')} (akumulasi)
+                      </button>
+                    ) : (
+                      <div className="flex-1 py-2.5 text-center text-emerald-600 font-semibold text-xs">
+                        ✅ Tidak ada hutang
+                      </div>
+                    )}
+                    <button
+                      onClick={() => handleOpenDetailModal(commission)}
+                      title="Lihat detail"
+                      className="px-3 py-2.5 bg-gray-100 text-gray-500 rounded-xl hover:bg-gray-200 transition-all shrink-0"
+                    >
+                      <Eye className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              )
+            })
           )}
         </div>
       </main>
