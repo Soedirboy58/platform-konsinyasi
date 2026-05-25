@@ -107,22 +107,26 @@ ORDER BY st.created_at;
 --
 -- Setelah aktif, jalankan query ini:
 
-/*
--- Hapus jadwal lama (jika ada)
-SELECT cron.unschedule('cleanup-pending-transactions');
+-- Hapus jadwal lama jika ada (aman: tidak error jika belum terdaftar)
+DO $$
+BEGIN
+    PERFORM cron.unschedule('cleanup-pending-transactions');
+EXCEPTION WHEN OTHERS THEN
+    -- Job belum ada, lanjutkan
+END;
+$$;
 
--- Jadwalkan setiap 30 menit
+-- Jadwalkan setiap 10 menit
 SELECT cron.schedule(
     'cleanup-pending-transactions',
-    '*/30 * * * *',
-    'SELECT cleanup_expired_pending_transactions(30)'
+    '*/10 * * * *',
+    'SELECT cleanup_expired_pending_transactions(10)'
 );
 
 -- Verifikasi jadwal terdaftar
 SELECT jobid, schedule, command, active
 FROM cron.job
 WHERE jobname = 'cleanup-pending-transactions';
-*/
 
 
 -- ============================================================
