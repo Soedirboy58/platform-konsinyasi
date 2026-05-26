@@ -129,8 +129,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       active: pathname?.startsWith('/admin/payments'),
       submenu: [
         { label: 'Pembayaran Supplier', href: '/admin/payments/commissions' },
-        { label: 'Riwayat Pembayaran', href: '/admin/payments/history' },
-        { label: 'Rekonsiliasi', href: '/admin/payments/reconciliation' }
+        { label: 'Riwayat Pembayaran', href: '/admin/payments/history' }
       ]
     },
     {

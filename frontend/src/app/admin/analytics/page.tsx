@@ -9,7 +9,14 @@ import {
   Calendar,
   BarChart3,
   Users,
-  Zap
+  Zap,
+  ShieldAlert,
+  AlertTriangle,
+  RefreshCw,
+  XCircle,
+  Timer,
+  Hourglass,
+  Store
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
@@ -34,6 +41,35 @@ interface BundlingInsight {
   product_b_name: string
 }
 
+interface SecurityStats {
+  cancelled_today: number
+  paid_unconfirmed: number
+  pending_now: number
+  completed_today: number
+}
+
+interface CancelledByHour {
+  hour: number
+  count: number
+}
+
+interface UnconfirmedPayment {
+  id: string
+  location_name: string
+  total_amount: number
+  paid_at: string | null
+  created_at: string
+  hours_waiting: number
+}
+
+interface OutletRisk {
+  location_id: string
+  location_name: string
+  cancelled_today: number
+  pending_now: number
+  risk: 'HIGH' | 'MEDIUM' | 'LOW'
+}
+
 export default function Analytics() {
   const [loading, setLoading] = useState(true)
   const [period, setPeriod] = useState<'today' | 'week' | 'month' | 'all'>('week')
@@ -49,9 +85,144 @@ export default function Analytics() {
     peak_hour: 0
   })
 
+  // Security Monitoring Data
+  const [secLoading, setSecLoading] = useState(true)
+  const [secStats, setSecStats] = useState<SecurityStats>({
+    cancelled_today: 0,
+    paid_unconfirmed: 0,
+    pending_now: 0,
+    completed_today: 0
+  })
+  const [cancelledByHour, setCancelledByHour] = useState<CancelledByHour[]>([])
+  const [unconfirmedPayments, setUnconfirmedPayments] = useState<UnconfirmedPayment[]>([])
+  const [outletRisks, setOutletRisks] = useState<OutletRisk[]>([])
+
   useEffect(() => {
     loadAnalytics()
   }, [period])
+
+  useEffect(() => {
+    loadSecurityData()
+  }, [])
+
+  const loadSecurityData = async () => {
+    setSecLoading(true)
+    const supabase = createClient()
+    try {
+      const todayStart = new Date()
+      todayStart.setHours(0, 0, 0, 0)
+      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000)
+
+      // 1. Cancelled transactions today (ghost buyers)
+      const { data: cancelledToday } = await supabase
+        .from('sales_transactions')
+        .select('id, created_at, location_id')
+        .eq('status', 'CANCELLED')
+        .gte('created_at', todayStart.toISOString())
+
+      // 2. PAID but not confirmed > 1 hour (Case 2)
+      const { data: unconfirmedRaw } = await supabase
+        .from('sales_transactions')
+        .select('id, total_amount, paid_at, created_at, location_id')
+        .eq('status', 'PAID')
+        .or(`paid_at.is.null,paid_at.lte.${oneHourAgo.toISOString()}`)
+        .order('paid_at', { ascending: true })
+
+      // 3. Currently PENDING (stock locked right now)
+      const { data: pendingNow } = await supabase
+        .from('sales_transactions')
+        .select('id, created_at, total_amount, location_id')
+        .eq('status', 'PENDING')
+
+      // 4. Completed today (for abandonment rate denominator)
+      const { data: completedToday } = await supabase
+        .from('sales_transactions')
+        .select('id')
+        .eq('status', 'COMPLETED')
+        .gte('created_at', todayStart.toISOString())
+
+      // 5. Get location names for all involved location_ids
+      const allLocationIds = Array.from(new Set([
+        ...(cancelledToday || []).map(t => t.location_id),
+        ...(unconfirmedRaw || []).map(t => t.location_id),
+        ...(pendingNow || []).map(t => t.location_id),
+      ].filter(Boolean))) as string[]
+
+      let locationMap = new Map<string, string>()
+      if (allLocationIds.length > 0) {
+        const { data: locations } = await supabase
+          .from('locations')
+          .select('id, name')
+          .in('id', allLocationIds)
+        for (const loc of locations || []) {
+          locationMap.set(loc.id, loc.name)
+        }
+      }
+
+      // Build stats
+      setSecStats({
+        cancelled_today: cancelledToday?.length || 0,
+        paid_unconfirmed: unconfirmedRaw?.length || 0,
+        pending_now: pendingNow?.length || 0,
+        completed_today: completedToday?.length || 0,
+      })
+
+      // Build cancelled-by-hour chart
+      const hourMap: Record<number, number> = {}
+      for (const tx of cancelledToday || []) {
+        const h = new Date(tx.created_at).getHours()
+        hourMap[h] = (hourMap[h] || 0) + 1
+      }
+      const byHour = Array.from({ length: 24 }, (_, h) => ({ hour: h, count: hourMap[h] || 0 }))
+        .filter(h => h.count > 0)
+        .sort((a, b) => b.count - a.count)
+      setCancelledByHour(byHour)
+
+      // Build unconfirmed list
+      const unconfirmedList: UnconfirmedPayment[] = (unconfirmedRaw || []).map(tx => {
+        const waitingSince = tx.paid_at ? new Date(tx.paid_at) : new Date(tx.created_at)
+        const hoursWaiting = (Date.now() - waitingSince.getTime()) / (1000 * 60 * 60)
+        return {
+          id: tx.id,
+          location_name: locationMap.get(tx.location_id) || 'Unknown',
+          total_amount: tx.total_amount || 0,
+          paid_at: tx.paid_at,
+          created_at: tx.created_at,
+          hours_waiting: Math.round(hoursWaiting * 10) / 10,
+        }
+      })
+      setUnconfirmedPayments(unconfirmedList)
+
+      // Build outlet risk table
+      const outletMap: Record<string, { cancelled: number; pending: number; name: string }> = {}
+      for (const tx of cancelledToday || []) {
+        if (!tx.location_id) continue
+        if (!outletMap[tx.location_id]) outletMap[tx.location_id] = { cancelled: 0, pending: 0, name: locationMap.get(tx.location_id) || 'Unknown' }
+        outletMap[tx.location_id].cancelled++
+      }
+      for (const tx of pendingNow || []) {
+        if (!tx.location_id) continue
+        if (!outletMap[tx.location_id]) outletMap[tx.location_id] = { cancelled: 0, pending: 0, name: locationMap.get(tx.location_id) || 'Unknown' }
+        outletMap[tx.location_id].pending++
+      }
+      const risks: OutletRisk[] = Object.entries(outletMap).map(([id, data]) => {
+        const score = data.cancelled * 2 + data.pending
+        return {
+          location_id: id,
+          location_name: data.name,
+          cancelled_today: data.cancelled,
+          pending_now: data.pending,
+          risk: score >= 10 ? 'HIGH' : score >= 4 ? 'MEDIUM' : 'LOW',
+        }
+      }).sort((a, b) => b.cancelled_today - a.cancelled_today)
+      setOutletRisks(risks)
+
+    } catch (err) {
+      console.error('Error loading security data:', err)
+    } finally {
+      setSecLoading(false)
+    }
+  }
 
   const loadAnalytics = async () => {
     setLoading(true)
@@ -255,6 +426,233 @@ export default function Analytics() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 py-8">
+
+        {/* ===== SECURITY MONITORING SECTION ===== */}
+        <section className="mb-10">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <ShieldAlert className="w-5 h-5 text-red-600" />
+              <h2 className="text-lg font-bold text-gray-900">Monitor Keamanan Transaksi</h2>
+              <span className="text-xs text-gray-400 font-normal">• data hari ini, real-time</span>
+            </div>
+            <button
+              onClick={loadSecurityData}
+              disabled={secLoading}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 transition-colors"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${secLoading ? 'animate-spin' : ''}`} />
+              Refresh
+            </button>
+          </div>
+
+          {/* 4 Stat Cards */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            {/* Ghost Buyer */}
+            <div className="bg-white rounded-xl border-l-4 border-red-500 shadow-sm p-4">
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-xs text-gray-500 font-medium">Ghost Buyer</p>
+                  <p className="text-xs text-gray-400">(Batal hari ini)</p>
+                  <p className="text-3xl font-bold text-red-600 mt-1">
+                    {secLoading ? '…' : secStats.cancelled_today}
+                  </p>
+                </div>
+                <XCircle className="w-8 h-8 text-red-200 mt-1" />
+              </div>
+              <p className="text-xs text-gray-500 mt-2">Transaksi dibatalkan/expired</p>
+            </div>
+
+            {/* Bayar Belum Konfirmasi */}
+            <div className="bg-white rounded-xl border-l-4 border-orange-500 shadow-sm p-4">
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-xs text-gray-500 font-medium">Bukti Menunggu</p>
+                  <p className="text-xs text-gray-400">(&gt;1 jam belum konfirmasi)</p>
+                  <p className="text-3xl font-bold text-orange-600 mt-1">
+                    {secLoading ? '…' : secStats.paid_unconfirmed}
+                  </p>
+                </div>
+                <Hourglass className="w-8 h-8 text-orange-200 mt-1" />
+              </div>
+              <p className="text-xs text-gray-500 mt-2">Perlu dikonfirmasi admin</p>
+            </div>
+
+            {/* PENDING aktif */}
+            <div className="bg-white rounded-xl border-l-4 border-yellow-500 shadow-sm p-4">
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-xs text-gray-500 font-medium">Stok Tersandera</p>
+                  <p className="text-xs text-gray-400">(PENDING sekarang)</p>
+                  <p className="text-3xl font-bold text-yellow-600 mt-1">
+                    {secLoading ? '…' : secStats.pending_now}
+                  </p>
+                </div>
+                <Timer className="w-8 h-8 text-yellow-200 mt-1" />
+              </div>
+              <p className="text-xs text-gray-500 mt-2">Akan dikembalikan tiap 30 mnt</p>
+            </div>
+
+            {/* Abandonment Rate */}
+            <div className="bg-white rounded-xl border-l-4 border-gray-400 shadow-sm p-4">
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-xs text-gray-500 font-medium">Abandonment Rate</p>
+                  <p className="text-xs text-gray-400">(hari ini)</p>
+                  <p className="text-3xl font-bold text-gray-700 mt-1">
+                    {secLoading ? '…' : (() => {
+                      const total = secStats.cancelled_today + secStats.completed_today
+                      return total > 0 ? `${Math.round((secStats.cancelled_today / total) * 100)}%` : '—'
+                    })()}
+                  </p>
+                </div>
+                <AlertTriangle className="w-8 h-8 text-gray-200 mt-1" />
+              </div>
+              <p className="text-xs text-gray-500 mt-2">Batal / (Batal + Selesai)</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Cancelled per Jam */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100">
+              <div className="p-4 border-b flex items-center gap-2">
+                <XCircle className="w-4 h-4 text-red-500" />
+                <h3 className="font-semibold text-gray-800 text-sm">Lonjakan Ghost Buyer per Jam</h3>
+              </div>
+              <div className="p-4">
+                {secLoading ? (
+                  <p className="text-center text-gray-400 py-6 text-sm">Memuat...</p>
+                ) : cancelledByHour.length === 0 ? (
+                  <div className="text-center py-8">
+                    <XCircle className="w-10 h-10 text-gray-200 mx-auto mb-2" />
+                    <p className="text-sm text-gray-500">Tidak ada transaksi batal hari ini</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {cancelledByHour.slice(0, 8).map(item => {
+                      const maxCount = cancelledByHour[0].count
+                      const pct = (item.count / maxCount) * 100
+                      const isHigh = item.count >= 5
+                      return (
+                        <div key={item.hour} className="flex items-center gap-3">
+                          <span className="w-14 text-xs font-medium text-gray-600 text-right">
+                            {item.hour.toString().padStart(2, '0')}:00
+                          </span>
+                          <div className="flex-1 bg-gray-100 rounded-full h-7 overflow-hidden">
+                            <div
+                              className={`h-full rounded-full flex items-center justify-end pr-2 transition-all ${isHigh ? 'bg-red-500' : 'bg-red-300'}`}
+                              style={{ width: `${pct}%`, minWidth: 32 }}
+                            >
+                              <span className="text-xs text-white font-semibold">{item.count}x</span>
+                            </div>
+                          </div>
+                          {isHigh && (
+                            <span className="text-xs text-red-600 font-bold">⚠️</span>
+                          )}
+                        </div>
+                      )
+                    })}
+                    <p className="text-xs text-gray-400 mt-3">
+                      ⚠️ merah = lonjakan ≥5 transaksi batal dalam 1 jam — indikasi serangan
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Unconfirmed Payments */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100">
+              <div className="p-4 border-b flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Hourglass className="w-4 h-4 text-orange-500" />
+                  <h3 className="font-semibold text-gray-800 text-sm">Bukti Bayar Menunggu Konfirmasi</h3>
+                </div>
+                {unconfirmedPayments.length > 0 && (
+                  <span className="text-xs bg-orange-100 text-orange-700 font-semibold px-2 py-0.5 rounded-full">
+                    {unconfirmedPayments.length} butuh aksi
+                  </span>
+                )}
+              </div>
+              <div className="p-4">
+                {secLoading ? (
+                  <p className="text-center text-gray-400 py-6 text-sm">Memuat...</p>
+                ) : unconfirmedPayments.length === 0 ? (
+                  <div className="text-center py-8">
+                    <Hourglass className="w-10 h-10 text-gray-200 mx-auto mb-2" />
+                    <p className="text-sm text-green-600 font-medium">Semua pembayaran sudah dikonfirmasi ✓</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2 max-h-56 overflow-y-auto">
+                    {unconfirmedPayments.map(tx => (
+                      <div key={tx.id} className="flex items-center justify-between bg-orange-50 border border-orange-100 rounded-lg px-3 py-2">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs font-semibold text-gray-800 truncate">{tx.location_name}</p>
+                          <p className="text-xs text-gray-500">
+                            Rp {tx.total_amount.toLocaleString('id-ID')} •{' '}
+                            {tx.paid_at
+                              ? `bayar ${new Date(tx.paid_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}`
+                              : `mulai ${new Date(tx.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}`}
+                          </p>
+                        </div>
+                        <span className={`ml-2 text-xs font-bold px-2 py-0.5 rounded-full flex-shrink-0 ${
+                          tx.hours_waiting >= 3 ? 'bg-red-100 text-red-700' : 'bg-orange-100 text-orange-700'
+                        }`}>
+                          {tx.hours_waiting}j
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Outlet Risk Table */}
+          {!secLoading && outletRisks.length > 0 && (
+            <div className="mt-6 bg-white rounded-xl shadow-sm border border-gray-100">
+              <div className="p-4 border-b flex items-center gap-2">
+                <Store className="w-4 h-4 text-gray-600" />
+                <h3 className="font-semibold text-gray-800 text-sm">Breakdown Per Outlet</h3>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50 text-xs text-gray-500 uppercase">
+                    <tr>
+                      <th className="text-left px-4 py-2">Outlet</th>
+                      <th className="text-center px-4 py-2">Batal Hari Ini</th>
+                      <th className="text-center px-4 py-2">PENDING Sekarang</th>
+                      <th className="text-center px-4 py-2">Risiko</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {outletRisks.map(row => (
+                      <tr key={row.location_id} className="hover:bg-gray-50">
+                        <td className="px-4 py-2.5 font-medium text-gray-800">{row.location_name}</td>
+                        <td className="px-4 py-2.5 text-center text-red-600 font-bold">{row.cancelled_today}</td>
+                        <td className="px-4 py-2.5 text-center text-yellow-600 font-bold">{row.pending_now}</td>
+                        <td className="px-4 py-2.5 text-center">
+                          <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                            row.risk === 'HIGH' ? 'bg-red-100 text-red-700' :
+                            row.risk === 'MEDIUM' ? 'bg-orange-100 text-orange-700' :
+                            'bg-green-100 text-green-700'
+                          }`}>
+                            {row.risk === 'HIGH' ? '🔴 TINGGI' : row.risk === 'MEDIUM' ? '🟡 SEDANG' : '🟢 RENDAH'}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="px-4 py-2 bg-gray-50 rounded-b-xl">
+                <p className="text-xs text-gray-400">
+                  Skor risiko: TINGGI ≥10 (batal×2 + pending), SEDANG ≥4, RENDAH &lt;4
+                </p>
+              </div>
+            </div>
+          )}
+        </section>
+        {/* ===== END SECURITY MONITORING ===== */}
+
         {/* Stats Overview */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <div className="bg-white rounded-lg shadow p-6">
