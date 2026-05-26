@@ -212,7 +212,7 @@ export default function Analytics() {
           location_name: data.name,
           cancelled_today: data.cancelled,
           pending_now: data.pending,
-          risk: score >= 10 ? 'HIGH' : score >= 4 ? 'MEDIUM' : 'LOW',
+          risk: (score >= 10 ? 'HIGH' : score >= 4 ? 'MEDIUM' : 'LOW') as 'HIGH' | 'MEDIUM' | 'LOW',
         }
       }).sort((a, b) => b.cancelled_today - a.cancelled_today)
       setOutletRisks(risks)
