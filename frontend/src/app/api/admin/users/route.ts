@@ -85,7 +85,7 @@ export async function POST(request: NextRequest) {
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://smartalley.katalara.com'
   const { data: authData, error: authError } = await adminClient.auth.admin.inviteUserByEmail(email, {
     data: { full_name },
-    redirectTo: `${siteUrl}/admin/set-password`
+    redirectTo: `${siteUrl}/auth/callback?next=/admin/set-password`
   })
 
   if (authError) {

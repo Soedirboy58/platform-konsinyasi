@@ -10,12 +10,16 @@ export async function GET(request: Request) {
 
   if (code) {
     const supabase = createRouteHandlerClient({ cookies })
-    const { data, error } = await supabase.auth.exchangeCodeForSession(code)
+    const { error } = await supabase.auth.exchangeCodeForSession(code)
     
     if (error) {
       console.error('Auth callback error:', error)
-      // Redirect to login with error
       return NextResponse.redirect(`${requestUrl.origin}/login?error=verification_failed`)
+    }
+
+    // If a specific next path is provided (e.g. admin invite → set-password), use it directly
+    if (next && next.startsWith('/')) {
+      return NextResponse.redirect(`${requestUrl.origin}${next}`)
     }
     
     // Get user profile to determine redirect

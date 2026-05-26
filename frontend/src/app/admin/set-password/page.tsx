@@ -21,48 +21,30 @@ export default function AdminSetPasswordPage() {
     let settled = false
 
     function markReady() {
-      if (!settled) {
-        settled = true
-        setPageState('ready')
-      }
+      if (!settled) { settled = true; setPageState('ready') }
     }
-
     function markError(msg: string) {
-      if (!settled) {
-        settled = true
-        setPageState('error')
-        setErrorMessage(msg)
-      }
+      if (!settled) { settled = true; setPageState('error'); setErrorMessage(msg) }
     }
 
-    // Detect error in URL hash (e.g. otp_expired) — check FIRST before anything else
-    if (typeof window !== 'undefined') {
-      const hash = window.location.hash
-      if (hash.includes('error=')) {
-        const params = new URLSearchParams(hash.slice(1))
-        const errorDesc = params.get('error_description') || 'Link tidak valid atau sudah kadaluarsa.'
-        markError(decodeURIComponent(errorDesc.replace(/\+/g, ' ')))
-        return
+    // Check session from cookie (set by /auth/callback server-side exchange)
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        markReady()
       }
-    }
+    })
 
-    // Listen for SIGNED_IN (invite) or PASSWORD_RECOVERY (reset)
-    // Do NOT react to SIGNED_OUT — it fires initially before token is processed
+    // Also listen for auth events (implicit flow fallback)
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'PASSWORD_RECOVERY' || (event === 'SIGNED_IN' && session)) {
         markReady()
       }
     })
 
-    // Also check existing session (token may already be processed)
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) markReady()
-    })
-
-    // Timeout fallback: if nothing fires in 10s, assume link is invalid
+    // Timeout fallback: 8 seconds then show error
     const timeout = setTimeout(() => {
       markError('Link tidak valid atau sudah kadaluarsa. Minta undangan baru dari admin.')
-    }, 10000)
+    }, 8000)
 
     return () => {
       subscription.unsubscribe()
