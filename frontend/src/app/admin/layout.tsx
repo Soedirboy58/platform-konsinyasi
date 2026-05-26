@@ -101,6 +101,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }
 
   async function checkAuth() {
+    // set-password handles its own auth (invite/recovery token in URL hash)
+    if (pathname === '/admin/set-password') return
     try {
       const supabase = createClient()
       const { data: { session } } = await supabase.auth.getSession()
@@ -205,7 +207,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     router.replace('/admin/login')
   }
 
-  if (loading || pathname === '/admin/login') {
+  if (loading || pathname === '/admin/login' || pathname === '/admin/set-password') {
     return <>{children}</>
   }
 
