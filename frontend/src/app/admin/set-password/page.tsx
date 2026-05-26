@@ -27,23 +27,49 @@ export default function AdminSetPasswordPage() {
       if (!settled) { settled = true; setPageState('error'); setErrorMessage(msg) }
     }
 
-    // For implicit flow: Supabase client auto-processes #access_token hash and fires SIGNED_IN.
-    // Set up onAuthStateChange FIRST (before getSession) so we don't miss the event.
+    // Register listener first to catch any PKCE-based SIGNED_IN events
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'PASSWORD_RECOVERY' || (event === 'SIGNED_IN' && session)) {
         markReady()
       }
     })
 
-    // For PKCE flow (code already exchanged server-side): session is in cookie
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) markReady()
-    })
+    // auth-helpers-nextjs uses PKCE (flowType:'pkce') by default and ignores the
+    // #access_token hash from implicit flow. We must parse and set the session manually.
+    const hash = window.location.hash.substring(1)
+    if (hash) {
+      const params = new URLSearchParams(hash)
+      const errorParam = params.get('error')
+      const accessToken = params.get('access_token')
+      const refreshToken = params.get('refresh_token')
 
-    // Timeout fallback: 12 seconds then show error
+      if (errorParam) {
+        const errorDesc = params.get('error_description') || 'Link tidak valid atau sudah kadaluarsa.'
+        markError(decodeURIComponent(errorDesc.replace(/\+/g, ' ')))
+      } else if (accessToken && refreshToken) {
+        // Manually establish session from implicit flow tokens
+        supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken })
+          .then(({ data, error }) => {
+            if (error || !data.session) {
+              markError('Link tidak valid atau sudah kadaluarsa. Minta undangan baru dari admin.')
+            } else {
+              // Clean hash from URL
+              window.history.replaceState(null, '', window.location.pathname)
+              markReady()
+            }
+          })
+      }
+    } else {
+      // No hash: check if session already exists (PKCE flow via cookie)
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (session) markReady()
+      })
+    }
+
+    // Timeout fallback: 15 seconds
     const timeout = setTimeout(() => {
       markError('Link tidak valid atau sudah kadaluarsa. Minta undangan baru dari admin.')
-    }, 12000)
+    }, 15000)
 
     return () => {
       subscription.unsubscribe()
