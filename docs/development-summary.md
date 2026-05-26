@@ -1,9 +1,27 @@
-# Development Summary - Platform Konsinyasi v2.0
+# Development Summary - Platform Konsinyasi v2.2
 
 **Project:** Platform Konsinyasi Terintegrasi  
-**Version:** 2.0  
-**Date:** November 2025  
-**Status:** ✅ Phase 1 Complete (Core Platform)
+**Version:** 2.2.0  
+**Date:** 26 Mei 2026  
+**Status:** ✅ Production Active
+
+---
+
+## 📋 Version History Ringkas
+
+| Version | Tanggal | Highlights |
+|---------|---------|-----------|
+| v2.2.0 | 26 Mei 2026 | Admin pembayaran supplier card view redesign |
+| v2.1.0 | 26 Mei 2026 | Bug fix: phantom deduction stok (Migration 044 + pg_cron) |
+| v2.0.0 | 26 Mei 2026 | Landing page baru, rebrand amber/gold, logo real, supplier marquee |
+| v1.9.0 | 30 Mar 2026 | Dynamic homepage carousel, banner admin, per-outlet PWA manifest |
+| v1.8.0 | 30 Mar 2026 | Alert → Toast+ConfirmDialog semua admin page |
+| v1.7.0 | 29 Mar 2026 | Category system, QRIS per outlet |
+| v1.6.0 | 29 Mar 2026 | Outlet customization (logo, brand name, gradient, carousel) |
+| v1.5.0 | 28 Mar 2026 | Dynamic QRIS, auto-cancel pending, expiry, payment proof |
+| v1.0.0 | Nov 2025 | Core platform: schema 15 tabel, admin/supplier/kantin panel |
+
+> Detail lengkap per versi → `AI-GUIDE/CHANGELOG.md`
 
 ---
 
@@ -83,26 +101,37 @@ Platform digital untuk mengelola sistem konsinyasi dengan dua model bisnis:
 
 ---
 
-## 📊 Statistics
+## 📊 Statistics (Updated: Mei 2026)
 
-### Code Files Created
-- **Database:** 6 SQL files (~1,500 lines)
-- **Edge Functions:** 2 functions (~300 lines)
-- **Frontend:** 15+ pages (~3,000 lines)
-- **Documentation:** 4 markdown files
-
-### Database Objects
-- **Tables:** 15
-- **Functions:** 7 (triggers + RPC)
-- **Policies:** 45+ RLS policies
-- **Indexes:** Multiple (auto-generated + custom)
+### Database
+- **Migrations:** 44 file SQL (`backend/migrations/001–044`)
+- **Tables:** 20+ (core schema + homepage_banners, outlet_page_views, outlet_carousel_slides, shipment_returns, payment_settings, platform_settings, dll)
+- **Functions:** 10+ (RPC + triggers + cleanup)
+- **RLS Policies:** 60+
+- **pg_cron jobs:** 2 (auto-cancel pending 5 menit, cleanup expired 30 menit)
 
 ### Frontend Pages
-- **Public:** 1 (landing)
-- **PWA:** 1 (kantin)
-- **Admin:** 6 (dashboard, login, suppliers, products, locations, reports)
-- **Supplier:** 5 (dashboard, login, products, products/new, inventory)
-- **Total:** 13 pages
+- **Public:** 2 (landing page, unified login)
+- **PWA Kantin:** 1 per slug (`/kantin/[slug]`)
+- **Admin Panel:** 12+ pages (dashboard, suppliers, products, locations, reports/sales, reports/stock, payments/commissions, settings, shipments, dll)
+- **Supplier Portal:** 5 pages
+- **API Routes:** 1 (`/api/kantin-manifest/[slug]` — dynamic PWA manifest)
+- **Total:** 20+ pages
+
+### Key Features Live
+- ✅ Self-checkout PWA per outlet (QR code)
+- ✅ Manajemen stok dengan stock movements (IN/OUT/RETURN/ADJUSTMENT)
+- ✅ Komisi otomatis 10% platform / 90% supplier
+- ✅ Admin pembayaran supplier (card view, upload bukti, tracking all-time)
+- ✅ Outlet customization (logo, brand name, gradient, QRIS, carousel slides)
+- ✅ Category filter di halaman belanja customer
+- ✅ Homepage carousel dinamis (dikelola admin)
+- ✅ Supplier marquee infinite-scroll di landing page
+- ✅ Per-outlet PWA manifest (install → buka langsung ke outlet)
+- ✅ Traffic analytics per outlet (page_view, cart_add, checkout_start)
+- ✅ Auto-cancel pending transactions (5 menit via pg_cron)
+- ✅ Cleanup phantom deduction (30 menit via pg_cron)
+- ✅ Laporan penjualan dengan filter tanggal + export CSV
 
 ---
 

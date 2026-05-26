@@ -1,7 +1,7 @@
 # 📝 CHANGELOG & VERSION HISTORY
 
 > **Catatan perubahan dan riwayat versi Platform Konsinyasi**  
-> **Last Updated:** 30 Maret 2026
+> **Last Updated:** 26 Mei 2026
 
 ---
 
@@ -16,6 +16,108 @@ Format: `MAJOR.MINOR.PATCH`
 ---
 
 ## 🚀 LATEST VERSION
+
+### **v2.2.0** - 2026-05-26
+
+**Type:** UX Improvement Release  
+**Status:** ✅ Production
+
+**Improvements:**
+
+#### 💳 Admin Pembayaran ke Supplier — Card View Redesign
+- Halaman `/admin/payments/commissions` dirombak total dari tabel → card per-supplier
+- Setiap card menampilkan:
+  - Avatar supplier (inisial warna) + nama + info bank + status badge
+  - Panel split 🔴 **Belum Ditransfer** (outstanding balance) | 🟢 **Sudah Ditransfer** (all-time paid)
+  - Stats row: Produk Dikirim (dari `stock_movements` type=IN) | Total Transaksi | Total Revenue
+  - Tombol Bayar (status=UNPAID, outstanding ≥ threshold) / indikator akumulasi (PENDING) / lunas (PAID)
+- Interface `Commission` diperluas dengan 4 field baru: `total_revenue_alltime`, `total_paid_alltime`, `products_shipped`, `total_transactions_alltime`
+- Query baru `stock_movements` (type=IN, status APPROVED/COMPLETED) + `shippedMap` untuk hitung produk dikirim
+- `all_time_unique_transactions` via `Set` dari `sales_transaction.id`
+- Modal "Upload Bukti Pembayaran" tetap tidak berubah
+- Grid: `1 col mobile → 2 col md → 3 col xl`
+
+**Database Migrations:**
+- Tidak ada migrasi baru di versi ini
+
+**Files Changed:**
+- `/frontend/src/app/admin/payments/commissions/page.tsx` — full UI rewrite (table → card grid), interface extension, new queries
+
+**Migration Required:** ❌ No  
+**Breaking Changes:** ❌ No
+
+---
+
+### **v2.1.0** - 2026-05-26
+
+**Type:** Bug Fix Release  
+**Status:** ✅ Production
+
+**Bug Fixes:**
+
+#### 🐛 Phantom Deduction — Stok Berkurang Tanpa Transaksi Tercatat
+- **Root Cause:** `process_anonymous_checkout()` langsung mengurangi stok saat transaksi dibuat (status=PENDING). Jika pembayaran tidak pernah dikonfirmasi, stok tetap berkurang permanen tanpa masuk laporan.
+- **Gejala:** Stok berkurang bertahap tanpa ada transaksi di laporan penjualan.
+- **Fix Migration 044:**
+  1. Fungsi `cleanup_expired_pending_transactions(p_expire_minutes INTEGER DEFAULT 30)` — cancel semua transaksi PENDING yang melewati batas waktu dan kembalikan stok (`inventory_levels.quantity` di-increment kembali per item).
+  2. `pg_cron` job baru: `SELECT cleanup_expired_pending_transactions(30)` dijadwalkan tiap 30 menit.
+- **Syarat:** Extension `pg_cron` harus aktif di Supabase Dashboard → Database → Extensions → pg_cron.
+- **Returns:** `TABLE(cancelled_count INTEGER, restored_items INTEGER)` untuk logging.
+
+**Database Migrations:**
+- Migration 044: Fungsi `cleanup_expired_pending_transactions` + pg_cron job tiap 30 menit
+
+**Files Changed:**
+- `/backend/migrations/044_cleanup_pending_transactions.sql` — NEW
+
+**Migration Required:** ✅ Yes (044)  
+**Breaking Changes:** ❌ No
+
+---
+
+### **v2.0.0** - 2026-05-26
+
+**Type:** Major Feature + Rebrand Release  
+**Status:** ✅ Production
+
+**New Features:**
+
+#### 🏠 Landing Page Baru + Unified Login
+- Homepage baru (`/`) dengan hero section, feature highlights, dan CTA portal
+- Unified login page menggantikan login terpisah per role
+- Routing disesuaikan — login admin/supplier diarahkan ke unified page
+- Hapus card "Kantin PWA" dari homepage (pelanggan via QR fisik saja)
+
+#### 🎨 Color Theme Rebrand — Amber/Gold
+- Seluruh platform rebrand dari warna sky-blue → amber/gold gradient
+- Primary gradient: `amber-500` → `yellow-600` (`#f59e0b` → `#d97706`)
+- Berlaku di header admin panel, tombol CTA, badge, dan aksen UI
+- Konsistensi visual antara landing page, admin panel, dan supplier portal
+
+#### 🖼️ Logo Katalara — Gambar Real
+- Logo di navbar/header kini menggunakan gambar asli dari Supabase Storage
+- Menggantikan SVG inline placeholder sebelumnya
+- URL logo: `https://rpzoacwlswlhfqaiicho.supabase.co/storage/v1/object/public/outlet-media/logos/katalara-logo.png`
+- Fallback: teks "Katalara" jika gambar gagal load
+
+#### 🎠 Supplier Marquee — Mitra Bergabung
+- Bagian "Outlet Bergabung" di landing page diganti menjadi marquee carousel infinite-scroll
+- Menampilkan logo + nama semua supplier yang sudah APPROVED dari database (query real-time)
+- Auto-scroll horizontal dua arah, seamless loop
+- Fallback placeholder jika supplier belum ada logo
+
+**Database Migrations:**
+- Tidak ada migrasi baru di versi ini (menggunakan data existing dari tabel `suppliers`)
+
+**Files Changed:**
+- `/frontend/src/app/page.tsx` — landing page hero, rebrand amber/gold, logo Katalara real, supplier marquee
+- `/frontend/src/app/admin/login/page.tsx` atau unified login — unified login route
+- Berbagai komponen header/navbar — amber/gold theme
+
+**Migration Required:** ❌ No  
+**Breaking Changes:** ❌ No (routing backward-compatible)
+
+---
 
 ### **v1.9.0** - 2026-03-30
 

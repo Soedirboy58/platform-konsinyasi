@@ -1,8 +1,8 @@
 # 🤖 AI AGENT GUIDE - Platform Konsinyasi
 
 > **Panduan lengkap untuk AI Agent dalam membangun dan maintain Platform Konsinyasi**  
-> **Last Updated:** 30 Maret 2026  
-> **Version:** 1.9.0
+> **Last Updated:** 26 Mei 2026  
+> **Version:** 2.2.0
 
 ---
 
