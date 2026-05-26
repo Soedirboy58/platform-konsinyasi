@@ -138,6 +138,10 @@ export default function Settings() {
   const [showAdminUserModal, setShowAdminUserModal] = useState(false)
   const [adminUserForm, setAdminUserForm] = useState({ full_name: '', phone: '', email: '', admin_role: 'MANAGER' })
   const [savingAdminUser, setSavingAdminUser] = useState(false)
+  const [editingAdminUser, setEditingAdminUser] = useState<AdminUser | null>(null)
+  const [editAdminForm, setEditAdminForm] = useState({ full_name: '', phone: '', admin_role: 'MANAGER' })
+  const [savingEditAdminUser, setSavingEditAdminUser] = useState(false)
+  const [resetingPassword, setResetingPassword] = useState<string | null>(null)
 
   useEffect(() => {
     loadProfile()
@@ -208,6 +212,51 @@ export default function Settings() {
       loadAdminUsers()
     } catch (err: any) {
       toast.error(err.message)
+    }
+  }
+
+  const openEditAdminUser = (user: AdminUser) => {
+    setEditingAdminUser(user)
+    setEditAdminForm({ full_name: user.full_name || '', phone: user.phone || '', admin_role: user.admin_role || 'MANAGER' })
+  }
+
+  const handleSaveEditAdminUser = async () => {
+    if (!editingAdminUser) return
+    setSavingEditAdminUser(true)
+    try {
+      const res = await fetch('/api/admin/users', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: editingAdminUser.id, ...editAdminForm })
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Gagal menyimpan perubahan')
+      toast.success('Data pengguna berhasil diperbarui')
+      setEditingAdminUser(null)
+      loadAdminUsers()
+    } catch (err: any) {
+      toast.error(err.message)
+    } finally {
+      setSavingEditAdminUser(false)
+    }
+  }
+
+  const handleResetPassword = async (userId: string, userName: string) => {
+    if (!confirm(`Kirim link reset password ke "${userName}"?`)) return
+    setResetingPassword(userId)
+    try {
+      const res = await fetch('/api/admin/users', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: userId, reset_password: true })
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Gagal mengirim link reset')
+      toast.success('Link reset password telah dikirim ke email')
+    } catch (err: any) {
+      toast.error(err.message)
+    } finally {
+      setResetingPassword(null)
     }
   }
 
@@ -860,7 +909,7 @@ export default function Settings() {
             <button onClick={() => setActiveTab('notifications')} className={`px-6 py-4 border-b-2 whitespace-nowrap ${activeTab === 'notifications' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500'}`}>
               <Bell className="w-5 h-5 inline mr-2" />Notifikasi
             </button>
-            <button onClick={() => setActiveTab('backup')} className={`px-6 py-4 border-b-2 whitespace-nowrap ${activeTab === 'backup' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500'}`}>
+            <button onClick={() => setActiveTab('backup')} className={`px-6 py-4 border-b-2 whitespace-nowrap hidden ${activeTab === 'backup' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500'}`}>
               <Database className="w-5 h-5 inline mr-2" />Backup
             </button>
             <button onClick={() => setActiveTab('banners')} className={`px-6 py-4 border-b-2 whitespace-nowrap ${activeTab === 'banners' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500'}`}>
@@ -1913,6 +1962,13 @@ export default function Settings() {
                         </div>
                       </div>
                       <button
+                        onClick={() => openEditAdminUser(user)}
+                        className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                        title="Edit pengguna"
+                      >
+                        <Edit className="w-4 h-4" />
+                      </button>
+                      <button
                         onClick={() => handleDeleteAdminUser(user.id, user.full_name || user.email)}
                         className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                         title="Hapus pengguna"
@@ -1928,7 +1984,16 @@ export default function Settings() {
                     {user.phone && (
                       <p className="text-xs text-gray-500">📱 {user.phone}</p>
                     )}
-                    <p className="text-xs text-gray-400">Bergabung {new Date(user.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+                    <div className="flex items-center justify-between mt-1">
+                      <p className="text-xs text-gray-400">Bergabung {new Date(user.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+                      <button
+                        onClick={() => handleResetPassword(user.id, user.full_name || user.email)}
+                        disabled={resetingPassword === user.id}
+                        className="text-xs text-blue-500 hover:text-blue-700 hover:underline transition-colors disabled:opacity-50"
+                      >
+                        {resetingPassword === user.id ? 'Mengirim...' : 'Reset Password'}
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -2021,6 +2086,93 @@ export default function Settings() {
               >
                 {savingAdminUser ? 'Mengirim...' : 'Kirim Undangan'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Edit Pengguna Admin */}
+      {editingAdminUser && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md">
+            <div className="p-6 border-b flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-bold text-gray-900">Edit Pengguna Admin</h2>
+                <p className="text-sm text-gray-500 mt-0.5 truncate">{editingAdminUser.email}</p>
+              </div>
+              <button onClick={() => setEditingAdminUser(null)} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Nama Lengkap</label>
+                <input
+                  type="text"
+                  value={editAdminForm.full_name}
+                  onChange={e => setEditAdminForm(prev => ({ ...prev, full_name: e.target.value }))}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">No. HP</label>
+                <input
+                  type="tel"
+                  value={editAdminForm.phone}
+                  onChange={e => setEditAdminForm(prev => ({ ...prev, phone: e.target.value }))}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="08xxxxxxxxxx"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
+                <div className="space-y-2">
+                  {ADMIN_ROLES.map(r => (
+                    <label
+                      key={r.value}
+                      className={`flex items-center gap-3 p-3 rounded-lg border-2 cursor-pointer transition-colors ${editAdminForm.admin_role === r.value ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'}`}
+                    >
+                      <input
+                        type="radio"
+                        name="edit_admin_role"
+                        value={r.value}
+                        checked={editAdminForm.admin_role === r.value}
+                        onChange={() => setEditAdminForm(prev => ({ ...prev, admin_role: r.value }))}
+                        className="sr-only"
+                      />
+                      <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${editAdminForm.admin_role === r.value ? 'bg-blue-500' : 'bg-gray-300'}`} />
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">{r.label}</p>
+                        <p className="text-xs text-gray-500">{r.desc}</p>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div className="p-6 border-t flex gap-3 justify-between items-center">
+              <button
+                onClick={() => handleResetPassword(editingAdminUser.id, editingAdminUser.full_name || editingAdminUser.email)}
+                disabled={resetingPassword === editingAdminUser.id}
+                className="text-sm text-orange-600 hover:text-orange-700 hover:underline transition-colors disabled:opacity-50"
+              >
+                {resetingPassword === editingAdminUser.id ? 'Mengirim...' : '🔑 Kirim Reset Password'}
+              </button>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setEditingAdminUser(null)}
+                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Batal
+                </button>
+                <button
+                  onClick={handleSaveEditAdminUser}
+                  disabled={savingEditAdminUser}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-60"
+                >
+                  {savingEditAdminUser ? 'Menyimpan...' : 'Simpan'}
+                </button>
+              </div>
             </div>
           </div>
         </div>

@@ -134,3 +134,69 @@ export async function DELETE(request: NextRequest) {
 
   return NextResponse.json({ success: true })
 }
+
+export async function PATCH(request: NextRequest) {
+  const session = await verifyManagerSession()
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    return NextResponse.json({ error: 'SUPABASE_SERVICE_ROLE_KEY belum dikonfigurasi' }, { status: 500 })
+  }
+
+  let body: { user_id?: string; full_name?: string; phone?: string; admin_role?: string; reset_password?: boolean }
+  try {
+    body = await request.json()
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
+  }
+
+  const { user_id, full_name, phone, admin_role, reset_password } = body
+  if (!user_id) return NextResponse.json({ error: 'user_id wajib diisi' }, { status: 400 })
+
+  const adminClient = createAdminClient()
+
+  // Send password reset email
+  if (reset_password) {
+    const { data: userData } = await adminClient
+      .from('profiles')
+      .select('email')
+      .eq('id', user_id)
+      .single()
+
+    if (!userData?.email) {
+      return NextResponse.json({ error: 'User tidak ditemukan' }, { status: 404 })
+    }
+
+    const { error: resetError } = await adminClient.auth.admin.generateLink({
+      type: 'recovery',
+      email: userData.email
+    })
+
+    if (resetError) return NextResponse.json({ error: resetError.message }, { status: 400 })
+    return NextResponse.json({ success: true, message: 'Link reset password telah dikirim ke email' })
+  }
+
+  // Update profile data
+  const updates: Record<string, string | null> = {}
+  if (full_name !== undefined) updates.full_name = full_name
+  if (phone !== undefined) updates.phone = phone || null
+  if (admin_role !== undefined) {
+    const validRoles = ['MANAGER', 'PRODUCT', 'MITRA', 'FINANCE']
+    if (!validRoles.includes(admin_role)) {
+      return NextResponse.json({ error: 'Role tidak valid' }, { status: 400 })
+    }
+    updates.admin_role = admin_role
+  }
+
+  if (Object.keys(updates).length === 0) {
+    return NextResponse.json({ error: 'Tidak ada data yang diubah' }, { status: 400 })
+  }
+
+  const { error: updateError } = await adminClient
+    .from('profiles')
+    .update(updates)
+    .eq('id', user_id)
+
+  if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500 })
+  return NextResponse.json({ success: true })
+}
