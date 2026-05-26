@@ -121,7 +121,7 @@ function LoginContent() {
         email: form.email.toLowerCase().trim(),
         password: form.password,
         options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
+          emailRedirectTo: `${window.location.origin}/auth/callback?type=signup`,
           data: { full_name: form.fullName, role: 'SUPPLIER' },
         },
       })

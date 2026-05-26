@@ -27,29 +27,30 @@ export async function GET(request: Request) {
         .select('role')
         .eq('id', user.id)
         .single()
-      
-      // Check if supplier record exists
-      const { data: supplier } = await supabase
-        .from('suppliers')
-        .select('id')
-        .eq('profile_id', user.id)
-        .single()
-      
+
       // Password recovery flow → redirect ke halaman set password baru
       if (type === 'recovery') {
         return NextResponse.redirect(`${requestUrl.origin}/supplier/reset-password`)
       }
 
-      // Redirect based on role
+      // Admin user → dashboard admin
       if (profile?.role === 'ADMIN') {
         return NextResponse.redirect(`${requestUrl.origin}/admin`)
-      } else if (profile?.role === 'SUPPLIER') {
-        // If email verification (signup type), redirect to login with success message
-        if (type === 'signup') {
-          return NextResponse.redirect(`${requestUrl.origin}/login?verified=true`)
-        }
-        
-        // If no supplier record yet, go to onboarding
+      }
+
+      // Email verification (signup) → tampilkan pesan sukses di halaman login
+      if (type === 'signup') {
+        return NextResponse.redirect(`${requestUrl.origin}/login?verified=true`)
+      }
+
+      // SUPPLIER role: check if onboarding needed
+      if (profile?.role === 'SUPPLIER' || profile === null) {
+        const { data: supplier } = await supabase
+          .from('suppliers')
+          .select('id')
+          .eq('profile_id', user.id)
+          .single()
+
         if (!supplier) {
           return NextResponse.redirect(`${requestUrl.origin}/supplier/onboarding`)
         }
@@ -58,6 +59,6 @@ export async function GET(request: Request) {
     }
   }
 
-  // Default redirect to home
-  return NextResponse.redirect(requestUrl.origin)
+  // Default fallback → login page (bukan homepage)
+  return NextResponse.redirect(`${requestUrl.origin}/login`)
 }
