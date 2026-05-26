@@ -132,11 +132,11 @@ export default function Settings() {
   const [message, setMessage] = useState<{type: 'success' | 'error', text: string} | null>(null)
 
   // Admin Users state
-  type AdminUser = { id: string; email: string; full_name: string | null; phone_number: string | null; admin_role: string | null; created_at: string }
+  type AdminUser = { id: string; email: string; full_name: string | null; phone: string | null; admin_role: string | null; created_at: string }
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>([])
   const [loadingAdminUsers, setLoadingAdminUsers] = useState(false)
   const [showAdminUserModal, setShowAdminUserModal] = useState(false)
-  const [adminUserForm, setAdminUserForm] = useState({ full_name: '', phone_number: '', email: '', admin_role: 'MANAGER' })
+  const [adminUserForm, setAdminUserForm] = useState({ full_name: '', phone: '', email: '', admin_role: 'MANAGER' })
   const [savingAdminUser, setSavingAdminUser] = useState(false)
 
   useEffect(() => {
@@ -185,7 +185,7 @@ export default function Settings() {
       if (!res.ok) throw new Error(data.error || 'Gagal membuat pengguna')
       toast.success(`Undangan dikirim ke ${adminUserForm.email}`)
       setShowAdminUserModal(false)
-      setAdminUserForm({ full_name: '', phone_number: '', email: '', admin_role: 'MANAGER' })
+      setAdminUserForm({ full_name: '', phone: '', email: '', admin_role: 'MANAGER' })
       loadAdminUsers()
     } catch (err: any) {
       toast.error(err.message)
@@ -1925,8 +1925,8 @@ export default function Settings() {
                         {ADMIN_ROLES.find(r => r.value === (user.admin_role || 'MANAGER'))?.label || user.admin_role || 'Manager Admin'}
                       </span>
                     </div>
-                    {user.phone_number && (
-                      <p className="text-xs text-gray-500">📱 {user.phone_number}</p>
+                    {user.phone && (
+                      <p className="text-xs text-gray-500">📱 {user.phone}</p>
                     )}
                     <p className="text-xs text-gray-400">Bergabung {new Date(user.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
                   </div>
@@ -1965,8 +1965,8 @@ export default function Settings() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">No. HP</label>
                 <input
                   type="tel"
-                  value={adminUserForm.phone_number}
-                  onChange={e => setAdminUserForm(prev => ({ ...prev, phone_number: e.target.value }))}
+                  value={adminUserForm.phone}
+                  onChange={e => setAdminUserForm(prev => ({ ...prev, phone: e.target.value }))}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   placeholder="08xxxxxxxxxx"
                 />

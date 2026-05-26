@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerComponentClient } from '@supabase/auth-helpers-nextjs'
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
 import { cookies } from 'next/headers'
 
 function createAdminClient() {
@@ -12,7 +12,7 @@ function createAdminClient() {
 }
 
 async function verifyManagerSession() {
-  const supabase = createServerComponentClient({ cookies })
+  const supabase = createRouteHandlerClient({ cookies })
   const { data: { session } } = await supabase.auth.getSession()
   if (!session) return null
 
@@ -55,14 +55,14 @@ export async function POST(request: NextRequest) {
   const session = await verifyManagerSession()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  let body: { email?: string; full_name?: string; phone_number?: string; admin_role?: string }
+  let body: { email?: string; full_name?: string; phone?: string; admin_role?: string }
   try {
     body = await request.json()
   } catch {
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
   }
 
-  const { email, full_name, phone_number, admin_role } = body
+  const { email, full_name, phone, admin_role } = body
 
   if (!email || !full_name || !admin_role) {
     return NextResponse.json({ error: 'Email, nama, dan role wajib diisi' }, { status: 400 })
@@ -97,7 +97,7 @@ export async function POST(request: NextRequest) {
       id: authData.user.id,
       email,
       full_name,
-      phone_number: phone_number || null,
+      phone: phone || null,
       role: 'ADMIN',
       admin_role
     })
