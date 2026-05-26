@@ -16,15 +16,17 @@ async function verifyManagerSession() {
   const { data: { session } } = await supabase.auth.getSession()
   if (!session) return null
 
+  // Use select('*') so query works even before migration 045 adds admin_role column
   const { data: profile } = await supabase
     .from('profiles')
-    .select('id, role, admin_role')
+    .select('*')
     .eq('id', session.user.id)
     .single()
 
   if (!profile || profile.role !== 'ADMIN') return null
-  // Only MANAGER (or legacy null) can manage other admins
-  if (profile.admin_role !== null && profile.admin_role !== 'MANAGER') return null
+  // admin_role may be undefined if column not yet migrated — treat as MANAGER
+  // eslint-disable-next-line eqeqeq
+  if (profile.admin_role != null && profile.admin_role !== 'MANAGER') return null
 
   return session
 }
@@ -33,10 +35,15 @@ export async function GET() {
   const session = await verifyManagerSession()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    return NextResponse.json({ error: 'SUPABASE_SERVICE_ROLE_KEY belum dikonfigurasi di environment variables' }, { status: 500 })
+  }
+
   const adminClient = createAdminClient()
+  // Use select('*') so query works before and after migration 045
   const { data, error } = await adminClient
     .from('profiles')
-    .select('id, email, full_name, phone_number, admin_role, created_at')
+    .select('*')
     .eq('role', 'ADMIN')
     .order('created_at', { ascending: true })
 
