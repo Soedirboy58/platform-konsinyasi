@@ -27,24 +27,23 @@ export default function AdminSetPasswordPage() {
       if (!settled) { settled = true; setPageState('error'); setErrorMessage(msg) }
     }
 
-    // Check session from cookie (set by /auth/callback server-side exchange)
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        markReady()
-      }
-    })
-
-    // Also listen for auth events (implicit flow fallback)
+    // For implicit flow: Supabase client auto-processes #access_token hash and fires SIGNED_IN.
+    // Set up onAuthStateChange FIRST (before getSession) so we don't miss the event.
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'PASSWORD_RECOVERY' || (event === 'SIGNED_IN' && session)) {
         markReady()
       }
     })
 
-    // Timeout fallback: 8 seconds then show error
+    // For PKCE flow (code already exchanged server-side): session is in cookie
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) markReady()
+    })
+
+    // Timeout fallback: 12 seconds then show error
     const timeout = setTimeout(() => {
       markError('Link tidak valid atau sudah kadaluarsa. Minta undangan baru dari admin.')
-    }, 8000)
+    }, 12000)
 
     return () => {
       subscription.unsubscribe()

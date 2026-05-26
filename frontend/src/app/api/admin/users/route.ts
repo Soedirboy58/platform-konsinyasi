@@ -82,11 +82,12 @@ export async function POST(request: NextRequest) {
   const adminClient = createAdminClient()
 
   // Invite user — sends magic link email for password setup
-  // Use current request origin so redirect URL matches whatever domain is in Supabase allowed list
+  // Implicit flow: redirect directly to client-side page so the browser can process
+  // the #access_token hash fragment (server-side /auth/callback cannot read hash)
   const origin = new URL(request.url).origin
   const { data: authData, error: authError } = await adminClient.auth.admin.inviteUserByEmail(email, {
     data: { full_name },
-    redirectTo: `${origin}/auth/callback?next=/admin/set-password`
+    redirectTo: `${origin}/admin/set-password`
   })
 
   if (authError) {
