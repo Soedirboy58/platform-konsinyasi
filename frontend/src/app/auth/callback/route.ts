@@ -21,10 +21,10 @@ export async function GET(request: Request) {
     if (next && next.startsWith('/')) {
       return NextResponse.redirect(`${requestUrl.origin}${next}`)
     }
-    
+
     // Get user profile to determine redirect
     const { data: { user } } = await supabase.auth.getUser()
-    
+
     if (user) {
       const { data: profile } = await supabase
         .from('profiles')
@@ -37,9 +37,9 @@ export async function GET(request: Request) {
         return NextResponse.redirect(`${requestUrl.origin}/supplier/reset-password`)
       }
 
-      // Admin user → dashboard admin
+      // Admin user: always redirect to set-password (handles invite & any other admin flows)
       if (profile?.role === 'ADMIN') {
-        return NextResponse.redirect(`${requestUrl.origin}/admin`)
+        return NextResponse.redirect(`${requestUrl.origin}/admin/set-password`)
       }
 
       // Email verification (signup) → tampilkan pesan sukses di halaman login

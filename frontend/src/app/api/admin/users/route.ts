@@ -82,10 +82,11 @@ export async function POST(request: NextRequest) {
   const adminClient = createAdminClient()
 
   // Invite user — sends magic link email for password setup
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://smartalley.katalara.com'
+  // Use current request origin so redirect URL matches whatever domain is in Supabase allowed list
+  const origin = new URL(request.url).origin
   const { data: authData, error: authError } = await adminClient.auth.admin.inviteUserByEmail(email, {
     data: { full_name },
-    redirectTo: `${siteUrl}/auth/callback?next=/admin/set-password`
+    redirectTo: `${origin}/auth/callback?next=/admin/set-password`
   })
 
   if (authError) {
