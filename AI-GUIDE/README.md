@@ -2,7 +2,8 @@
 
 > **Panduan lengkap untuk AI Agent dalam membangun dan maintain Platform Konsinyasi**  
 > **Last Updated:** 26 Mei 2026  
-> **Version:** 2.2.0
+> **Version:** 2.3.0  
+> **Production:** https://smartalley.katalara.com
 
 ---
 
@@ -74,6 +75,58 @@ Supplier → Kirim Produk → Toko (Location) → Customer Beli → Platform Fee
 ### **Repository:**
 - GitHub: `Soedirboy58/platform-konsinyasi`
 - Branch: `main` (production)
+
+### **Domains:**
+- **Production:** `https://smartalley.katalara.com` *(custom domain, Supabase Site URL)*
+- **Vercel:** `https://platform-konsinyasi.vercel.app` *(fallback)*
+
+---
+
+## ⚠️ CRITICAL AUTH NOTES (BACA SEBELUM UBAH AUTH FLOW)
+
+### Supabase Auth Flow Type
+Proyek ini menggunakan **implicit flow** (bukan PKCE), meski `@supabase/auth-helpers-nextjs` v0.8.7 default ke PKCE.
+
+**Implikasi penting:**
+- Supabase mengirim token via hash fragment: `#access_token=...&refresh_token=...`
+- Server-side handler (`/auth/callback/route.ts`) **tidak bisa membaca hash fragment** (browser tidak mengirimnya ke server)
+- Jangan route invite admin melalui `/auth/callback` — token akan hilang
+
+### Admin Invite Flow
+```
+Email invite → /admin/set-password#access_token=...&refresh_token=...
+                    ↓
+         Parse hash manual: new URLSearchParams(window.location.hash.substring(1))
+                    ↓
+         supabase.auth.setSession({ access_token, refresh_token })
+                    ↓
+         Form set password muncul (state: 'ready')
+```
+
+**Kode kritis di `/admin/set-password/page.tsx`:**
+```typescript
+const hash = window.location.hash.substring(1)
+const params = new URLSearchParams(hash)
+const accessToken = params.get('access_token')
+const refreshToken = params.get('refresh_token')
+supabase.auth.setSession({ access_token: accessToken!, refresh_token: refreshToken! })
+```
+
+### Admin Layout Auth Guard
+`/admin/layout.tsx` bypass auth check untuk dua path:
+```typescript
+if (pathname === '/admin/set-password' || pathname === '/admin/login') {
+  return <>{children}</>
+}
+```
+
+### API Admin Users
+Route `/api/admin/users` menggunakan `SUPABASE_SERVICE_ROLE_KEY` (bukan anon key) untuk:
+- `POST` — invite user: `supabase.auth.admin.inviteUserByEmail()`
+- `PATCH` — reset password: `supabase.auth.admin.generateLink({type:'recovery'})`
+- `DELETE` — hapus user: `supabase.auth.admin.deleteUser()`
+
+**Origin URL:** selalu gunakan `new URL(request.url).origin` agar cocok dengan domain yang dipakai (smartalley.katalara.com atau localhost).
 
 ---
 

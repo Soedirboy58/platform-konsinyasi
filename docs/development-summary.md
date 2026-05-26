@@ -1,9 +1,10 @@
-# Development Summary - Platform Konsinyasi v2.2
+# Development Summary - Platform Konsinyasi v2.3
 
 **Project:** Platform Konsinyasi Terintegrasi  
-**Version:** 2.2.0  
+**Version:** 2.3.0  
 **Date:** 26 Mei 2026  
-**Status:** ✅ Production Active
+**Status:** ✅ Production Active  
+**Production URL:** https://smartalley.katalara.com
 
 ---
 
@@ -11,6 +12,7 @@
 
 | Version | Tanggal | Highlights |
 |---------|---------|-----------|
+| v2.3.0 | 26 Mei 2026 | Admin user management, notifikasi in-app, email templates, auth flow fixes, domain smartalley.katalara.com |
 | v2.2.0 | 26 Mei 2026 | Admin pembayaran supplier card view redesign |
 | v2.1.0 | 26 Mei 2026 | Bug fix: phantom deduction stok (Migration 044 + pg_cron) |
 | v2.0.0 | 26 Mei 2026 | Landing page baru, rebrand amber/gold, logo real, supplier marquee |
@@ -104,7 +106,7 @@ Platform digital untuk mengelola sistem konsinyasi dengan dua model bisnis:
 ## 📊 Statistics (Updated: Mei 2026)
 
 ### Database
-- **Migrations:** 44 file SQL (`backend/migrations/001–044`)
+- **Migrations:** 46 file SQL (`backend/migrations/001–046`)
 - **Tables:** 20+ (core schema + homepage_banners, outlet_page_views, outlet_carousel_slides, shipment_returns, payment_settings, platform_settings, dll)
 - **Functions:** 10+ (RPC + triggers + cleanup)
 - **RLS Policies:** 60+
@@ -132,6 +134,11 @@ Platform digital untuk mengelola sistem konsinyasi dengan dua model bisnis:
 - ✅ Auto-cancel pending transactions (5 menit via pg_cron)
 - ✅ Cleanup phantom deduction (30 menit via pg_cron)
 - ✅ Laporan penjualan dengan filter tanggal + export CSV
+- ✅ Manajemen user admin (CRUD, role RBAC, invite email, reset password)
+- ✅ Notifikasi in-app (bell icon, badge, realtime Supabase channel, 3 trigger event)
+- ✅ Custom HTML email templates (invite admin, verifikasi email mitra, reset password)
+- ✅ Auth flow: admin invite → implicit flow hash → set-password manual
+- ✅ Auth flow: supplier signup → email verification → /login?verified=true
 
 ---
 

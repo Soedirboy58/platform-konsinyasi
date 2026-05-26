@@ -17,7 +17,122 @@ Format: `MAJOR.MINOR.PATCH`
 
 ## 🚀 LATEST VERSION
 
-### **v2.2.0** - 2026-05-26
+### **v2.3.0** - 2026-05-26
+
+**Type:** Admin Management + Notification + Email System Release  
+**Status:** ✅ Production  
+**Commits:** `6d03727` → `3065bb7`
+
+---
+
+#### 👥 Admin User Management (Settings → Pengguna Admin)
+- Tab "Pengguna Admin" di `/admin/settings` dengan card per user
+- **Edit profile**: modal untuk ubah `full_name`, `phone`, `admin_role`
+- **Reset password**: tombol kirim link reset via `generateLink({type:'recovery'})` (pakai service role key)
+- **Undang admin baru**: modal invite dengan email, nama, role
+- **Hapus admin**: dengan guard cegah self-delete
+- Tab "Backup" disembunyikan (`hidden` CSS class)
+- API route: `GET/POST/DELETE/PATCH /api/admin/users` — semua operasi pakai `SUPABASE_SERVICE_ROLE_KEY`
+- Migration 045: kolom `admin_role` pada tabel `profiles` (`MANAGER|PRODUCT|MITRA|FINANCE`)
+
+**RBAC Admin Roles:**
+- `MANAGER` — akses semua menu (default jika `admin_role` null)
+- `PRODUCT` — hanya Products + laporan terbatas
+- `MITRA` — hanya Suppliers + Payments
+- `FINANCE` — hanya Reports + Payments
+
+---
+
+#### 🔔 In-App Notification System
+- **Bell icon** di topbar admin layout dengan badge unread count (merah)
+- **Bell icon** di topbar supplier layout
+- Dropdown panel: 30 notifikasi terbaru, timestamp relative, tombol "tandai semua baca"
+- Realtime: `supabase.channel` subscribe ke tabel `notifications` WHERE `recipient_id = user.id`
+- 3 event trigger (SQL migration 046 — **harus dijalankan manual di Supabase SQL Editor**):
+  - `trigger_notify_supplier_registration` — saat supplier baru daftar (INSERT ke `suppliers`)
+  - `trigger_notify_shipment_submitted` — saat pengiriman stok masuk (stock_movements INSERT, type=IN, status=PENDING)
+  - `trigger_notify_supplier_payment` — saat pembayaran supplier selesai (supplier_payments COMPLETED)
+- Tabel `notifications` dengan type CHECK constraint diperluas: `SUPPLIER_REGISTRATION`, `SHIPMENT_SUBMITTED`, `PAYMENT_RECEIVED`
+
+**File migration:** `backend/migrations/046_notification_triggers.sql`  
+⚠️ **Wajib dijalankan manual** di Supabase Dashboard → SQL Editor
+
+---
+
+#### 📧 Custom HTML Email Templates
+3 template email branded (Katalara brand, HTML + CSS inline):
+- `supabase/email-template-invite-user.html` — undangan admin (purple theme)
+- `supabase/email-template-confirm-signup.html` — verifikasi email mitra (green theme)
+- `supabase/email-template-reset-password.html` — reset password (blue theme)
+
+**Pasang di:** Supabase Dashboard → Authentication → Email Templates  
+**SMTP:** Resend.com, host `smtp.resend.com`, port 465, sender `noreply@katalara.com`
+
+---
+
+#### 🔐 Auth Flow Fixes (Invite & Email Verification)
+
+**Root cause yang ditemukan:**
+- Supabase project menggunakan **implicit flow** (`#access_token=...` di hash), bukan PKCE
+- `@supabase/auth-helpers-nextjs` v0.8.7 default `flowType: 'pkce'` → mengabaikan hash fragment
+- Route handler server-side (`/auth/callback`) tidak dapat membaca hash (tidak dikirim ke server)
+- Admin layout `checkAuth()` redirect ke login sebelum token diproses
+
+**Fixes yang diterapkan:**
+
+1. **`/admin/set-password/page.tsx`** (NEW)
+   - Halaman set password untuk admin yang diundang
+   - Parse hash fragment manual: `new URLSearchParams(window.location.hash.substring(1))`
+   - Panggil `supabase.auth.setSession({ access_token, refresh_token })` langsung
+   - State: `loading` → `ready` (form) atau `error` (expired/invalid)
+   - Timeout fallback 15 detik
+
+2. **`/admin/layout.tsx`** — bypass auth guard
+   - `checkAuth()` early return jika `pathname === '/admin/set-password'`
+   - Render condition: `loading || pathname === '/admin/login' || pathname === '/admin/set-password'` → langsung render children
+
+3. **`/api/admin/users/route.ts`** — invite redirectTo
+   - `redirectTo: ${new URL(request.url).origin}/admin/set-password`
+   - Gunakan request origin (bukan hardcoded) agar cocok domain yang dipakai
+
+4. **`/auth/callback/route.ts`** — perbaikan logika callback
+   - Admin role → selalu redirect ke `/admin/set-password` (bukan `/admin`)
+   - Default fallback diubah dari homepage ke `/login`
+   - Handle `next` param untuk future PKCE use
+
+5. **`/login/page.tsx`** — signup email verification
+   - `emailRedirectTo` ditambah `?type=signup` agar callback tahu jenis alur
+
+**Supabase URL Configuration (sudah dikonfigurasi):**
+- Site URL: `https://smartalley.katalara.com`
+- Redirect URLs: `https://smartalley.katalara.com/**`, `/auth/callback`, `/admin/set-password`
+
+---
+
+#### 🌐 Domain Migration
+- Produksi pindah dari `platform-konsinyasi.vercel.app` → **`smartalley.katalara.com`**
+- Supabase Site URL diupdate ke `https://smartalley.katalara.com`
+- Env var `NEXT_PUBLIC_SITE_URL` perlu diset di Vercel: `https://smartalley.katalara.com`
+
+---
+
+**Files Changed:**
+- `frontend/src/app/admin/settings/page.tsx` — edit user, reset password, hide backup tab
+- `frontend/src/app/admin/layout.tsx` — notification bell, RBAC sidebar, set-password bypass
+- `frontend/src/app/supplier/layout.tsx` — notification bell
+- `frontend/src/app/admin/set-password/page.tsx` — NEW: halaman set password invite
+- `frontend/src/app/auth/callback/route.ts` — perbaikan logika redirect
+- `frontend/src/app/login/page.tsx` — fix emailRedirectTo
+- `frontend/src/app/api/admin/users/route.ts` — CRUD admin users API
+- `backend/migrations/046_notification_triggers.sql` — NEW (manual run required)
+- `supabase/email-template-*.html` — 3 HTML email templates (NEW)
+
+**Migration Required:** ✅ Yes (045 auto-applied, 046 manual)  
+**Breaking Changes:** ❌ No
+
+---
+
+
 
 **Type:** UX Improvement Release  
 **Status:** ✅ Production
