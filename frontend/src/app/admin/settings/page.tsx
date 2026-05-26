@@ -1862,7 +1862,7 @@ export default function Settings() {
                   <p className="text-sm text-gray-500 mt-1">Kelola akun admin dan hak akses menu panel</p>
                 </div>
                 <button
-                  onClick={() => { setAdminUserForm({ full_name: '', phone_number: '', email: '', admin_role: 'MANAGER' }); setShowAdminUserModal(true) }}
+                  onClick={() => { setAdminUserForm({ full_name: '', phone: '', email: '', admin_role: 'MANAGER' }); setShowAdminUserModal(true) }}
                   className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
                 >
                   <Plus className="w-4 h-4" /> Tambah Pengguna
