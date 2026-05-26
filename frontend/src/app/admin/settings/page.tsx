@@ -1,7 +1,7 @@
 ﻿'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { Save, Info, DollarSign, Calculator, User, Bell, Database, Eye, EyeOff, Lock, Mail, Camera, MapPin, QrCode, Plus, Trash2, Edit, Download, Printer, Upload, Image, Layers, ChevronDown, ChevronUp, GripVertical, Monitor } from 'lucide-react'
+import { Save, Info, DollarSign, Calculator, User, Bell, Database, Eye, EyeOff, Lock, Mail, Camera, MapPin, QrCode, Plus, Trash2, Edit, Download, Printer, Upload, Image, Layers, ChevronDown, ChevronUp, GripVertical, Monitor, Users, UserCog, Shield, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import ConfirmDialog from '@/components/admin/ConfirmDialog'
@@ -131,6 +131,14 @@ export default function Settings() {
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState<{type: 'success' | 'error', text: string} | null>(null)
 
+  // Admin Users state
+  type AdminUser = { id: string; email: string; full_name: string | null; phone_number: string | null; admin_role: string | null; created_at: string }
+  const [adminUsers, setAdminUsers] = useState<AdminUser[]>([])
+  const [loadingAdminUsers, setLoadingAdminUsers] = useState(false)
+  const [showAdminUserModal, setShowAdminUserModal] = useState(false)
+  const [adminUserForm, setAdminUserForm] = useState({ full_name: '', phone_number: '', email: '', admin_role: 'MANAGER' })
+  const [savingAdminUser, setSavingAdminUser] = useState(false)
+
   useEffect(() => {
     loadProfile()
     loadPaymentSettings()
@@ -142,7 +150,80 @@ export default function Settings() {
       loadHomepageBanners()
       loadOutlets() // needed for quick-add outlet shortcuts
     }
+    if (activeTab === 'users') {
+      loadAdminUsers()
+    }
   }, [activeTab])
+
+  const loadAdminUsers = async () => {
+    setLoadingAdminUsers(true)
+    try {
+      const res = await fetch('/api/admin/users')
+      if (!res.ok) throw new Error('Gagal memuat pengguna admin')
+      const data = await res.json()
+      setAdminUsers(data)
+    } catch (err) {
+      toast.error('Gagal memuat daftar pengguna admin')
+    } finally {
+      setLoadingAdminUsers(false)
+    }
+  }
+
+  const handleCreateAdminUser = async () => {
+    if (!adminUserForm.full_name || !adminUserForm.email || !adminUserForm.admin_role) {
+      toast.error('Nama, email, dan role wajib diisi')
+      return
+    }
+    setSavingAdminUser(true)
+    try {
+      const res = await fetch('/api/admin/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(adminUserForm)
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Gagal membuat pengguna')
+      toast.success(`Undangan dikirim ke ${adminUserForm.email}`)
+      setShowAdminUserModal(false)
+      setAdminUserForm({ full_name: '', phone_number: '', email: '', admin_role: 'MANAGER' })
+      loadAdminUsers()
+    } catch (err: any) {
+      toast.error(err.message)
+    } finally {
+      setSavingAdminUser(false)
+    }
+  }
+
+  const handleDeleteAdminUser = async (userId: string, userName: string) => {
+    if (!confirm(`Hapus pengguna "${userName}"? Akun akan dihapus permanen.`)) return
+    try {
+      const res = await fetch('/api/admin/users', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: userId })
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Gagal menghapus pengguna')
+      toast.success('Pengguna berhasil dihapus')
+      loadAdminUsers()
+    } catch (err: any) {
+      toast.error(err.message)
+    }
+  }
+
+  const ADMIN_ROLES = [
+    { value: 'MANAGER', label: 'Manager Admin', desc: 'Akses penuh ke semua menu', color: 'purple' },
+    { value: 'PRODUCT', label: 'Admin Produk', desc: 'Kelola produk & supplier', color: 'blue' },
+    { value: 'MITRA', label: 'Admin Mitra', desc: 'Approval mitra & pengiriman', color: 'green' },
+    { value: 'FINANCE', label: 'Admin Finance', desc: 'Keuangan & laporan', color: 'orange' },
+  ]
+
+  const ROLE_COLOR: Record<string, string> = {
+    MANAGER: 'bg-purple-100 text-purple-700',
+    PRODUCT: 'bg-blue-100 text-blue-700',
+    MITRA: 'bg-green-100 text-green-700',
+    FINANCE: 'bg-orange-100 text-orange-700',
+  }
 
   const loadCommissionRate = async () => {
     try {
@@ -784,6 +865,9 @@ export default function Settings() {
             </button>
             <button onClick={() => setActiveTab('banners')} className={`px-6 py-4 border-b-2 whitespace-nowrap ${activeTab === 'banners' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500'}`}>
               <Monitor className="w-5 h-5 inline mr-2" />Banner Utama
+            </button>
+            <button onClick={() => setActiveTab('users')} className={`px-6 py-4 border-b-2 whitespace-nowrap ${activeTab === 'users' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500'}`}>
+              <Users className="w-5 h-5 inline mr-2" />Pengguna Admin
             </button>
           </nav>
         </div>
@@ -1763,7 +1847,184 @@ export default function Settings() {
             </div>
           </div>
         )}
+
+        {/* ── Pengguna Admin tab ── */}
+        {activeTab === 'users' && (
+          <div className="space-y-6">
+            {/* Header */}
+            <div className="bg-white rounded-lg shadow p-6">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                    <Shield className="w-5 h-5 text-blue-600" />
+                    Pengguna Admin
+                  </h3>
+                  <p className="text-sm text-gray-500 mt-1">Kelola akun admin dan hak akses menu panel</p>
+                </div>
+                <button
+                  onClick={() => { setAdminUserForm({ full_name: '', phone_number: '', email: '', admin_role: 'MANAGER' }); setShowAdminUserModal(true) }}
+                  className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  <Plus className="w-4 h-4" /> Tambah Pengguna
+                </button>
+              </div>
+            </div>
+
+            {/* Role info cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {ADMIN_ROLES.map(r => (
+                <div key={r.value} className="bg-white rounded-lg shadow p-4 border-l-4" style={{ borderColor: r.color === 'purple' ? '#9333ea' : r.color === 'blue' ? '#3b82f6' : r.color === 'green' ? '#22c55e' : '#f97316' }}>
+                  <p className="font-semibold text-gray-900 text-sm">{r.label}</p>
+                  <p className="text-xs text-gray-500 mt-1">{r.desc}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* User list */}
+            {loadingAdminUsers ? (
+              <div className="bg-white rounded-lg shadow p-12 text-center text-gray-400">
+                <UserCog className="w-10 h-10 mx-auto mb-3 animate-pulse" />
+                <p>Memuat daftar pengguna…</p>
+              </div>
+            ) : adminUsers.length === 0 ? (
+              <div className="bg-white rounded-lg shadow p-12 text-center">
+                <Users className="w-16 h-16 text-gray-200 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-700">Belum ada pengguna admin</h3>
+                <p className="text-sm text-gray-400 mt-1 mb-6">Tambahkan anggota tim untuk mengelola platform bersama</p>
+                <button
+                  onClick={() => setShowAdminUserModal(true)}
+                  className="flex items-center gap-2 bg-blue-600 text-white px-5 py-2.5 rounded-lg hover:bg-blue-700 transition-colors mx-auto"
+                >
+                  <Plus className="w-4 h-4" /> Tambah Pengguna Pertama
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {adminUsers.map(user => (
+                  <div key={user.id} className="bg-white rounded-lg shadow p-5 flex flex-col gap-3">
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold text-lg">
+                          {(user.full_name || user.email).charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                          <p className="font-semibold text-gray-900 text-sm leading-tight">{user.full_name || '—'}</p>
+                          <p className="text-xs text-gray-500 truncate max-w-[150px]">{user.email}</p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handleDeleteAdminUser(user.id, user.full_name || user.email)}
+                        className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        title="Hapus pengguna"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${ROLE_COLOR[user.admin_role || 'MANAGER'] || 'bg-gray-100 text-gray-600'}`}>
+                        {ADMIN_ROLES.find(r => r.value === (user.admin_role || 'MANAGER'))?.label || user.admin_role || 'Manager Admin'}
+                      </span>
+                    </div>
+                    {user.phone_number && (
+                      <p className="text-xs text-gray-500">📱 {user.phone_number}</p>
+                    )}
+                    <p className="text-xs text-gray-400">Bergabung {new Date(user.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </main>
+
+      {/* Modal: Tambah Pengguna Admin */}
+      {showAdminUserModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md">
+            <div className="p-6 border-b flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-bold text-gray-900">Tambah Pengguna Admin</h2>
+                <p className="text-sm text-gray-500 mt-0.5">Undangan akan dikirim via email</p>
+              </div>
+              <button onClick={() => setShowAdminUserModal(false)} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Nama Lengkap <span className="text-red-500">*</span></label>
+                <input
+                  type="text"
+                  value={adminUserForm.full_name}
+                  onChange={e => setAdminUserForm(prev => ({ ...prev, full_name: e.target.value }))}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Contoh: Budi Santoso"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">No. HP</label>
+                <input
+                  type="tel"
+                  value={adminUserForm.phone_number}
+                  onChange={e => setAdminUserForm(prev => ({ ...prev, phone_number: e.target.value }))}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="08xxxxxxxxxx"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Alamat Email <span className="text-red-500">*</span></label>
+                <input
+                  type="email"
+                  value={adminUserForm.email}
+                  onChange={e => setAdminUserForm(prev => ({ ...prev, email: e.target.value }))}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="email@contoh.com"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Role <span className="text-red-500">*</span></label>
+                <div className="space-y-2">
+                  {ADMIN_ROLES.map(r => (
+                    <label
+                      key={r.value}
+                      className={`flex items-center gap-3 p-3 rounded-lg border-2 cursor-pointer transition-colors ${adminUserForm.admin_role === r.value ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'}`}
+                    >
+                      <input
+                        type="radio"
+                        name="admin_role"
+                        value={r.value}
+                        checked={adminUserForm.admin_role === r.value}
+                        onChange={() => setAdminUserForm(prev => ({ ...prev, admin_role: r.value }))}
+                        className="sr-only"
+                      />
+                      <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${adminUserForm.admin_role === r.value ? 'bg-blue-500' : 'bg-gray-300'}`} />
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">{r.label}</p>
+                        <p className="text-xs text-gray-500">{r.desc}</p>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div className="p-6 border-t flex gap-3 justify-end">
+              <button
+                onClick={() => setShowAdminUserModal(false)}
+                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                Batal
+              </button>
+              <button
+                onClick={handleCreateAdminUser}
+                disabled={savingAdminUser}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-60 flex items-center gap-2"
+              >
+                {savingAdminUser ? 'Mengirim...' : 'Kirim Undangan'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Barcode Modal - Mobile Responsive */}
       {showBarcodeModal && selectedOutletForBarcode && (

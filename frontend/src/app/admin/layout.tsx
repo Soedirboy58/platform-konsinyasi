@@ -7,7 +7,6 @@ import Link from 'next/link'
 import {
   LayoutDashboard,
   Users,
-  Package,
   TrendingUp,
   Settings,
   LogOut,
@@ -16,13 +15,17 @@ import {
   Bell,
   ChevronRight,
   Wallet,
-  DollarSign
+  PanelLeftClose,
+  PanelLeftOpen
 } from 'lucide-react'
+
+type AdminRole = 'MANAGER' | 'PRODUCT' | 'MITRA' | 'FINANCE' | null
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const pathname = usePathname()
-  const [sidebarOpen, setSidebarOpen] = useState(false) // Default closed
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [isDesktop, setIsDesktop] = useState(false)
   const [profile, setProfile] = useState<any>(null)
   const [loading, setLoading] = useState(true)
 
@@ -30,40 +33,45 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     checkAuth()
   }, [])
 
-  // Keep sidebar state consistent with viewport size.
-  // On desktop (>= 1024px) we want the sidebar open; on mobile closed.
-  // This prevents cases where a mobile-open state persists when switching back to desktop.
+  // Initialize sidebar: desktop=open, mobile=closed. Respect localStorage for desktop.
   useEffect(() => {
     if (typeof window === 'undefined') return
-
     const mql = window.matchMedia('(min-width: 1024px)')
 
-    const handleChange = (e: MediaQueryListEvent | MediaQueryList) => {
-      try {
-        setSidebarOpen(Boolean((e as any).matches))
-      } catch (err) {
-        // fallback: do nothing
+    const init = (matches: boolean) => {
+      setIsDesktop(matches)
+      if (matches) {
+        const saved = localStorage.getItem('adminSidebarOpen')
+        setSidebarOpen(saved !== 'false') // default open on desktop
+      } else {
+        setSidebarOpen(false) // always closed on mobile initially
       }
     }
 
-    // initialize based on current viewport
-    setSidebarOpen(mql.matches)
+    init(mql.matches)
 
-    // add listener (support older addListener API)
+    const handleChange = (e: MediaQueryListEvent) => init(e.matches)
     if (typeof mql.addEventListener === 'function') {
       mql.addEventListener('change', handleChange)
-    } else if (typeof (mql as any).addListener === 'function') {
+    } else {
       ;(mql as any).addListener(handleChange)
     }
-
     return () => {
       if (typeof mql.removeEventListener === 'function') {
         mql.removeEventListener('change', handleChange)
-      } else if (typeof (mql as any).removeListener === 'function') {
+      } else {
         ;(mql as any).removeListener(handleChange)
       }
     }
   }, [])
+
+  function toggleSidebar() {
+    setSidebarOpen(prev => {
+      const next = !prev
+      if (isDesktop) localStorage.setItem('adminSidebarOpen', String(next))
+      return next
+    })
+  }
 
   async function checkAuth() {
     try {
@@ -104,22 +112,28 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     return <>{children}</>
   }
 
-  const menuItems = [
+  const adminRole: AdminRole = profile?.admin_role ?? null
+  const isManager = adminRole === null || adminRole === 'MANAGER'
+
+  // All menus with role access control
+  const allMenuItems = [
     {
       icon: <LayoutDashboard className="w-5 h-5" />,
       label: 'Dashboard',
       href: '/admin',
-      active: pathname === '/admin'
+      active: pathname === '/admin',
+      roles: null // all roles
     },
     {
       icon: <Users className="w-5 h-5" />,
       label: 'Management Supplier',
       href: '/admin/suppliers',
       active: pathname?.startsWith('/admin/suppliers'),
+      roles: ['MANAGER', 'PRODUCT', 'MITRA'],
       submenu: [
-        { label: 'Daftar Supplier', href: '/admin/suppliers' },
-        { label: 'Produk Supplier', href: '/admin/suppliers/products' },
-        { label: 'Pengiriman & Retur', href: '/admin/suppliers/shipments' }
+        { label: 'Daftar Supplier', href: '/admin/suppliers', roles: null },
+        { label: 'Produk Supplier', href: '/admin/suppliers/products', roles: ['MANAGER', 'PRODUCT'] },
+        { label: 'Pengiriman & Retur', href: '/admin/suppliers/shipments', roles: null }
       ]
     },
     {
@@ -127,9 +141,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       label: 'Keuangan & Pembayaran',
       href: '/admin/payments',
       active: pathname?.startsWith('/admin/payments'),
+      roles: ['MANAGER', 'FINANCE'],
       submenu: [
-        { label: 'Pembayaran Supplier', href: '/admin/payments/commissions' },
-        { label: 'Riwayat Pembayaran', href: '/admin/payments/history' }
+        { label: 'Pembayaran Supplier', href: '/admin/payments/commissions', roles: null },
+        { label: 'Riwayat Pembayaran', href: '/admin/payments/history', roles: null }
       ]
     },
     {
@@ -137,52 +152,72 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       label: 'Laporan & Analitik',
       href: '/admin/reports',
       active: pathname?.startsWith('/admin/reports') || pathname?.startsWith('/admin/analytics'),
+      roles: ['MANAGER', 'FINANCE'],
       submenu: [
-        { label: 'Analytics Dashboard', href: '/admin/analytics' },
-        { label: 'Laporan Penjualan', href: '/admin/reports/sales' },
-        { label: 'Laporan Keuangan', href: '/admin/reports/financial' }
+        { label: 'Analytics Dashboard', href: '/admin/analytics', roles: null },
+        { label: 'Laporan Penjualan', href: '/admin/reports/sales', roles: null },
+        { label: 'Laporan Keuangan', href: '/admin/reports/financial', roles: null }
       ]
     },
     {
       icon: <Settings className="w-5 h-5" />,
       label: 'Pengaturan',
       href: '/admin/settings',
-      active: pathname === '/admin/settings'
+      active: pathname === '/admin/settings',
+      roles: ['MANAGER'] // only manager
     }
   ]
 
+  // Filter menus based on role (null/MANAGER = all)
+  const menuItems = allMenuItems
+    .filter(item => !item.roles || isManager || item.roles.includes(adminRole as string))
+    .map(item => ({
+      ...item,
+      submenu: item.submenu?.filter(sub =>
+        !sub.roles || isManager || sub.roles.includes(adminRole as string)
+      )
+    }))
+
+  const roleLabel: Record<string, string> = {
+    MANAGER: 'Manager Admin',
+    PRODUCT: 'Admin Produk',
+    MITRA: 'Admin Mitra',
+    FINANCE: 'Admin Finance'
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Topbar - Desktop: fixed with margin for sidebar, Mobile: full width */}
-      <div className="fixed top-0 right-0 h-16 bg-white border-b border-gray-200 z-30 flex items-center justify-between px-4 lg:left-64 left-0 transition-all duration-300">
+      {/* Topbar */}
+      <div
+        className={`fixed top-0 right-0 h-16 bg-white border-b border-gray-200 z-30 flex items-center justify-between px-4 transition-all duration-300 ${
+          sidebarOpen && isDesktop ? 'left-64' : 'left-0'
+        }`}
+      >
         {/* Left: Hamburger + Title */}
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
           <button
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors lg:hidden"
+            onClick={toggleSidebar}
+            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            title={sidebarOpen ? 'Sembunyikan sidebar' : 'Tampilkan sidebar'}
           >
-            {sidebarOpen ? (
-              <X className="w-6 h-6 text-gray-600" />
-            ) : (
-              <Menu className="w-6 h-6 text-gray-600" />
-            )}
+            {sidebarOpen
+              ? <PanelLeftClose className="w-5 h-5 text-gray-600" />
+              : <PanelLeftOpen className="w-5 h-5 text-gray-600" />
+            }
           </button>
           <h1 className="text-xl font-bold text-gray-900">Admin Panel</h1>
         </div>
 
         {/* Right: Notifications + Avatar */}
         <div className="flex items-center gap-4">
-          {/* Notification Bell */}
           <button className="relative p-2 hover:bg-gray-100 rounded-lg transition-colors">
             <Bell className="w-6 h-6 text-gray-600" />
             <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
           </button>
-
-          {/* Avatar + Name */}
           <div className="flex items-center gap-3">
             <div className="text-right hidden sm:block">
               <p className="text-sm font-medium text-gray-900">{profile?.full_name || 'Admin'}</p>
-              <p className="text-xs text-gray-500">Administrator</p>
+              <p className="text-xs text-gray-500">{roleLabel[adminRole as string] || 'Administrator'}</p>
             </div>
             <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-semibold">
               {profile?.full_name?.charAt(0) || 'A'}
@@ -191,15 +226,21 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </div>
       </div>
 
-      {/* Sidebar - Desktop: always visible, Mobile: toggle */}
+      {/* Sidebar */}
       <aside
-        className={`fixed top-0 left-0 bottom-0 bg-white border-r border-gray-200 z-40 w-64 transition-transform duration-300 lg:translate-x-0 ${
+        className={`fixed top-0 left-0 bottom-0 bg-white border-r border-gray-200 z-40 w-64 transition-transform duration-300 overflow-y-auto ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-        } overflow-y-auto`}
+        }`}
       >
         {/* Logo/Brand Section */}
-        <div className="h-16 flex items-center px-6 border-b border-gray-200">
+        <div className="h-16 flex items-center justify-between px-6 border-b border-gray-200">
           <h2 className="text-lg font-bold text-blue-600">Konsinyasi Admin</h2>
+          <button
+            onClick={toggleSidebar}
+            className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors lg:hidden"
+          >
+            <X className="w-4 h-4 text-gray-500" />
+          </button>
         </div>
 
         <nav className="p-4 space-y-2">
@@ -216,7 +257,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               >
                 {item.icon}
                 <span>{item.label}</span>
-                {item.submenu && (
+                {item.submenu && item.submenu.length > 0 && (
                   <ChevronRight
                     className={`w-4 h-4 ml-auto transition-transform ${
                       item.active ? 'rotate-90' : ''
@@ -226,7 +267,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               </Link>
 
               {/* Submenu */}
-              {item.submenu && item.active && (
+              {item.submenu && item.submenu.length > 0 && item.active && (
                 <div className="ml-12 mt-2 space-y-1">
                   {item.submenu.map((subitem, subindex) => (
                     <Link
@@ -258,18 +299,22 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </nav>
       </aside>
 
-      {/* Main Content - Desktop: margin for sidebar, Mobile: full width */}
-      <main className="pt-16 lg:ml-64 min-h-screen">
+      {/* Main Content */}
+      <main
+        className={`pt-16 min-h-screen transition-all duration-300 ${
+          sidebarOpen && isDesktop ? 'ml-64' : 'ml-0'
+        }`}
+      >
         <div className="w-full">
           {children}
         </div>
       </main>
 
-      {/* Mobile Overlay - Close sidebar when clicking outside */}
-      {sidebarOpen && (
+      {/* Mobile Overlay */}
+      {sidebarOpen && !isDesktop && (
         <div
-          className="fixed inset-0 bg-black bg-opacity-50 z-30 lg:hidden"
-          onClick={() => setSidebarOpen(false)}
+          className="fixed inset-0 bg-black bg-opacity-50 z-30"
+          onClick={toggleSidebar}
         />
       )}
     </div>
