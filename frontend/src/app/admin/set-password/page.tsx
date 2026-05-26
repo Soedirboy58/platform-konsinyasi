@@ -18,37 +18,56 @@ export default function AdminSetPasswordPage() {
 
   useEffect(() => {
     const supabase = createClient()
+    let settled = false
 
-    // Listen for auth state — Supabase automatically parses the hash fragment
-    // and emits PASSWORD_RECOVERY (reset) or SIGNED_IN (invite)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'PASSWORD_RECOVERY' || (event === 'SIGNED_IN' && session)) {
+    function markReady() {
+      if (!settled) {
+        settled = true
         setPageState('ready')
-      } else if (event === 'SIGNED_OUT') {
+      }
+    }
+
+    function markError(msg: string) {
+      if (!settled) {
+        settled = true
         setPageState('error')
-        setErrorMessage('Sesi tidak valid atau link sudah kadaluarsa.')
+        setErrorMessage(msg)
       }
-    })
+    }
 
-    // Also check if already have a valid session (e.g. hash already processed)
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        setPageState('ready')
-      }
-    })
-
-    // Detect error in hash fragment (e.g. otp_expired)
+    // Detect error in URL hash (e.g. otp_expired) — check FIRST before anything else
     if (typeof window !== 'undefined') {
       const hash = window.location.hash
       if (hash.includes('error=')) {
         const params = new URLSearchParams(hash.slice(1))
         const errorDesc = params.get('error_description') || 'Link tidak valid atau sudah kadaluarsa.'
-        setPageState('error')
-        setErrorMessage(decodeURIComponent(errorDesc.replace(/\+/g, ' ')))
+        markError(decodeURIComponent(errorDesc.replace(/\+/g, ' ')))
+        return
       }
     }
 
-    return () => subscription.unsubscribe()
+    // Listen for SIGNED_IN (invite) or PASSWORD_RECOVERY (reset)
+    // Do NOT react to SIGNED_OUT — it fires initially before token is processed
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'PASSWORD_RECOVERY' || (event === 'SIGNED_IN' && session)) {
+        markReady()
+      }
+    })
+
+    // Also check existing session (token may already be processed)
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) markReady()
+    })
+
+    // Timeout fallback: if nothing fires in 10s, assume link is invalid
+    const timeout = setTimeout(() => {
+      markError('Link tidak valid atau sudah kadaluarsa. Minta undangan baru dari admin.')
+    }, 10000)
+
+    return () => {
+      subscription.unsubscribe()
+      clearTimeout(timeout)
+    }
   }, [])
 
   async function handleSubmit(e: React.FormEvent) {
