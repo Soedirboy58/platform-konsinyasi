@@ -128,27 +128,58 @@ export default function WalletPage() {
         }
       }
 
-      // Get products for calculating real total earned
-      const { data: products } = await supabase
-        .from('products')
-        .select('id')
-        .eq('supplier_id', supplier.id)
+      const fetchSupplierSalesItems = async (useSnapshotSupplierId: boolean) => {
+        let query = supabase
+          .from('sales_transaction_items')
+          .select(`
+            id,
+            product_id,
+            supplier_id,
+            quantity,
+            price,
+            supplier_revenue,
+            commission_amount,
+            products(name),
+            sales_transactions!inner(
+              created_at,
+              status,
+              location_id
+            )
+          `)
+          .eq('sales_transactions.status', 'COMPLETED')
+          .order('sales_transactions(created_at)', { ascending: false })
+          .limit(500)
 
-      const productIds = products?.map(p => p.id) || []
+        if (useSnapshotSupplierId) {
+          query = query.eq('supplier_id', supplier.id)
+        } else {
+          query = query.eq('products.supplier_id', supplier.id)
+        }
+
+        return query
+      }
+
+      let salesData: any[] = []
+      let salesError: any = null
+
+      const snapshotResult = await fetchSupplierSalesItems(true)
+      salesData = snapshotResult.data || []
+      salesError = snapshotResult.error
+
+      if (salesError && String(salesError.message || '').toLowerCase().includes('supplier_id')) {
+        const fallbackResult = await fetchSupplierSalesItems(false)
+        salesData = fallbackResult.data || []
+        salesError = fallbackResult.error
+      }
+
+      if (salesError) {
+        console.error('Error fetching sales data:', salesError)
+      }
 
       // Calculate REAL total earned from all sales (sejak join)
-      let realTotalEarned = 0
-      if (productIds.length > 0) {
-        const { data: allSalesData } = await supabase
-          .from('sales_transaction_items')
-          .select('supplier_revenue, sales_transactions!inner(status)')
-          .in('product_id', productIds)
-          .eq('sales_transactions.status', 'COMPLETED')
-
-        realTotalEarned = allSalesData?.reduce((sum, item) => 
-          sum + (item.supplier_revenue || 0), 0
-        ) || 0
-      }
+      const realTotalEarned = salesData.reduce((sum, item) =>
+        sum + (item.supplier_revenue || 0), 0
+      )
 
       // Total sudah dibayarkan admin (transfer bank ke supplier)
       const { data: paidData } = await supabase
@@ -182,60 +213,27 @@ export default function WalletPage() {
       }
 
       // Get sales payments (penerimaan uang dari penjualan produk)
-      if (productIds.length > 0) {
-        const { data: salesData, error: salesError } = await supabase
-          .from('sales_transaction_items')
-          .select(`
-            id,
-            quantity,
-            price,
-            supplier_revenue,
-            commission_amount,
-            products!inner(name),
-            sales_transactions!inner(
-              created_at,
-              status,
-              location_id
-            )
-          `)
-          .in('product_id', productIds)
-          .eq('sales_transactions.status', 'COMPLETED')
-          .order('sales_transactions(created_at)', { ascending: false })
-          .limit(100)
+      const locationIds = Array.from(new Set(salesData.map((s: any) => s.sales_transactions?.location_id).filter(Boolean)))
+      const { data: locationsData } = await supabase
+        .from('locations')
+        .select('id, name')
+        .in('id', locationIds)
 
-        if (salesError) {
-          console.error('❌ Error fetching sales data:', salesError)
-        }
+      const locationMap = new Map(locationsData?.map(l => [l.id, l.name]) || [])
 
-        // Get location names separately to avoid ambiguous relationship
-        const locationIds = Array.from(new Set(salesData?.map((s: any) => s.sales_transactions?.location_id).filter(Boolean)))
-        const { data: locationsData } = await supabase
-          .from('locations')
-          .select('id, name')
-          .in('id', locationIds)
-        
-        const locationMap = new Map(locationsData?.map(l => [l.id, l.name]) || [])
+      const formattedPayments: SalesPayment[] = salesData.map((item: any) => ({
+        id: item.id,
+        product_name: item.products?.name || 'Unknown',
+        quantity: item.quantity,
+        outlet_name: locationMap.get(item.sales_transactions?.location_id) || 'Unknown',
+        sale_price: item.price || 0,
+        supplier_revenue: item.supplier_revenue || 0,
+        platform_fee: item.commission_amount || 0,
+        sold_at: item.sales_transactions?.created_at || new Date().toISOString(),
+        payment_received_at: item.sales_transactions?.created_at || new Date().toISOString()
+      }))
 
-        console.log('💰 Wallet Sales Data Debug:')
-        console.log('  - Product IDs count:', productIds.length)
-        if (salesError) {
-          console.error('Sales data error:', salesError)
-        }
-
-        const formattedPayments: SalesPayment[] = salesData?.map((item: any) => ({
-          id: item.id,
-          product_name: item.products?.name || 'Unknown',
-          quantity: item.quantity,
-          outlet_name: locationMap.get(item.sales_transactions?.location_id) || 'Unknown',
-          sale_price: item.price || 0,
-          supplier_revenue: item.supplier_revenue || 0,
-          platform_fee: item.commission_amount || 0,
-          sold_at: item.sales_transactions?.created_at || new Date().toISOString(),
-          payment_received_at: item.sales_transactions?.created_at || new Date().toISOString()
-        })) || []
-
-        setSalesPayments(formattedPayments)
-      }
+      setSalesPayments(formattedPayments)
 
       // Get withdrawal requests
       const { data: withdrawalData, error: withdrawalError } = await supabase

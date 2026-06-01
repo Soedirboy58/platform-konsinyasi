@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import Link from 'next/link'
 import { 
   DollarSign, 
   Upload, 
@@ -112,6 +113,7 @@ export default function CommissionsPage() {
     try {
       setLoading(true)
       const supabase = createClient()
+      const pageSize = 1000
 
       // Period range hanya untuk display stats di tabel (bukan untuk kalkulasi saldo)
       const now = new Date()
@@ -135,70 +137,191 @@ export default function CommissionsPage() {
       const localMinThreshold = settingsData?.minimum_payout_amount || 50000
       setMinThreshold(localMinThreshold)
 
-      // ALL-TIME sales query — tidak difilter periode
-      // Ini yang digunakan untuk kalkulasi saldo berjalan yang akurat
-      const { data: allSalesItems, error: salesError } = await supabase
-        .from('sales_transaction_items')
-        .select(`
-          quantity,
-          subtotal,
-          supplier_revenue,
-          commission_amount,
-          sales_transactions!inner(
-            id,
-            status,
-            created_at
-          ),
-          products!inner(
-            id,
-            name,
-            supplier_id,
-            suppliers!inner(
-              id,
-              business_name,
-              bank_name,
-              bank_account_number,
-              bank_account_holder,
-              status
-            )
-          )
-        `)
-        .eq('sales_transactions.status', 'COMPLETED')
-        .eq('products.suppliers.status', 'APPROVED')
+      // Supplier map (approved) + product map.
+      // Gunakan basis yang sama dengan dashboard supplier agar saldo konsisten.
+      const { data: suppliersData, error: suppliersError } = await supabase
+        .from('suppliers')
+        .select('id, business_name, bank_name, bank_account_number, bank_account_holder, status')
+        .eq('status', 'APPROVED')
 
-      if (salesError) {
-        console.error('Error loading sales:', salesError)
+      if (suppliersError) {
+        console.error('Error loading suppliers for commission map:', suppliersError)
         setLoading(false)
         return
       }
 
+      const supplierMap = new Map((suppliersData || []).map((s: any) => [s.id, s]))
+
+      const approvedSupplierIds = Array.from(supplierMap.keys())
+
+      const { data: productsData, error: productsError } = await supabase
+        .from('products')
+        .select('id, supplier_id')
+        .in('supplier_id', approvedSupplierIds)
+
+      if (productsError) {
+        console.error('Error loading products for commission map:', productsError)
+        setLoading(false)
+        return
+      }
+
+      const productToSupplierMap = new Map<string, string>()
+      for (const p of productsData || []) {
+        if (p.id && p.supplier_id) {
+          productToSupplierMap.set(p.id, p.supplier_id)
+        }
+      }
+
+      const allProductIds = Array.from(productToSupplierMap.keys())
+
+      // ALL-TIME sales query — tidak difilter periode
+      // Prioritaskan snapshot supplier_id di sales item (jika kolom ada),
+      // lalu fallback ke mapping product->supplier untuk kompatibilitas lama.
+      let allSalesItems: any[] = []
+      let hasSupplierSnapshotInItems = false
+      const fetchSalesItems = async (includeSupplierId: boolean) => {
+        const rows: any[] = []
+        let from = 0
+
+        while (true) {
+          const selectFields = includeSupplierId
+            ? `
+                id,
+                product_id,
+                supplier_id,
+                quantity,
+                subtotal,
+                supplier_revenue,
+                commission_amount,
+                sales_transactions!inner(
+                  id,
+                  status,
+                  created_at
+                )
+              `
+            : `
+                id,
+                product_id,
+                quantity,
+                subtotal,
+                supplier_revenue,
+                commission_amount,
+                sales_transactions!inner(
+                  id,
+                  status,
+                  created_at
+                )
+            `
+
+          let query = supabase
+            .from('sales_transaction_items')
+            .select(selectFields)
+            .eq('sales_transactions.status', 'COMPLETED')
+            .order('id', { ascending: true })
+            .range(from, from + pageSize - 1)
+
+          if (includeSupplierId) {
+            query = query.in('supplier_id', approvedSupplierIds)
+          } else {
+            if (allProductIds.length === 0) return rows
+            query = query.in('product_id', allProductIds)
+          }
+
+          const { data: salesData, error: salesError } = await query
+
+          if (salesError) {
+            throw salesError
+          }
+
+          const batch = salesData || []
+          rows.push(...batch)
+          if (batch.length < pageSize) break
+          from += pageSize
+        }
+
+        return rows
+      }
+
+      try {
+        allSalesItems = await fetchSalesItems(true)
+        hasSupplierSnapshotInItems = true
+      } catch (snapshotErr: any) {
+        // Compat fallback for environments that don't have sales_transaction_items.supplier_id yet.
+        if (String(snapshotErr?.message || '').toLowerCase().includes('supplier_id')) {
+          allSalesItems = await fetchSalesItems(false)
+          hasSupplierSnapshotInItems = false
+        } else {
+          console.error('Error loading sales:', snapshotErr)
+          setLoading(false)
+          return
+        }
+      }
+
       // ALL-TIME payments — untuk saldo berjalan
-      const { data: paymentRecords } = await supabase
-        .from('supplier_payments')
-        .select('supplier_id, net_payment, amount, payment_date, payment_reference, status, created_at')
-        .eq('status', 'COMPLETED')
-        .order('payment_date', { ascending: false })
+      const paymentRecords: any[] = []
+      {
+        let from = 0
+        while (true) {
+          const { data: paymentBatch, error: paymentError } = await supabase
+            .from('supplier_payments')
+            .select('id, supplier_id, net_payment, amount, payment_date, payment_reference, status, created_at')
+            .eq('status', 'COMPLETED')
+            .order('id', { ascending: true })
+            .range(from, from + pageSize - 1)
+
+          if (paymentError) {
+            console.error('Error loading supplier payments:', paymentError)
+            setLoading(false)
+            return
+          }
+
+          const batch = paymentBatch || []
+          paymentRecords.push(...batch)
+          if (batch.length < pageSize) break
+          from += pageSize
+        }
+      }
 
       // ALL-TIME stock movements — produk dikirim supplier ke platform
-      const { data: stockMovementsData } = await supabase
-        .from('stock_movements')
-        .select(`
-          supplier_id,
-          stock_movement_items(quantity)
-        `)
-        .eq('movement_type', 'IN')
-        .in('status', ['APPROVED', 'COMPLETED'])
+      const stockMovementsData: any[] = []
+      {
+        let from = 0
+        while (true) {
+          const { data: stockBatch, error: stockError } = await supabase
+            .from('stock_movements')
+            .select(`
+              id,
+              supplier_id,
+              stock_movement_items(quantity)
+            `)
+            .eq('movement_type', 'IN')
+            .in('status', ['APPROVED', 'COMPLETED'])
+            .order('id', { ascending: true })
+            .range(from, from + pageSize - 1)
+
+          if (stockError) {
+            console.error('Error loading stock movements:', stockError)
+            setLoading(false)
+            return
+          }
+
+          const batch = stockBatch || []
+          stockMovementsData.push(...batch)
+          if (batch.length < pageSize) break
+          from += pageSize
+        }
+      }
 
       // Build payment map (all-time)
       const paymentMap = new Map<string, any[]>()
-      for (const payment of paymentRecords || []) {
+      for (const payment of paymentRecords) {
         if (!paymentMap.has(payment.supplier_id)) paymentMap.set(payment.supplier_id, [])
         paymentMap.get(payment.supplier_id)!.push(payment)
       }
 
       // Build shipped quantity map (all-time stock IN)
       const shippedMap = new Map<string, number>()
-      for (const movement of stockMovementsData || []) {
+      for (const movement of stockMovementsData) {
         const supplierId = movement.supplier_id
         if (!supplierId) continue
         const totalQty = (movement.stock_movement_items as any[])?.reduce(
@@ -212,17 +335,20 @@ export default function CommissionsPage() {
       const supplierPeriodMap = new Map<string, any[]>()
 
       for (const item of allSalesItems || []) {
-        const supplier = (item.products as any)?.suppliers
+        const snapshotSupplierId = hasSupplierSnapshotInItems ? (item.supplier_id || null) : null
+        const mappedSupplierId = item.product_id ? productToSupplierMap.get(item.product_id) : null
+        const supplierId = snapshotSupplierId || mappedSupplierId
+        const supplier = supplierId ? supplierMap.get(supplierId) : null
         if (!supplier) continue
-        const supplierId = supplier.id
+        const normalizedSupplierId = supplier.id
         const createdAt = new Date((item.sales_transactions as any)?.created_at || 0)
 
-        if (!supplierAllTimeMap.has(supplierId)) supplierAllTimeMap.set(supplierId, [])
-        supplierAllTimeMap.get(supplierId)!.push({ ...item, supplier })
+        if (!supplierAllTimeMap.has(normalizedSupplierId)) supplierAllTimeMap.set(normalizedSupplierId, [])
+        supplierAllTimeMap.get(normalizedSupplierId)!.push({ ...item, supplier })
 
         if (createdAt >= startDate) {
-          if (!supplierPeriodMap.has(supplierId)) supplierPeriodMap.set(supplierId, [])
-          supplierPeriodMap.get(supplierId)!.push({ ...item, supplier })
+          if (!supplierPeriodMap.has(normalizedSupplierId)) supplierPeriodMap.set(normalizedSupplierId, [])
+          supplierPeriodMap.get(normalizedSupplierId)!.push({ ...item, supplier })
         }
       }
 
@@ -233,7 +359,15 @@ export default function CommissionsPage() {
         const periodSales = supplierPeriodMap.get(supplierId) || []
 
         // ALL-TIME totals — untuk saldo berjalan
-        const alltimeRevenue = allSales.reduce((sum: number, item: any) => sum + (item.supplier_revenue || 0), 0)
+        const alltimeRevenue = allSales.reduce((sum: number, item: any) => {
+          const subtotal = item.subtotal || 0
+          const commissionAmount = item.commission_amount || 0
+          const supplierRevenue = item.supplier_revenue
+          const effectiveRevenue = typeof supplierRevenue === 'number'
+            ? supplierRevenue
+            : Math.max(0, subtotal - commissionAmount)
+          return sum + effectiveRevenue
+        }, 0)
         const alltimePlatformFee = allSales.reduce((sum: number, item: any) => sum + (item.commission_amount || 0), 0)
         const alltimeSales = allSales.reduce((sum: number, item: any) => sum + (item.subtotal || 0), 0)
 
@@ -265,7 +399,11 @@ export default function CommissionsPage() {
           status = 'PAID'      // Saldo 0 atau negatif → lunas
         }
 
-        const latestPayment = payments[0] || null
+        const latestPayment = [...payments].sort((a, b) => {
+          const aDate = new Date(a.payment_date || a.created_at || 0).getTime()
+          const bDate = new Date(b.payment_date || b.created_at || 0).getTime()
+          return bDate - aDate
+        })[0] || null
 
         // ALL-TIME unique transaction count
         const allTimeUniqueTransactions = new Set(
@@ -601,6 +739,13 @@ export default function CommissionsPage() {
               <p className="text-sm text-gray-600 mt-1">Kelola transfer pembayaran hasil penjualan (sudah dipotong komisi platform)</p>
             </div>
             <div className="flex gap-2">
+              <Link
+                href="/admin/payments/control"
+                className="flex-1 sm:flex-none px-4 py-2.5 bg-gradient-to-r from-indigo-600 to-indigo-500 text-white rounded-lg hover:from-indigo-700 hover:to-indigo-600 flex items-center justify-center gap-2 font-semibold text-sm shadow-md hover:shadow-lg transition-all"
+              >
+                <CheckCircle className="w-4 h-4" />
+                Kontrol Penjualan
+              </Link>
               <button className="flex-1 sm:flex-none px-4 py-2.5 bg-gradient-to-r from-green-600 to-green-500 text-white rounded-lg hover:from-green-700 hover:to-green-600 flex items-center justify-center gap-2 font-semibold text-sm shadow-md hover:shadow-lg transition-all">
                 <Download className="w-4 h-4" />
                 <span className="hidden sm:inline">Export</span> Excel

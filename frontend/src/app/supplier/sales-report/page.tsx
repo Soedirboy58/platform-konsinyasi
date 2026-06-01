@@ -118,34 +118,53 @@ export default function SalesReportPage() {
 
       if (!supplier) return
 
-      // Build query - Use sales_transaction_items (not sales_transactions)
-      // Note: Don't select locations to avoid ambiguous relationship error
-      // Note: hpp is optional (will use default estimate if not set)
-      let query = supabase
-        .from('sales_transaction_items')
-        .select(`
-          id,
-          product_id,
-          quantity,
-          price,
-          subtotal,
-          commission_amount,
-          supplier_revenue,
-          created_at,
-          products!inner(id, name, supplier_id, hpp),
-          sales_transactions!inner(id, transaction_code, status, created_at, location_id)
-        `)
-        .eq('products.supplier_id', supplier.id)
-        .eq('sales_transactions.status', 'COMPLETED')
-        .gte('created_at', startDate + 'T00:00:00')
-        .lte('created_at', endDate + 'T23:59:59')
-        .order('created_at', { ascending: false })
+      // Build query from sales item snapshot first; fallback ke ownership produk lama bila perlu.
+      const fetchSalesData = async (useSnapshotSupplierId: boolean) => {
+        let query = supabase
+          .from('sales_transaction_items')
+          .select(`
+            id,
+            product_id,
+            supplier_id,
+            quantity,
+            price,
+            subtotal,
+            commission_amount,
+            supplier_revenue,
+            created_at,
+            products(id, name, supplier_id, hpp),
+            sales_transactions!inner(id, transaction_code, status, created_at, location_id)
+          `)
+          .eq('sales_transactions.status', 'COMPLETED')
+          .gte('created_at', startDate + 'T00:00:00')
+          .lte('created_at', endDate + 'T23:59:59')
+          .order('created_at', { ascending: false })
 
-      if (selectedProduct) {
-        query = query.eq('product_id', selectedProduct)
+        if (useSnapshotSupplierId) {
+          query = query.eq('supplier_id', supplier.id)
+        } else {
+          query = query.eq('products.supplier_id', supplier.id)
+        }
+
+        if (selectedProduct) {
+          query = query.eq('product_id', selectedProduct)
+        }
+
+        return query
       }
 
-      const { data, error } = await query
+      let data: any[] | null = null
+      let error: any = null
+
+      const snapshotResult = await fetchSalesData(true)
+      data = snapshotResult.data
+      error = snapshotResult.error
+
+      if (error && String(error.message || '').toLowerCase().includes('supplier_id')) {
+        const fallbackResult = await fetchSalesData(false)
+        data = fallbackResult.data
+        error = fallbackResult.error
+      }
 
       if (error) {
         console.error('Sales query error:', error)
