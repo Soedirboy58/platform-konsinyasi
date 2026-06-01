@@ -35,13 +35,13 @@ type CarouselSlide = {
 
 // Kategori untuk kantin kejujuran
 const CATEGORIES = [
-  { id: 'all', label: 'Semua', emoji: '🏪' },
-  { id: 'kue_kering', label: 'Kue Kering', emoji: '🍪' },
-  { id: 'snack', label: 'Snack', emoji: '🥨' },
-  { id: 'kue_basah', label: 'Kue Basah', emoji: '🍰' },
-  { id: 'minuman', label: 'Minuman', emoji: '🥤' },
-  { id: 'jajanan', label: 'Jajanan', emoji: '🍡' },
-  { id: 'lainnya', label: 'Lainnya', emoji: '🛒' },
+  { id: 'all', label: 'Semua', icon: 'store' },
+  { id: 'kue_kering', label: 'Kue Kering', icon: 'cookie' },
+  { id: 'snack', label: 'Snack', icon: 'snack' },
+  { id: 'kue_basah', label: 'Kue Basah', icon: 'cake' },
+  { id: 'minuman', label: 'Minuman', icon: 'drink' },
+  { id: 'jajanan', label: 'Jajanan', icon: 'snack' },
+  { id: 'lainnya', label: 'Lainnya', icon: 'misc' },
 ]
 
 export default function KantinPage() {
@@ -80,14 +80,14 @@ export default function KantinPage() {
     // Re-load cart when page becomes visible (user returns from checkout)
     const handleVisibilityChange = () => {
       if (!document.hidden) {
-        console.log('🔄 Page visible again, reloading cart...')
+        console.log('Page visible again, reloading cart...')
         loadCartFromStorage()
       }
     }
     
     // Re-load cart when user navigates back with browser back button
     const handleFocus = () => {
-      console.log('🔄 Window focused, reloading cart...')
+      console.log('Window focused, reloading cart...')
       loadCartFromStorage()
     }
     
@@ -132,10 +132,10 @@ export default function KantinPage() {
         }))
         
         setCart(normalizedCart)
-        console.log('✅ Cart loaded from storage:', normalizedCart.length, 'items')
+        console.log('Cart loaded from storage:', normalizedCart.length, 'items')
       }
     } catch (error) {
-      console.error('❌ Load cart error:', error)
+      console.error('Load cart error:', error)
       // Clear corrupted cart data
       sessionStorage.removeItem(`cart_${locationSlug}`)
       setCart([])
@@ -152,14 +152,14 @@ export default function KantinPage() {
                        (item.cartQuantity || 0) > 0
         
         if (!isValid) {
-          console.warn('⚠️ Invalid cart item filtered out:', item)
+          console.warn('Invalid cart item filtered out:', item)
         }
         return isValid
       })
       
       sessionStorage.setItem(`cart_${locationSlug}`, JSON.stringify(validCart))
     } catch (error) {
-      console.error('❌ Save cart error:', error)
+      console.error('Save cart error:', error)
       toast.error('Gagal menyimpan keranjang')
     }
   }
@@ -357,7 +357,7 @@ export default function KantinPage() {
     }))
     
     sessionStorage.setItem(`cart_${locationSlug}`, JSON.stringify(cartForCheckout))
-    console.log('💾 Cart saved for checkout:', cartForCheckout.length, 'items')
+    console.log('Cart saved for checkout:', cartForCheckout.length, 'items')
     
     // Navigate to checkout page
     router.push(`/kantin/${locationSlug}/checkout`)
@@ -534,7 +534,7 @@ export default function KantinPage() {
         ) : filteredProducts.length === 0 ? (
           <div className="text-center py-12">
             <p className="text-gray-500 text-lg mb-2">
-              {searchQuery || selectedCategory !== 'all' ? '🔍 Produk tidak ditemukan' : '📦 Belum ada produk tersedia'}
+              {searchQuery || selectedCategory !== 'all' ? 'Produk tidak ditemukan' : 'Belum ada produk tersedia'}
             </p>
             {(searchQuery || selectedCategory !== 'all') && (
               <button
@@ -570,7 +570,7 @@ export default function KantinPage() {
                           className="w-full h-full object-cover" 
                         />
                       ) : (
-                        <span className="text-6xl">�</span>
+                        <span className="text-xs text-gray-500 font-medium">Tidak ada foto</span>
                       )}
                     {/* Stock & Priority Badges */}
                     <div className="absolute top-2 left-2 right-2 flex justify-between items-start">
@@ -655,7 +655,7 @@ export default function KantinPage() {
                           : { background: `linear-gradient(to right, ${headerColorFrom}, ${headerColorTo})` }
                         }
                       >
-                        {product.quantity === 0 ? '😔 Habis' : '🛒 Tambah'}
+                        {product.quantity === 0 ? 'Habis' : 'Tambah'}
                       </button>
                     )}
                     
@@ -665,7 +665,7 @@ export default function KantinPage() {
                       className="mt-2 w-full bg-white border-2 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 active:scale-95 transition-all flex items-center justify-center gap-1"
                       style={{ borderColor: headerColorFrom + '60', color: headerColorFrom }}
                     >
-                      <span className="text-base">😟</span>
+                      <AlertTriangle className="w-4 h-4" />
                       Ada Masalah?
                     </button>
                   </div>
@@ -711,7 +711,7 @@ export default function KantinPage() {
                 onClick={() => setShowCart(true)}
                 className="w-full bg-green-600 text-white py-4 rounded-2xl shadow-2xl font-bold text-lg hover:bg-green-700 active:scale-95 transition-all flex items-center justify-between px-6"
               >
-                <span>🛒 {totalItems} Item</span>
+                <span>Keranjang ({totalItems} Item)</span>
                 <span>Rp {totalPrice.toLocaleString('id-ID')}</span>
               </button>
             </div>
@@ -722,7 +722,7 @@ export default function KantinPage() {
             <div className="fixed bottom-0 left-0 right-0 bg-white rounded-t-3xl shadow-2xl z-40 max-h-[70vh] overflow-hidden flex flex-col">
               {/* Cart Header */}
               <div className="flex items-center justify-between px-6 py-4 border-b sticky top-0 bg-white">
-                <h3 className="text-xl font-bold">🛒 Keranjang Belanja</h3>
+                <h3 className="text-xl font-bold">Keranjang Belanja</h3>
                 <div className="flex items-center gap-2">
                   {cart.length > 0 && (
                     <button
@@ -749,7 +749,7 @@ export default function KantinPage() {
                       {item.photo_url ? (
                         <img src={getCdnUrl(item.photo_url) ?? ''} alt={item.name} className="w-full h-full object-cover rounded-lg" />
                       ) : (
-                        <span className="text-2xl">�</span>
+                        <span className="text-xs text-gray-500 font-medium">Tidak ada foto</span>
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
@@ -796,7 +796,7 @@ export default function KantinPage() {
                   onClick={goToCheckout}
                   className="w-full bg-green-600 text-white py-4 rounded-xl text-lg font-bold hover:bg-green-700 active:scale-95 transition-all shadow-lg"
                 >
-                  Lanjut ke Pembayaran 💳
+                  Lanjut ke Pembayaran
                 </button>
               </div>
             </div>
