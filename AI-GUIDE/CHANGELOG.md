@@ -1,7 +1,7 @@
 # 📝 CHANGELOG & VERSION HISTORY
 
 > **Catatan perubahan dan riwayat versi Platform Konsinyasi**  
-> **Last Updated:** 26 Mei 2026
+> **Last Updated:** 6 Juni 2026
 
 ---
 
@@ -17,11 +17,137 @@ Format: `MAJOR.MINOR.PATCH`
 
 ## 🚀 LATEST VERSION
 
-### **v2.3.0** - 2026-05-26
+### **v2.4.1-dev** - 2026-06-06 (In Progress)
 
-**Type:** Admin Management + Notification + Email System Release  
-**Status:** ✅ Production  
-**Commits:** `6d03727` → `3065bb7`
+**Type:** DOKU Checkout Integration Hardening  
+**Status:** 🟡 Development / UAT Sandbox
+
+---
+
+#### ✅ Yang Sudah Diimplementasikan
+- Route baru DOKU Checkout: `frontend/src/app/api/doku/create-payment/route.ts`
+- Integrasi button checkout customer: `frontend/src/app/kantin/[slug]/checkout/page.tsx` ("Bayar via DOKU")
+- Redirect flow ke `payment_url` dari DOKU
+- Mekanisme retry DOKU tanpa membuat transaksi DB baru (mencegah stok terpotong ganda saat retry)
+- Update env example: `DOKU_IS_SANDBOX=true`
+
+#### 🧪 Hasil UAT Saat Ini
+- API DOKU sandbox masih mengembalikan `invalid_client_id` pada beberapa percobaan
+- Pernah muncul timeout jaringan `UND_ERR_CONNECT_TIMEOUT` saat request ke `api-sandbox.doku.com`
+- Alur QRIS existing tetap berjalan dan tidak terganggu
+
+#### ⚠️ Catatan Operasional
+- Env lokal yang dipakai Next.js berada di `frontend/.env.local` (bukan root `/.env.local`)
+- Client ID dan Secret Key DOKU wajib berasal dari akun sandbox yang sama
+- Aktivasi produk DOKU Checkout/Payment Link pada akun sandbox perlu dikonfirmasi sebelum UAT final
+
+---
+
+### **v2.4.0** - 2026-06-01 s/d 2026-06-04
+
+**Type:** Supplier Balance Accuracy + Schema Fix + UI Polish  
+**Status:** ✅ Production (deployed via `npx vercel --prod`)  
+**Commits:** `8910572`, `903029f`
+
+---
+
+#### 🎯 Root Problem Yang Diperbaiki
+Saldo supplier di kartu admin tidak akurat karena query berbasis `products.supplier_id` saat ini — jika produk berpindah supplier atau dihapus, histori penjualan tersebut tidak ikut terhitung.
+
+---
+
+#### 🗄️ Database Migrations
+
+**Migration 048** — `backend/migrations/048_fix_notifications_columns_for_triggers.sql`
+- Menambah kolom `priority TEXT CHECK (priority IN ('LOW','MEDIUM','HIGH','URGENT'))`, `action_url TEXT`, `metadata JSONB` ke tabel `notifications`
+- Idempotent (`ADD COLUMN IF NOT EXISTS`)
+- Tanpa ini, trigger `notify_supplier_payment_received` dari migration 046 gagal INSERT dengan error "column priority does not exist"
+
+**Migration 049** — `backend/migrations/049_add_supplier_snapshot_to_sales_items.sql`
+- Menambah kolom `supplier_id UUID REFERENCES suppliers(id)` ke `sales_transaction_items`
+- Backfill: `UPDATE sales_transaction_items SET supplier_id = p.supplier_id FROM products p WHERE product_id = p.id`
+- Update fungsi `process_anonymous_checkout()` agar menyimpan `supplier_id` saat transaksi checkout berlangsung
+- **Sudah dijalankan di production DB**
+
+**Migration 050** — `backend/migrations/050_add_paid_at_to_supplier_payments.sql`
+- Menambah kolom `paid_at TIMESTAMPTZ` ke tabel `supplier_payments`
+- Fix error: `record "new" has no field "paid_at"` saat konfirmasi pembayaran supplier
+- **Belum dijalankan di production — wajib segera**
+
+---
+
+#### 💻 Frontend Changes
+
+**`admin/payments/commissions/page.tsx`**
+- Fungsi `fetchSalesItems(includeSupplierId: boolean)` baru
+- Saat `includeSupplierId=true`: filter `.in('supplier_id', approvedSupplierIds)` langsung di items
+- Fallback ke query lama (via join products) jika kolom snapshot belum ada
+- Resolusi: `snapshotSupplierId || mappedSupplierId`
+- Fix sort order pembayaran terakhir
+
+**`supplier/sales-report/page.tsx`**
+- Pattern `fetchSalesData(useSnapshotSupplierId: boolean)`
+- Snapshot-first: `.eq('supplier_id', supplier.id)`
+- Fallback: `.eq('products.supplier_id', supplier.id)`
+
+**`supplier/wallet/page.tsx`**
+- Pattern `fetchSupplierSalesItems(useSnapshotSupplierId: boolean)`
+- `realTotalEarned` dihitung dari array `salesData` terpadu
+- Menghapus fetch produk duplikat
+
+**`kantin/[slug]/page.tsx`, `checkout/page.tsx`, `error.tsx`**
+- Cleanup teks tombol dari simbol/emoji
+
+**`admin/payments/commissions/page.tsx` — UI Mobile**
+- Card "Siap Dibayar" didesain ulang:
+  - Header gradient green dengan badge threshold kanan atas
+  - Supplier rows dengan dot indicator + truncate nama panjang
+  - Baris total transfer + link settings bersebelahan
+  - CTA button full-width
+- Card "Akumulasi" didesain ulang (terpisah, bukan nested):
+  - Header amber kompak dengan badge threshold
+  - Setiap baris: nama + nominal + "kurang Rp X"
+  - Link "Lihat semua N supplier" jika > 5 item
+
+---
+
+#### 🔍 SQL Utilities
+
+**`database/RECONCILE-SUPPLIER-COMMISSION-CARDS.sql`**
+- Query audit komprehensif untuk cross-check saldo supplier vs kartu admin
+- Rumus: `outstanding = supplier_revenue_alltime - total_paid_alltime`
+- Menggunakan `COALESCE(sti.supplier_id, pm.supplier_id)` untuk kompatibilitas sebelum/sesudah migration 049
+- Hasil verifikasi production per 1 Juni 2026: semua kartu valid
+
+---
+
+#### ⚠️ Known Issues & Workarounds
+
+| Issue | Status | Solusi |
+|-------|--------|--------|
+| `paid_at` error saat konfirmasi pembayaran | ❌ Open | Jalankan migration 050 di Supabase |
+| Git push gagal (credential mismatch) | ❌ Open | `git credential reject` lalu login Soedirboy58 |
+| Deploy dari `frontend/` dir gagal path ganda | ✅ Diketahui | Selalu jalankan `npx vercel --prod` dari root repo |
+
+---
+
+### **v2.3.1** - 2026-06-01
+
+**Type:** Operational Hardening  
+**Status:** ✅ Production
+
+- Checkout QRIS statis ke mode manual verification default
+- Countdown verifikasi manual 3 menit
+- Copy nominal pembayaran di checkout flow
+- Halaman kontrol penjualan manual admin: `/admin/payments/control`
+- API kontrol transaksi admin (ubah status + sinkron stok)
+- Migration 047: fungsi DB `admin_adjust_sales_transaction()`
+- Fix perhitungan kartu supplier (hindari undercount akibat limit query)
+- SQL toolkit mismatch saldo supplier
+
+---
+
+### **v2.3.0** - 2026-05-26
 
 ---
 

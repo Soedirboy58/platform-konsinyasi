@@ -1,432 +1,224 @@
-# Development Summary - Platform Konsinyasi v2.3
+# Development Summary - Platform Konsinyasi v2.4.0+
 
 **Project:** Platform Konsinyasi Terintegrasi  
-**Version:** 2.3.0  
-**Date:** 26 Mei 2026  
 **Status:** ✅ Production Active  
-**Production URL:** https://smartalley.katalara.com
+**Last Updated:** 6 Juni 2026  
+**Primary Domain:** `https://smartvalley.katalara.com`
 
 ---
 
-## 📋 Version History Ringkas
+## 1. Snapshot Progres
 
-| Version | Tanggal | Highlights |
+Platform sudah berada pada fase production aktif untuk operasional inti konsinyasi. Area yang saat ini paling matang adalah admin operations, supplier workflow, outlet-based self-checkout, dan reporting dasar. Perkembangan terbaru berfokus pada stabilitas auth, administrasi internal, dan kesiapan fondasi untuk payment provider yang lebih dinamis.
+
+---
+
+## 2. Riwayat Versi Singkat
+
+| Version | Tanggal | Highlight |
 |---------|---------|-----------|
-| v2.3.0 | 26 Mei 2026 | Admin user management, notifikasi in-app, email templates, auth flow fixes, domain smartalley.katalara.com |
-| v2.2.0 | 26 Mei 2026 | Admin pembayaran supplier card view redesign |
-| v2.1.0 | 26 Mei 2026 | Bug fix: phantom deduction stok (Migration 044 + pg_cron) |
-| v2.0.0 | 26 Mei 2026 | Landing page baru, rebrand amber/gold, logo real, supplier marquee |
-| v1.9.0 | 30 Mar 2026 | Dynamic homepage carousel, banner admin, per-outlet PWA manifest |
-| v1.8.0 | 30 Mar 2026 | Alert → Toast+ConfirmDialog semua admin page |
-| v1.7.0 | 29 Mar 2026 | Category system, QRIS per outlet |
-| v1.6.0 | 29 Mar 2026 | Outlet customization (logo, brand name, gradient, carousel) |
-| v1.5.0 | 28 Mar 2026 | Dynamic QRIS, auto-cancel pending, expiry, payment proof |
-| v1.0.0 | Nov 2025 | Core platform: schema 15 tabel, admin/supplier/kantin panel |
+| v2.4.0 | 1–4 Jun 2026 | Supplier balance accuracy (snapshot), migration 048/049/050, UI mobile commissions |
+| v2.3.1 | 1 Jun 2026 | Checkout manual verification hardening, admin sales control page, migration 047, supplier card calculation fixes |
+| v2.3.0 | 26 Mei 2026 | Admin user management, notification bell, email templates, auth flow fixes, domain migration |
+| v2.2.0 | 26 Mei 2026 | Redesign pembayaran supplier ke card view |
+| v2.1.0 | 26 Mei 2026 | Fix phantom deduction via migration 044 + cleanup job |
+| v2.0.0 | 26 Mei 2026 | Landing page baru, rebrand amber/gold, supplier marquee |
+| v1.9.0 | 30 Mar 2026 | Homepage banners, outlet carousel, per-outlet PWA manifest |
+| v1.8.0 | 30 Mar 2026 | Migrasi alert/confirm ke toast + confirm dialog |
+| v1.7.0 | 29 Mar 2026 | Category system dan QRIS per outlet |
+| v1.6.0 | 29 Mar 2026 | Outlet customization |
+| v1.5.0 | 28 Mar 2026 | Auto-cancel pending, expiry, payment proof |
 
-> Detail lengkap per versi → `AI-GUIDE/CHANGELOG.md`
-
----
-
-## 🎯 Project Overview
-
-Platform digital untuk mengelola sistem konsinyasi dengan dua model bisnis:
-1. **Kantin Kejujuran (PWA)** - Self-checkout system (✅ Implemented)
-2. **Pre-Order E-commerce** - Online ordering (🔜 Future Phase)
+Dokumen release detail: [AI-GUIDE/CHANGELOG.md](../AI-GUIDE/CHANGELOG.md)
 
 ---
 
-## ✅ Completed Features
+## 3. Modul Yang Sudah Berjalan
 
-### Backend (Supabase)
-- [x] **Database Schema** - 15 tables with proper relations
-  - profiles, suppliers, locations, products, inventory_levels
-  - inventory_adjustments, sales_transactions, sales_transaction_items
-  - orders, order_items, shipping_addresses, notifications
-  - supplier_payments, activity_logs
-  
-- [x] **Row Level Security (RLS)** - All 15 tables secured
-  - Admin: Full access
-  - Supplier: Own data only
-  - Customer: Read approved products only
-  
-- [x] **Database Functions** - 7 triggers & functions
-  - check_low_stock() - Trigger on inventory updates
-  - send_low_stock_notifications() - Alert when < 10 items
-  - check_expiring_products() - Check expiry warnings
-  - send_expiry_warnings() - Alert 3 days before expiry
-  - notify_new_product() - Trigger on product insert
-  - notify_inventory_adjustment() - Trigger on adjustment insert
-  - notify_adjustment_status_change() - Trigger on status update
-  
-- [x] **Business Logic Queries** - RPC functions
-  - get_products_by_location(location_slug) - PWA product list
-  - calculate_supplier_payment() - Commission calculation
-  - process_kantin_sale() - PWA checkout function
-  
-- [x] **Edge Functions (Deno)** - Deployed & tested
-  - daily-stock-check - Automated stock monitoring (8 AM daily)
-  - notification-dispatcher - Email sending (Resend API ready)
-  
-- [x] **Cron Jobs** - pg_cron configured
-  - Daily stock check at 8 AM (verified working)
-  
-### Frontend (Next.js 14)
-- [x] **Landing Page** - Home with 3 app links
-- [x] **PWA Kantin** - Self-checkout interface
-  - Dynamic routing: `/kantin/[slug]`
-  - Shopping cart with quantity validation
-  - Real-time stock checking
-  - Checkout flow
-  
-- [x] **Admin Dashboard** - 6 pages
-  1. Dashboard - Stats overview with quick actions
-  2. Login - Authentication with role check
-  3. Suppliers - Approval queue (PENDING/APPROVED/REJECTED)
-  4. Products - Moderation with detail modal
-  5. Locations - CRUD for outlets & warehouses
-  6. Reports - Sales analytics with CSV export
-  
-- [x] **Supplier Portal** - 5 pages
-  1. Dashboard - Stats & quick actions
-  2. Login/Register - Auth with toggle
-  3. Products List - Table with CRUD
-  4. Add Product - Form with validation
-  5. Inventory Management - Adjustment requests
+### Admin
+- Dashboard operasional
+- Persetujuan supplier
+- Moderasi produk
+- Kelola lokasi/outlet
+- Laporan penjualan dan stok
+- Pembayaran supplier dengan card view
+- Banner homepage dan outlet customization
+- Manajemen user admin beserta role internal
+- Notification bell realtime
 
-### Infrastructure
-- [x] Supabase CLI installed (v2.54.11 via Scoop)
-- [x] Next.js 14 project structure (App Router)
-- [x] TypeScript configuration
-- [x] Tailwind CSS setup
-- [x] Environment variables configured
-- [x] Development server running (localhost:3000)
+### Supplier
+- Login, registrasi, verifikasi email
+- Dashboard ringkas
+- CRUD produk
+- Pengiriman stok dan tracking status
+- Retur barang
+- Histori pembayaran atau komisi
+- Notification bell realtime
+
+### Customer / Kantin
+- Self-checkout per outlet di `/kantin/[slug]`
+- Cart dan checkout flow
+- Upload bukti pembayaran
+- QRIS per outlet
+- Carousel dan branding per outlet
+- Dynamic PWA manifest per outlet
+- Mode manual verification 3 menit untuk QRIS statis
+- Copy nominal pembayaran untuk memudahkan transfer manual
+
+### Admin Finance / Payments
+- Card pembayaran supplier dengan status `UNPAID`, `PENDING`, `PAID`
+- Halaman kontrol intervensi transaksi: `/admin/payments/control`
+- Aksi manual: tandai `COMPLETED` atau `CANCELLED + restore stock`
+- SQL diagnostic toolkit mismatch saldo supplier
+- UI mobile card "Siap Dibayar" dan "Akumulasi" dirancang ulang (v2.4.0)
 
 ---
 
-## 📊 Statistics (Updated: Mei 2026)
+## 4. Perubahan Terkini Yang Penting Untuk Diingat
 
-### Database
-- **Migrations:** 46 file SQL (`backend/migrations/001–046`)
-- **Tables:** 20+ (core schema + homepage_banners, outlet_page_views, outlet_carousel_slides, shipment_returns, payment_settings, platform_settings, dll)
-- **Functions:** 10+ (RPC + triggers + cleanup)
-- **RLS Policies:** 60+
-- **pg_cron jobs:** 2 (auto-cancel pending 5 menit, cleanup expired 30 menit)
+### 4.1 Admin Invite & Set Password
+- Halaman baru: `frontend/src/app/admin/set-password/page.tsx`
+- Invite admin sekarang diarahkan langsung ke halaman client-side tersebut
+- Token auth Supabase untuk invite diproses dari URL hash menggunakan `setSession()` manual
+- Ini diperlukan karena project Supabase berjalan dengan implicit flow, sedangkan helper Next.js default ke PKCE
 
-### Frontend Pages
-- **Public:** 2 (landing page, unified login)
-- **PWA Kantin:** 1 per slug (`/kantin/[slug]`)
-- **Admin Panel:** 12+ pages (dashboard, suppliers, products, locations, reports/sales, reports/stock, payments/commissions, settings, shipments, dll)
-- **Supplier Portal:** 5 pages
-- **API Routes:** 1 (`/api/kantin-manifest/[slug]` — dynamic PWA manifest)
-- **Total:** 20+ pages
+### 4.2 Supplier Signup Verification
+- Redirect verifikasi email supplier kembali ke `/login?verified=true`
+- Callback auth tidak lagi jatuh ke homepage saat profile belum siap dibaca
 
-### Key Features Live
-- ✅ Self-checkout PWA per outlet (QR code)
-- ✅ Manajemen stok dengan stock movements (IN/OUT/RETURN/ADJUSTMENT)
-- ✅ Komisi otomatis 10% platform / 90% supplier
-- ✅ Admin pembayaran supplier (card view, upload bukti, tracking all-time)
-- ✅ Outlet customization (logo, brand name, gradient, QRIS, carousel slides)
-- ✅ Category filter di halaman belanja customer
-- ✅ Homepage carousel dinamis (dikelola admin)
-- ✅ Supplier marquee infinite-scroll di landing page
-- ✅ Per-outlet PWA manifest (install → buka langsung ke outlet)
-- ✅ Traffic analytics per outlet (page_view, cart_add, checkout_start)
-- ✅ Auto-cancel pending transactions (5 menit via pg_cron)
-- ✅ Cleanup phantom deduction (30 menit via pg_cron)
-- ✅ Laporan penjualan dengan filter tanggal + export CSV
-- ✅ Manajemen user admin (CRUD, role RBAC, invite email, reset password)
-- ✅ Notifikasi in-app (bell icon, badge, realtime Supabase channel, 3 trigger event)
-- ✅ Custom HTML email templates (invite admin, verifikasi email mitra, reset password)
-- ✅ Auth flow: admin invite → implicit flow hash → set-password manual
-- ✅ Auth flow: supplier signup → email verification → /login?verified=true
+### 4.3 Domain Production
+- Domain aktif production: `smartvalley.katalara.com` (diperbarui dari `smartalley.katalara.com`)
+- Vercel domain tetap ada sebagai fallback deployment URL
+- Supabase Site URL dan redirect auth perlu tetap selaras dengan domain ini
 
----
+### 4.4 Admin Internal Operations
+- Admin role granular: `MANAGER`, `PRODUCT`, `MITRA`, `FINANCE`
+- CRUD user admin sudah tersedia dari settings page
+- Reset password admin memakai service role API route
 
-## 🔧 Technical Decisions
+### 4.5 Notification System
+- Bell icon di admin dan supplier layout
+- Realtime subscription ke tabel `notifications`
+- Trigger SQL tersedia di migration 046
+- **Kolom `priority`, `action_url`, `metadata` wajib ada** — ditambah via migration 048
 
-### Why Next.js 14 App Router?
-- Server Components for better performance
-- Built-in Server Actions (no need for API routes)
-- File-based routing with dynamic params
-- SEO optimization out of the box
+### 4.6 Manual Sales Control
+- API route: `frontend/src/app/api/admin/transactions/control/route.ts`
+- UI: `frontend/src/app/admin/payments/control/page.tsx`
+- DB function: `admin_adjust_sales_transaction()`
+- Migration wajib: `backend/migrations/047_admin_adjust_sales_transactions.sql`
 
-### Why Supabase?
-- PostgreSQL with full SQL access
-- Row Level Security (built-in authorization)
-- Edge Functions (Deno runtime)
-- Automatic API generation
-- Real-time subscriptions (future use)
+### 4.7 Supplier Balance Accuracy (v2.4.0 — PENTING)
+**Akar masalah yang ditemukan:** Kalkulasi saldo supplier berbasis `product.supplier_id` saat ini — jika produk berpindah supplier atau dihapus, histori penjualan hilang dari perhitungan.
 
-### Why TypeScript?
-- Type safety for database queries
-- Better IDE autocomplete
-- Fewer runtime errors
-- Self-documenting code
+**Solusi yang diterapkan:**
+- Migration 049: kolom `supplier_id` ditambahkan ke `sales_transaction_items` sebagai **snapshot** pada saat transaksi
+- Kolom ini dibackfill dari `products.supplier_id` untuk data historis
+- Fungsi `process_anonymous_checkout()` diperbarui untuk mengisi `supplier_id` saat checkout berlangsung
+- Semua query di `admin/payments/commissions`, `supplier/sales-report`, dan `supplier/wallet` kini pakai snapshot-first pattern:
+  1. Coba query dengan `.eq('supplier_id', ...)` langsung di item
+  2. Jika kolom belum ada (error `column does not exist`), fallback ke join via `products.supplier_id`
 
-### Why Tailwind CSS?
-- Rapid UI development
-- No CSS naming conflicts
-- Responsive design utilities
-- Small bundle size (tree-shaking)
+**File yang diubah:**
+- `frontend/src/app/admin/payments/commissions/page.tsx`
+- `frontend/src/app/supplier/sales-report/page.tsx`
+- `frontend/src/app/supplier/wallet/page.tsx`
 
----
+**Verifikasi:** `database/RECONCILE-SUPPLIER-COMMISSION-CARDS.sql` — query audit cross-check semua saldo supplier. Hasil verifikasi di production sudah valid per 1 Juni 2026.
 
-## 🚀 Deployment Status
+### 4.8 supplier_payments Schema Fix (v2.4.0)
+- Trigger `notify_supplier_payment_received` (dari migration 046) mencoba baca `NEW.paid_at`
+- Kolom `paid_at` tidak ada di tabel `supplier_payments` → error 400 saat konfirmasi pembayaran
+- **Fix:** Migration 050 menambah `paid_at TIMESTAMPTZ` ke tabel `supplier_payments`
+- File: `backend/migrations/050_add_paid_at_to_supplier_payments.sql`
+- **Status:** Perlu dijalankan manual di Supabase SQL Editor
 
-### Backend (Supabase)
-- ✅ Database schema deployed
-- ✅ RLS policies active
-- ✅ Edge Functions deployed
-- ✅ Cron jobs scheduled
-- ⏳ Storage buckets (manual setup needed)
+### 4.9 Deploy Workflow
+- Deploy production via: `npx vercel --prod` dari **root repo** (`konsinyasi/`), bukan dari `frontend/`
+- Jika dijalankan dari `frontend/`, Vercel mendeteksi path ganda (`frontend/frontend`) dan error
+- Git push ke GitHub masih terblokir karena credential Windows Credential Manager menyimpan token `katalaraofficial-cpu` yang tidak punya akses write ke `Soedirboy58/platform-konsinyasi`
+- Solusi push: `echo "protocol=https\nhost=github.com" | git credential reject` → login ulang dengan Soedirboy58
 
-### Frontend (Local Dev)
-- ✅ Development server running
-- ✅ Dependencies installed (406 packages)
-- ✅ Environment variables set
-- ⏳ Production deployment (Vercel)
+### 4.10 DOKU Checkout Integration Progress (6 Juni 2026)
+- Route baru dibuat: `frontend/src/app/api/doku/create-payment/route.ts`
+- Integrasi frontend checkout ditambah: tombol "Bayar via DOKU" pada `frontend/src/app/kantin/[slug]/checkout/page.tsx`
+- DOKU flow dipisah dari flow QRIS agar tidak mengganggu operasi payment yang sedang berjalan
+- Ditambahkan mekanisme retry DOKU tanpa create transaksi DB baru (menghindari decrement stok berulang)
+- Webhook DOKU tetap menggunakan route existing `frontend/src/app/api/doku/notification/route.ts`
+- Hasil uji lokal saat ini: request ke DOKU sandbox masih sering `invalid_client_id`; ada juga kejadian `UND_ERR_CONNECT_TIMEOUT` intermiten
+- Analisa sementara: akun sandbox aktif dan credential sandbox belum sepenuhnya sinkron di env runtime
 
 ---
 
-## 🎨 UI/UX Features
+## 5. Status Payment & QRIS
 
-### Design System
-- Color scheme: Blue (primary), Green (success), Red (warning)
-- Responsive grid layouts (mobile-first)
-- Status badges (PENDING/APPROVED/REJECTED)
-- Toast notifications (Sonner)
-- Loading states (spinners)
-- Empty states (illustrations + messages)
+### Yang Sudah Siap
+- QRIS outlet/manual aktif di flow checkout
+- Bukti pembayaran customer disimpan dan diverifikasi lewat alur yang sudah ada
+- Struktur database untuk provider payment modern sudah tersedia
+- API route Midtrans: `frontend/src/app/api/create-qris/route.ts`
 
-### User Experience
-- One-click actions (approve/reject)
-- Confirmation dialogs (delete operations)
-- Form validation (required fields)
-- Auto-navigation after success
-- Error handling with user-friendly messages
+### Yang Belum Final di Production
+- Dynamic QRIS feature flag nonaktif (`NEXT_PUBLIC_ENABLE_DYNAMIC_QRIS=false`)
+- Integrasi DOKU Checkout sudah diimplementasikan di codebase namun belum lolos UAT end-to-end karena validasi credential sandbox
+- Xendit hanya jejak eksperimen lama, bukan jalur aktif
 
 ---
 
-## 🔐 Security Implementation
-
-### Authentication
-- Supabase Auth (email/password)
-- Role-based access control (ADMIN/SUPPLIER/CUSTOMER)
-- Protected routes (useEffect auth checks)
-- Automatic logout on unauthorized access
-
-### Authorization (RLS)
-- Suppliers can only see own products
-- Admins can see everything
-- Customers can only see approved products
-- Storage buckets have separate policies
-
-### Data Validation
-- Required fields enforced (client + database)
-- Type checking (TypeScript)
-- SQL injection prevention (parameterized queries)
-- XSS protection (React escaping)
-
----
-
-## 📈 Performance Optimizations
-
-### Database
-- Indexes on foreign keys (auto-created)
-- Efficient queries (SELECT only needed columns)
-- RPC functions for complex queries
-- Triggers for automatic updates
-
-### Frontend
-- Server Components where possible
-- Client Components only when needed (interactivity)
-- Lazy loading (dynamic imports - future)
-- Image optimization (next/image - future)
-
----
-
-## 🐛 Known Issues & Limitations
+## 6. Statistik Teknis
 
 ### Backend
-- [ ] Email notifications not configured (need Resend API key)
-- [ ] Storage buckets not created (manual setup required)
-- [ ] Inventory adjustment approval trigger not tested
+- 50 migration SQL di `backend/migrations` (001–050)
+- 20+ tabel utama dan pendukung
+- RLS aktif untuk tabel inti
+- Trigger, function, dan cleanup jobs untuk inventory dan transaksi
+- `pg_cron` untuk auto-cancel dan cleanup pending transaction
 
 ### Frontend
-- [ ] Product photo upload not implemented
-- [ ] PWA manifest not created
-- [ ] Service worker not configured
-- [ ] Real-time subscriptions not used
-- [ ] Admin inventory adjustment approval page missing
+- Next.js 14.2.29 App Router
+- 20+ halaman lintas admin, supplier, public, dan checkout
+- Route handler untuk auth callback, manifest PWA, dan create QRIS
+- Sonner dipakai untuk toast dan feedback UI
 
-### Business Logic
-- [ ] Commission calculation not automated (manual process)
-- [ ] Payment tracking not implemented
-- [ ] Shipping address validation missing
-- [ ] Order pre-order flow incomplete
-
----
-
-## 🔜 Next Steps (Priority Order)
-
-### Immediate (This Week)
-1. **Create Storage Buckets**
-   - product-photos (public)
-   - adjustment-proofs (private)
-   - payment-proofs (private)
-   - Run RLS policies from docs/storage-setup.md
-
-2. **Product Photo Upload**
-   - Add file input to product form
-   - Implement upload function
-   - Display photos in product list
-
-3. **Test Full Workflow**
-   - Register supplier → Admin approve
-   - Add product → Admin approve
-   - Request inventory adjustment
-   - Test PWA checkout
-
-### Short-term (Next 2 Weeks)
-4. **Admin Inventory Approval Page**
-   - List pending adjustments
-   - View proof documents
-   - Approve/reject with reason
-
-5. **Email Notifications**
-   - Sign up for Resend API
-   - Configure notification-dispatcher
-   - Test email delivery
-
-6. **PWA Configuration**
-   - Create manifest.json
-   - Setup service worker
-   - Test install prompt
-
-### Mid-term (Next Month)
-7. **Supplier Sales Reports**
-   - Dashboard with charts
-   - Filter by date range
-   - Export to CSV
-
-8. **Payment Integration**
-   - Research Midtrans API
-   - Implement payment gateway
-   - Test sandbox transactions
-
-9. **Pre-Order Module**
-   - Customer registration
-   - Product catalog
-   - Shopping cart
-   - Order tracking
-
-### Long-term (Next Quarter)
-10. **Advanced Analytics**
-    - Revenue trends
-    - Product performance
-    - Supplier rankings
-    - Customer insights
-
-11. **Mobile App**
-    - React Native setup
-    - API integration
-    - Push notifications
-    - Offline mode
+### Deployment
+- Frontend: Vercel
+- Backend: Supabase Cloud
+- Primary domain: `smartvalley.katalara.com`
+- Scope Vercel aktif: `katalaras-projects`
+- Safe deploy command: `npx vercel --prod --yes --scope katalaras-projects`
 
 ---
 
-## 📚 Learning Resources
+## 7. Manual Tasks / Follow-up Operasional
 
-### Documentation Used
-- [Next.js Docs](https://nextjs.org/docs)
-- [Supabase Docs](https://supabase.com/docs)
-- [Tailwind CSS Docs](https://tailwindcss.com/docs)
-- [TypeScript Handbook](https://www.typescriptlang.org/docs/)
-- [PostgreSQL Docs](https://www.postgresql.org/docs/)
-
-### Key Concepts Mastered
-- Next.js App Router architecture
-- Supabase RLS policies
-- PostgreSQL triggers & functions
-- Edge Functions (Deno runtime)
-- pg_cron for scheduled jobs
-- TypeScript with React
-- Tailwind utility classes
+- [ ] Pastikan migration `046_notification_triggers.sql` sudah dijalankan di environment production yang aktif
+- [ ] Jalankan migration `047_admin_adjust_sales_transactions.sql` sebelum operasional halaman kontrol manual penjualan
+- [ ] Jalankan migration `050_add_paid_at_to_supplier_payments.sql` jika belum dieksekusi di production
+- [ ] Pasang template email HTML di Supabase Dashboard
+- [ ] Pastikan env `NEXT_PUBLIC_SITE_URL` mengarah ke domain production baru
+- [ ] Re-invite akun admin uji jika pengujian masih memakai link lama
+- [ ] Sinkronkan credential DOKU sandbox (Client ID + Secret Key) dari akun sandbox yang sama di `frontend/.env.local`
+- [ ] Konfirmasi aktivasi produk DOKU Checkout/Payment Link untuk akun sandbox yang dipakai UAT
+- [ ] Putuskan strategi gateway: tetap Midtrans-only, tambah abstraction multi-provider, atau migrasi provider
 
 ---
 
-## 🤝 Team Collaboration
+## 8. Rekomendasi Update Berikutnya
 
-### Project Structure
-- Clear folder organization
-- Self-documenting code
-- Comprehensive README
-- Step-by-step SETUP guide
-- Architecture documentation
-
-### Code Quality
-- Consistent naming conventions
-- TypeScript for type safety
-- Comments for complex logic
-- Error handling throughout
-- User-friendly error messages
+1. Rapikan abstraction payment provider agar Midtrans dan DOKU memakai kontrak service yang sama.
+2. Finalisasi UAT DOKU sandbox hingga redirect `payment_url` dan callback sukses tervalidasi.
+3. Tambahkan audit log permanen untuk intervensi manual transaksi admin.
+4. Sinkronkan dokumen lama lain di folder `docs/` yang masih menyebut status fase awal development.
 
 ---
 
-## 🎉 Achievements
+## 9. Canonical Sources
 
-### Week 1: Backend Foundation
-- ✅ Designed 15-table schema
-- ✅ Implemented RLS policies
-- ✅ Created database triggers
-- ✅ Deployed Edge Functions
-- ✅ Configured cron jobs
-
-### Week 2: Frontend Development
-- ✅ Setup Next.js project
-- ✅ Built landing page
-- ✅ Created PWA Kantin
-- ✅ Built Admin Dashboard (6 pages)
-- ✅ Built Supplier Portal (5 pages)
-
-### Milestones
-- 🎯 Complete CRUD for all entities
-- 🎯 Full approval workflows
-- 🎯 Automated notifications
-- 🎯 Sales reporting
-- 🎯 Inventory management
+- [AI-GUIDE/README.md](../AI-GUIDE/README.md) untuk arsitektur dan pola pengembangan
+- [AI-GUIDE/CHANGELOG.md](../AI-GUIDE/CHANGELOG.md) untuk histori rilis
+- [README.md](../README.md) untuk ringkasan repo dan status terkini
 
 ---
 
-## 📞 Support & Maintenance
-
-### Monitoring
-- Check Supabase logs daily
-- Monitor Edge Function invocations
-- Review cron job execution
-- Track error rates
-
-### Backup Strategy
-- Supabase automatic backups (daily)
-- Export database schema weekly
-- Version control (Git) for code
-- Document major changes
-
-### Future Improvements
-- Add unit tests (Jest)
-- Add E2E tests (Playwright)
-- Setup CI/CD pipeline
-- Implement error tracking (Sentry)
-- Add performance monitoring
-
----
-
-**Project Status:** 🟢 Ready for Testing & Enhancement  
-**Next Milestone:** Storage Setup & Photo Uploads  
-**Est. Production Ready:** 2-3 weeks
-
----
-
-*Last Updated: November 10, 2025*  
-*Developer: AI Assistant*  
-*Framework: Next.js 14 + Supabase*
+**Current Assessment:** stabil untuk operasional inti dengan mitigasi manual transaksi sudah tersedia, namun integrasi payment provider dinamis masih tahap transisi.  
+**Recommended Next Focus:** integrasi DOKU + audit log intervensi manual + penyelarasan dokumen historis tersisa.
