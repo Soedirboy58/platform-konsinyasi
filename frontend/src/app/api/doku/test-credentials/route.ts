@@ -199,16 +199,19 @@ export async function GET(request: NextRequest) {
     }
 
     // DOKU returned error
+    const dokuRecord = (dokuData ?? {}) as Record<string, unknown>
+    const dokuError = (dokuRecord.error ?? {}) as Record<string, unknown>
+
     const errMsg =
-      (dokuData as Record<string, unknown>)?.error?.message ||
-      (dokuData as Record<string, unknown>)?.message ||
-      (dokuData as Record<string, unknown>)?.response_message ||
-      (dokuData as Record<string, unknown>)?.error_code ||
+      (typeof dokuError.message === 'string' && dokuError.message) ||
+      (typeof dokuRecord.message === 'string' && dokuRecord.message) ||
+      (typeof dokuRecord.response_message === 'string' && dokuRecord.response_message) ||
+      (typeof dokuRecord.error_code === 'string' && dokuRecord.error_code) ||
       'Unknown DOKU error'
 
     const errorCode =
-      (dokuData as Record<string, unknown>)?.error?.code ||
-      (dokuData as Record<string, unknown>)?.response_code ||
+      (typeof dokuError.code === 'string' && dokuError.code) ||
+      (typeof dokuRecord.response_code === 'string' && dokuRecord.response_code) ||
       String(dokuStatus)
 
     const diagnosticAdvice = getDiagnosticAdvice(errorCode as string, dokuStatus)
