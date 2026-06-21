@@ -37,8 +37,13 @@ export default function CheckoutPage() {
   const [processing, setProcessing] = useState(false)
   const [checkoutResult, setCheckoutResult] = useState<CheckoutResult | null>(null)
   const [confirming, setConfirming] = useState(false)
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'QRIS' | 'CASH' | null>(null)
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'QRIS' | 'CASH' | 'DOKU' | null>(null)
   const [hasProcessed, setHasProcessed] = useState(false)
+
+  // DOKU integration states
+  const [dokuPaymentUrl, setDokuPaymentUrl] = useState<string | null>(null)
+  const [dokuLoading, setDokuLoading] = useState(false)
+  const [dokuPendingResult, setDokuPendingResult] = useState<{ transaction_id: string; total_amount: number; transaction_code: string } | null>(null)
 
   // Timer + proof upload states
   const [timerSeconds, setTimerSeconds] = useState(0)
@@ -276,8 +281,91 @@ export default function CheckoutPage() {
     }
   }
 
-  async function confirmPayment(paymentMethod: 'CASH' | 'QRIS' = 'QRIS', proofUrl?: string) {
-    if (!checkoutResult?.transaction_id) return
+  async function callDokuApi(txId: string, amount: number, txCode: string) {
+    setDokuLoading(true)
+    try {
+      const dokuRes = await fetch('/api/doku/create-payment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          transaction_id: txId,
+          amount,
+          transaction_code: txCode,
+          location_slug: locationSlug,
+        }),
+      })
+      const dokuData = await dokuRes.json()
+
+      if (!dokuRes.ok) {
+        throw new Error(dokuData?.detail || dokuData?.error || 'DOKU payment creation failed')
+      }
+
+      if (dokuData.payment_url) {
+        setDokuPaymentUrl(dokuData.payment_url)
+        window.location.href = dokuData.payment_url
+      } else {
+        throw new Error('DOKU tidak mengembalikan payment URL')
+      }
+    } catch (err) {
+      console.error('[DOKU API error]', err)
+      toast.error('Gagal hubungi DOKU: ' + (err as Error).message + ' — klik tombol retry untuk coba lagi')
+    } finally {
+      setDokuLoading(false)
+    }
+  }
+
+  async function processDokuCheckout() {
+    // Jika DB transaction sudah ada (retry DOKU saja tanpa buat transaksi baru)
+    if (dokuPendingResult) {
+      await callDokuApi(dokuPendingResult.transaction_id, dokuPendingResult.total_amount, dokuPendingResult.transaction_code)
+      return
+    }
+
+    if (cart.length === 0 || hasProcessed) return
+
+    setSelectedPaymentMethod('DOKU')
+    setDokuLoading(true)
+    try {
+      const supabase = createClient()
+      const items = cart.map(item => ({
+        product_id: item.product_id,
+        quantity: item.cartQuantity ?? item.quantity,
+        price: item.price,
+      }))
+
+      // Step 1: create DB transaction
+      const { data, error } = await supabase.rpc('process_anonymous_checkout', {
+        p_location_slug: locationSlug,
+        p_items: items,
+      })
+      if (error) throw error
+      if (!data || data.length === 0) throw new Error('Tidak ada data transaksi')
+
+      const result = data[0]
+      // Tandai DB sudah diproses — jangan reset ini meski DOKU gagal
+      setHasProcessed(true)
+      sessionStorage.setItem(`checkout_processed_${locationSlug}`, 'true')
+      setCheckoutResult({ ...result, success: true, message: 'Checkout berhasil' })
+      // Simpan untuk retry DOKU tanpa buat transaksi baru
+      setDokuPendingResult({
+        transaction_id: result.transaction_id,
+        total_amount: result.total_amount,
+        transaction_code: result.transaction_code,
+      })
+
+      // Step 2: call DOKU API
+      await callDokuApi(result.transaction_id, result.total_amount, result.transaction_code)
+    } catch (err) {
+      console.error('[DOKU checkout error]', err)
+      toast.error('Gagal proses DOKU: ' + (err as Error).message)
+      setSelectedPaymentMethod(null)
+      // Tidak reset hasProcessed di sini — jika DB sudah insert, biarkan
+    } finally {
+      setDokuLoading(false)
+    }
+  }
+
+  async function confirmPayment(paymentMethod: 'CASH' | 'QRIS' = 'QRIS', proofUrl?: string) {    if (!checkoutResult?.transaction_id) return
 
     setConfirming(true)
     try {
@@ -641,6 +729,36 @@ export default function CheckoutPage() {
               )}
             </button>
 
+            {/* DOKU Button */}
+            <button
+              onClick={processDokuCheckout}
+              disabled={processing || dokuLoading}
+              className="w-full bg-gradient-to-r from-purple-600 to-purple-700 text-white py-4 rounded-xl font-bold text-lg hover:from-purple-700 hover:to-purple-800 active:scale-95 transition-all shadow-lg flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {dokuLoading ? (
+                <>
+                  <Loader2 className="w-6 h-6 animate-spin" />
+                  Mengarahkan ke DOKU...
+                </>
+              ) : dokuPendingResult ? (
+                <>
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                  <span>Coba Lagi via DOKU</span>
+                  <span className="text-[10px] font-semibold bg-purple-900 text-purple-200 rounded px-1.5 py-0.5 leading-tight">RETRY</span>
+                </>
+              ) : (
+                <>
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                  </svg>
+                  <span>Bayar via DOKU</span>
+                  <span className="text-[10px] font-semibold bg-purple-900 text-purple-200 rounded px-1.5 py-0.5 leading-tight">BETA</span>
+                </>
+              )}
+            </button>
+
 
           </div>
         </div>
@@ -650,6 +768,7 @@ export default function CheckoutPage() {
           <p className="font-semibold mb-2">Informasi Pembayaran:</p>
           <ul className="space-y-1 text-xs">
             <li><strong>QRIS:</strong> Scan QR code untuk bayar via mobile banking/e-wallet</li>
+            <li><strong>DOKU (Beta):</strong> Bayar via halaman DOKU — transfer bank, kartu, e-wallet</li>
           </ul>
         </div>
       </div>
