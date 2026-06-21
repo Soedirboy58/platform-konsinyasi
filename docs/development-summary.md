@@ -1,9 +1,9 @@
-# Development Summary - Platform Konsinyasi v2.4.0+
+# Development Summary - Platform Konsinyasi v2.5.0
 
 **Project:** Platform Konsinyasi Terintegrasi  
 **Status:** ✅ Production Active  
-**Last Updated:** 6 Juni 2026  
-**Primary Domain:** `https://smartvalley.katalara.com`
+**Last Updated:** 21 Juni 2026  
+**Primary Domain:** `https://smartalley.katalara.com`
 
 ---
 
@@ -17,6 +17,7 @@ Platform sudah berada pada fase production aktif untuk operasional inti konsinya
 
 | Version | Tanggal | Highlight |
 |---------|---------|-----------|
+| v2.5.0 | 21 Jun 2026 | DOKU Checkout live production, migration 051/052, stock reservation fix, env runtime trim |
 | v2.4.0 | 1–4 Jun 2026 | Supplier balance accuracy (snapshot), migration 048/049/050, UI mobile commissions |
 | v2.3.1 | 1 Jun 2026 | Checkout manual verification hardening, admin sales control page, migration 047, supplier card calculation fixes |
 | v2.3.0 | 26 Mei 2026 | Admin user management, notification bell, email templates, auth flow fixes, domain migration |
@@ -60,6 +61,7 @@ Dokumen release detail: [AI-GUIDE/CHANGELOG.md](../AI-GUIDE/CHANGELOG.md)
 - Cart dan checkout flow
 - Upload bukti pembayaran
 - QRIS per outlet
+- **DOKU Checkout live** — tombol "Bayar via DOKU" di halaman checkout, redirect ke payment page DOKU
 - Carousel dan branding per outlet
 - Dynamic PWA manifest per outlet
 - Mode manual verification 3 menit untuk QRIS statis
@@ -139,14 +141,56 @@ Dokumen release detail: [AI-GUIDE/CHANGELOG.md](../AI-GUIDE/CHANGELOG.md)
 - Git push ke GitHub masih terblokir karena credential Windows Credential Manager menyimpan token `katalaraofficial-cpu` yang tidak punya akses write ke `Soedirboy58/platform-konsinyasi`
 - Solusi push: `echo "protocol=https\nhost=github.com" | git credential reject` → login ulang dengan Soedirboy58
 
-### 4.10 DOKU Checkout Integration Progress (6 Juni 2026)
-- Route baru dibuat: `frontend/src/app/api/doku/create-payment/route.ts`
-- Integrasi frontend checkout ditambah: tombol "Bayar via DOKU" pada `frontend/src/app/kantin/[slug]/checkout/page.tsx`
-- DOKU flow dipisah dari flow QRIS agar tidak mengganggu operasi payment yang sedang berjalan
-- Ditambahkan mekanisme retry DOKU tanpa create transaksi DB baru (menghindari decrement stok berulang)
-- Webhook DOKU tetap menggunakan route existing `frontend/src/app/api/doku/notification/route.ts`
-- Hasil uji lokal saat ini: request ke DOKU sandbox masih sering `invalid_client_id`; ada juga kejadian `UND_ERR_CONNECT_TIMEOUT` intermiten
-- Analisa sementara: akun sandbox aktif dan credential sandbox belum sepenuhnya sinkron di env runtime
+### 4.10 DOKU Checkout Integration — LIVE PRODUCTION (21 Juni 2026)
+
+**Status: ✅ Production aktif dengan credential live**
+
+**Route yang aktif:**
+- `frontend/src/app/api/doku/create-payment/route.ts` — buat payment link DOKU
+- `frontend/src/app/api/doku/notification/route.ts` — webhook handler notifikasi DOKU
+- `frontend/src/app/api/doku/test-credentials/route.ts` — diagnostic (diblokir di live mode)
+- `frontend/src/app/kantin/[slug]/checkout/page.tsx` — tombol "Bayar via DOKU"
+
+**Credential production:**
+- `DOKU_CLIENT_ID`: `BRN-0285-1779716792279`
+- `DOKU_SECRET_KEY`: `SK-WXTDR2IyRgWpICWwqTie`
+- `DOKU_IS_SANDBOX`: `false`
+- Semua disimpan di Vercel production env via `cmd /c "<nul set /p =VALUE"` (tanpa trailing whitespace)
+
+**Masalah yang ditemukan dan diselesaikan:**
+1. `Invalid Client-Id` — env Vercel lama masih pakai credential sandbox lama
+2. `Invalid Header Signature` — header `Digest` tidak dikirim ke DOKU; fix: `generateSignature()` sekarang mengembalikan `{digest, signature}` dan keduanya dikirim sebagai header
+3. Trailing whitespace di Vercel env — semua DOKU env variabel dibaca dengan `.trim()` di runtime (`getEnv()` helper di setiap route)
+4. Vercel env pull menunjukkan semua value masih mengandung trailing space meski sudah di-set ulang — root fix ada di runtime trimming
+
+**Gotcha penting — Vercel env trailing space:**
+Saat menambah env via `echo "VALUE" | npx vercel env add ...` di PowerShell, value ikut trailing newline. Gunakan:
+```
+cmd /c "<nul set /p =VALUE | npx vercel env add KEY production --scope katalaras-projects"
+```
+Meski begitu, runtime sudah toleran karena semua `process.env.DOKU_*` di-trim lewat helper `getEnv()`.
+
+### 4.11 DOKU Stock Reservation & Cancel Restore (21 Juni 2026)
+
+**Masalah:** `process_doku_checkout_notification()` membatalkan transaksi (CANCELLED/EXPIRED) tanpa mengembalikan stok ke `inventory_levels`.
+
+**Root cause terungkap dari data production:**
+- Transaksi CANCELLED seharusnya mengembalikan stok (sudah ada di cron 037), tapi webhook DOKU meng-cancel secara langsung melewati cron
+- Stok produk Tester Maintance di Outlet Tester sempat salah karena hitungan CANCELLED tanpa cross-check data aktual
+
+**Kalkulasi stok yang benar (per 21 Jun 2026):**
+- Total shipment approved masuk ke Outlet Tester: 10 unit (5 + 5)
+- Total penjualan COMPLETED: 7 unit
+- **Stok benar: 3** (sudah dikoreksi manual)
+
+**Fix permanen — Migration 052:**
+- File: `backend/migrations/052_fix_doku_cancel_restore_stock.sql`
+- Saat webhook DOKU memberi status CANCELLED/EXPIRED/VOIDED/DENIED:
+  1. Loop semua `sales_transaction_items` untuk transaksi tersebut
+  2. Kembalikan stok ke `inventory_levels` per item
+  3. Baru update `sales_transactions.status = CANCELLED`
+- Idempotent: skip jika status sudah CANCELLED atau sudah COMPLETED
+- **Wajib dijalankan di Supabase SQL Editor**
 
 ---
 
@@ -158,9 +202,14 @@ Dokumen release detail: [AI-GUIDE/CHANGELOG.md](../AI-GUIDE/CHANGELOG.md)
 - Struktur database untuk provider payment modern sudah tersedia
 - API route Midtrans: `frontend/src/app/api/create-qris/route.ts`
 
+### Yang Sudah Siap (Update 21 Jun 2026)
+- **DOKU Checkout live** — tombol checkout, redirect payment DOKU, webhook handler, audit log
+- Migration 051: tabel `doku_webhook_events` + RPC `process_doku_checkout_notification()`
+- Migration 052: restore stok saat DOKU cancel/expired
+
 ### Yang Belum Final di Production
 - Dynamic QRIS feature flag nonaktif (`NEXT_PUBLIC_ENABLE_DYNAMIC_QRIS=false`)
-- Integrasi DOKU Checkout sudah diimplementasikan di codebase namun belum lolos UAT end-to-end karena validasi credential sandbox
+- Migration 052 belum dijalankan di Supabase — perlu dieksekusi manual
 - Xendit hanya jejak eksperimen lama, bukan jalur aktif
 
 ---
@@ -168,7 +217,7 @@ Dokumen release detail: [AI-GUIDE/CHANGELOG.md](../AI-GUIDE/CHANGELOG.md)
 ## 6. Statistik Teknis
 
 ### Backend
-- 50 migration SQL di `backend/migrations` (001–050)
+- 52 migration SQL di `backend/migrations` (001–052)
 - 20+ tabel utama dan pendukung
 - RLS aktif untuk tabel inti
 - Trigger, function, dan cleanup jobs untuk inventory dan transaksi
@@ -191,24 +240,22 @@ Dokumen release detail: [AI-GUIDE/CHANGELOG.md](../AI-GUIDE/CHANGELOG.md)
 
 ## 7. Manual Tasks / Follow-up Operasional
 
+- [ ] **URGENT** Jalankan migration `052_fix_doku_cancel_restore_stock.sql` di Supabase SQL Editor agar DOKU cancel restore stok otomatis
 - [ ] Pastikan migration `046_notification_triggers.sql` sudah dijalankan di environment production yang aktif
 - [ ] Jalankan migration `047_admin_adjust_sales_transactions.sql` sebelum operasional halaman kontrol manual penjualan
 - [ ] Jalankan migration `050_add_paid_at_to_supplier_payments.sql` jika belum dieksekusi di production
 - [ ] Pasang template email HTML di Supabase Dashboard
-- [ ] Pastikan env `NEXT_PUBLIC_SITE_URL` mengarah ke domain production baru
-- [ ] Re-invite akun admin uji jika pengujian masih memakai link lama
-- [ ] Sinkronkan credential DOKU sandbox (Client ID + Secret Key) dari akun sandbox yang sama di `frontend/.env.local`
-- [ ] Konfirmasi aktivasi produk DOKU Checkout/Payment Link untuk akun sandbox yang dipakai UAT
-- [ ] Putuskan strategi gateway: tetap Midtrans-only, tambah abstraction multi-provider, atau migrasi provider
+- [ ] Test transaksi DOKU live end-to-end: checkout → payment DOKU → konfirmasi webhook → status COMPLETED di DB
+- [ ] Verifikasi tabel `doku_webhook_events` terisi saat transaksi live berhasil
 
 ---
 
 ## 8. Rekomendasi Update Berikutnya
 
-1. Rapikan abstraction payment provider agar Midtrans dan DOKU memakai kontrak service yang sama.
-2. Finalisasi UAT DOKU sandbox hingga redirect `payment_url` dan callback sukses tervalidasi.
-3. Tambahkan audit log permanen untuk intervensi manual transaksi admin.
-4. Sinkronkan dokumen lama lain di folder `docs/` yang masih menyebut status fase awal development.
+1. Jalankan migration 052 di Supabase agar restore stok saat DOKU cancel berjalan otomatis.
+2. Lakukan test end-to-end transaksi live DOKU: checkout → bayar → konfirmasi webhook → cek `doku_webhook_events`.
+3. Rapikan abstraction payment provider agar Midtrans dan DOKU memakai kontrak service yang sama.
+4. Tambahkan audit log permanen untuk intervensi manual transaksi admin.
 
 ---
 
@@ -220,5 +267,5 @@ Dokumen release detail: [AI-GUIDE/CHANGELOG.md](../AI-GUIDE/CHANGELOG.md)
 
 ---
 
-**Current Assessment:** stabil untuk operasional inti dengan mitigasi manual transaksi sudah tersedia, namun integrasi payment provider dinamis masih tahap transisi.  
-**Recommended Next Focus:** integrasi DOKU + audit log intervensi manual + penyelarasan dokumen historis tersisa.
+**Current Assessment:** DOKU Checkout sudah live di production dengan credential aktif. Stok reservation dan cancel-restore sudah didesain benar; tinggal jalankan migration 052 agar flow cancel-restore berjalan otomatis tanpa intervensi manual.  
+**Recommended Next Focus:** jalankan migration 052 → test live end-to-end DOKU → audit log intervensi manual.

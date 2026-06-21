@@ -1,7 +1,7 @@
 ﻿'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { Save, Info, DollarSign, Calculator, User, Bell, Database, Eye, EyeOff, Lock, Mail, Camera, MapPin, QrCode, Plus, Trash2, Edit, Download, Printer, Upload, Image, Layers, ChevronDown, ChevronUp, GripVertical, Monitor, Users, UserCog, Shield, X } from 'lucide-react'
+import { Save, Info, DollarSign, Calculator, User, Bell, Database, Eye, EyeOff, Lock, Mail, Camera, MapPin, QrCode, Plus, Trash2, Edit, Download, Printer, Upload, Image, Layers, ChevronDown, ChevronUp, GripVertical, Monitor, Users, UserCog, Shield, X, CreditCard, ToggleLeft, ToggleRight } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import ConfirmDialog from '@/components/admin/ConfirmDialog'
@@ -143,10 +143,16 @@ export default function Settings() {
   const [savingEditAdminUser, setSavingEditAdminUser] = useState(false)
   const [resetingPassword, setResetingPassword] = useState<string | null>(null)
 
+  // Payment method visibility state
+  const [paymentMethodQrisEnabled, setPaymentMethodQrisEnabled] = useState(true)
+  const [paymentMethodDokuEnabled, setPaymentMethodDokuEnabled] = useState(true)
+  const [savingPaymentMethods, setSavingPaymentMethods] = useState(false)
+
   useEffect(() => {
     loadProfile()
     loadPaymentSettings()
     loadCommissionRate()
+    loadPaymentMethodSettings()
     if (activeTab === 'outlets') {
       loadOutlets()
     }
@@ -300,6 +306,41 @@ export default function Settings() {
         email: user.email || '',
         phone: user.user_metadata?.phone || ''
       })
+    }
+  }
+
+  const loadPaymentMethodSettings = async () => {
+    try {
+      const supabase = createClient()
+      const { data } = await supabase
+        .from('platform_settings')
+        .select('key, value')
+        .in('key', ['payment_method_qris_enabled', 'payment_method_doku_enabled'])
+      if (data) {
+        data.forEach(row => {
+          if (row.key === 'payment_method_qris_enabled') setPaymentMethodQrisEnabled(row.value !== 'false')
+          if (row.key === 'payment_method_doku_enabled') setPaymentMethodDokuEnabled(row.value !== 'false')
+        })
+      }
+    } catch (error) {
+      console.error('Error loading payment method settings:', error)
+    }
+  }
+
+  const savePaymentMethodSettings = async () => {
+    setSavingPaymentMethods(true)
+    try {
+      const supabase = createClient()
+      await supabase.from('platform_settings').upsert(
+        [{ key: 'payment_method_qris_enabled', value: String(paymentMethodQrisEnabled) },
+         { key: 'payment_method_doku_enabled', value: String(paymentMethodDokuEnabled) }],
+        { onConflict: 'key' }
+      )
+      toast.success('✅ Pengaturan metode pembayaran disimpan!')
+    } catch (error: any) {
+      toast.error('❌ Gagal menyimpan: ' + error.message)
+    } finally {
+      setSavingPaymentMethods(false)
     }
   }
 
@@ -917,6 +958,9 @@ export default function Settings() {
             </button>
             <button onClick={() => setActiveTab('users')} className={`px-6 py-4 border-b-2 whitespace-nowrap ${activeTab === 'users' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500'}`}>
               <Users className="w-5 h-5 inline mr-2" />Pengguna Admin
+            </button>
+            <button onClick={() => setActiveTab('payment-methods')} className={`px-6 py-4 border-b-2 whitespace-nowrap ${activeTab === 'payment-methods' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500'}`}>
+              <CreditCard className="w-5 h-5 inline mr-2" />Metode Pembayaran
             </button>
           </nav>
         </div>
@@ -2310,6 +2354,125 @@ export default function Settings() {
           }
         }
       `}</style>
+
+      {/* Payment Methods Tab */}
+      {activeTab === 'payment-methods' && (
+        <div className="space-y-6">
+          <div className="bg-white rounded-lg shadow p-6">
+            <div className="flex items-center justify-between mb-1">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                  <CreditCard className="w-5 h-5 text-blue-600" />
+                  Metode Pembayaran
+                </h3>
+                <p className="text-sm text-gray-500 mt-1">
+                  Aktifkan atau nonaktifkan tombol metode pembayaran yang ditampilkan ke pelanggan di halaman checkout.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-lg shadow divide-y">
+            {/* QRIS Toggle */}
+            <div className="flex items-center justify-between p-6">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center flex-shrink-0">
+                  <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
+                  </svg>
+                </div>
+                <div>
+                  <p className="font-semibold text-gray-900">Bayar dengan QRIS</p>
+                  <p className="text-sm text-gray-500">Pembayaran via scan QR code QRIS statis outlet (mobile banking / e-wallet)</p>
+                  <span className={`inline-block mt-1 text-xs font-medium px-2 py-0.5 rounded-full ${paymentMethodQrisEnabled ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                    {paymentMethodQrisEnabled ? 'Aktif' : 'Disembunyikan'}
+                  </span>
+                </div>
+              </div>
+              <button
+                onClick={() => setPaymentMethodQrisEnabled(v => !v)}
+                className={`relative inline-flex h-7 w-14 items-center rounded-full transition-colors focus:outline-none ${paymentMethodQrisEnabled ? 'bg-blue-600' : 'bg-gray-300'}`}
+                aria-label="Toggle QRIS"
+              >
+                <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${paymentMethodQrisEnabled ? 'translate-x-8' : 'translate-x-1'}`} />
+              </button>
+            </div>
+
+            {/* DOKU Toggle */}
+            <div className="flex items-center justify-between p-6">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-xl bg-purple-100 flex items-center justify-center flex-shrink-0">
+                  <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                  </svg>
+                </div>
+                <div>
+                  <p className="font-semibold text-gray-900">Bayar via DOKU</p>
+                  <p className="text-sm text-gray-500">Pembayaran via halaman DOKU — transfer bank, kartu kredit/debit, e-wallet</p>
+                  <span className={`inline-block mt-1 text-xs font-medium px-2 py-0.5 rounded-full ${paymentMethodDokuEnabled ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-500'}`}>
+                    {paymentMethodDokuEnabled ? 'Aktif' : 'Disembunyikan'}
+                  </span>
+                </div>
+              </div>
+              <button
+                onClick={() => setPaymentMethodDokuEnabled(v => !v)}
+                className={`relative inline-flex h-7 w-14 items-center rounded-full transition-colors focus:outline-none ${paymentMethodDokuEnabled ? 'bg-purple-600' : 'bg-gray-300'}`}
+                aria-label="Toggle DOKU"
+              >
+                <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${paymentMethodDokuEnabled ? 'translate-x-8' : 'translate-x-1'}`} />
+              </button>
+            </div>
+          </div>
+
+          {/* Preview */}
+          <div className="bg-white rounded-lg shadow p-6">
+            <h4 className="font-semibold text-gray-700 mb-4 flex items-center gap-2">
+              <Eye className="w-4 h-4" /> Preview tampilan checkout pelanggan
+            </h4>
+            <div className="border border-dashed border-gray-300 rounded-xl p-5 max-w-sm mx-auto space-y-3">
+              {paymentMethodQrisEnabled ? (
+                <div className="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white py-3 rounded-xl font-bold text-base flex items-center justify-center gap-3 opacity-90">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
+                  </svg>
+                  Bayar dengan QRIS
+                </div>
+              ) : (
+                <div className="w-full bg-gray-100 text-gray-400 py-3 rounded-xl font-medium text-sm flex items-center justify-center gap-2 border border-dashed">
+                  <EyeOff className="w-4 h-4" /> QRIS disembunyikan
+                </div>
+              )}
+              {paymentMethodDokuEnabled ? (
+                <div className="w-full bg-gradient-to-r from-purple-600 to-purple-700 text-white py-3 rounded-xl font-bold text-base flex items-center justify-center gap-3 opacity-90">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                  </svg>
+                  Bayar via DOKU
+                  <span className="text-[10px] font-semibold bg-purple-900 text-purple-200 rounded px-1.5 py-0.5">BETA</span>
+                </div>
+              ) : (
+                <div className="w-full bg-gray-100 text-gray-400 py-3 rounded-xl font-medium text-sm flex items-center justify-center gap-2 border border-dashed">
+                  <EyeOff className="w-4 h-4" /> DOKU disembunyikan
+                </div>
+              )}
+              {!paymentMethodQrisEnabled && !paymentMethodDokuEnabled && (
+                <p className="text-center text-xs text-red-500 font-medium pt-1">⚠️ Semua metode pembayaran disembunyikan — pelanggan tidak dapat checkout!</p>
+              )}
+            </div>
+          </div>
+
+          <div className="flex justify-end">
+            <button
+              onClick={savePaymentMethodSettings}
+              disabled={savingPaymentMethods}
+              className="flex items-center gap-2 bg-blue-600 text-white px-6 py-2.5 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-60"
+            >
+              <Save className="w-4 h-4" />
+              {savingPaymentMethods ? 'Menyimpan...' : 'Simpan Pengaturan'}
+            </button>
+          </div>
+        </div>
+      )}
 
       <ConfirmDialog
         isOpen={confirmDialog.isOpen}

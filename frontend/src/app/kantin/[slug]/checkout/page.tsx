@@ -59,6 +59,10 @@ export default function CheckoutPage() {
 
   const dynamicQrisEnabled = process.env.NEXT_PUBLIC_ENABLE_DYNAMIC_QRIS === 'true'
 
+  // Payment method visibility (loaded from platform_settings)
+  const [qrisEnabled, setQrisEnabled] = useState(true)
+  const [dokuEnabled, setDokuEnabled] = useState(true)
+
   // Render QR dari qr_string Midtrans via qrserver.com (tidak perlu auth)
   function buildQrImageUrl(qrString: string): string {
     return `https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=${encodeURIComponent(qrString)}`
@@ -67,7 +71,27 @@ export default function CheckoutPage() {
   useEffect(() => {
     // Load cart data
     loadCart()
+    // Load payment method visibility settings
+    loadPaymentMethodSettings()
   }, [])
+
+  async function loadPaymentMethodSettings() {
+    try {
+      const supabase = createClient()
+      const { data } = await supabase
+        .from('platform_settings')
+        .select('key, value')
+        .in('key', ['payment_method_qris_enabled', 'payment_method_doku_enabled'])
+      if (data) {
+        data.forEach(row => {
+          if (row.key === 'payment_method_qris_enabled') setQrisEnabled(row.value !== 'false')
+          if (row.key === 'payment_method_doku_enabled') setDokuEnabled(row.value !== 'false')
+        })
+      }
+    } catch (e) {
+      // Default to showing all methods if settings cannot be loaded
+    }
+  }
 
   function loadCart() {
     try {
@@ -709,6 +733,7 @@ export default function CheckoutPage() {
           
           <div className="space-y-3">
             {/* QRIS Button */}
+            {qrisEnabled && (
             <button
               onClick={() => processCheckout('QRIS')}
               disabled={processing}
@@ -728,8 +753,10 @@ export default function CheckoutPage() {
                 </>
               )}
             </button>
+            )}
 
             {/* DOKU Button */}
+            {dokuEnabled && (
             <button
               onClick={processDokuCheckout}
               disabled={processing || dokuLoading}
@@ -758,19 +785,21 @@ export default function CheckoutPage() {
                 </>
               )}
             </button>
-
+            )}
 
           </div>
         </div>
 
         {/* Info Box */}
+        {(qrisEnabled || dokuEnabled) && (
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-800">
           <p className="font-semibold mb-2">Informasi Pembayaran:</p>
           <ul className="space-y-1 text-xs">
-            <li><strong>QRIS:</strong> Scan QR code untuk bayar via mobile banking/e-wallet</li>
-            <li><strong>DOKU (Beta):</strong> Bayar via halaman DOKU — transfer bank, kartu, e-wallet</li>
+            {qrisEnabled && <li><strong>QRIS:</strong> Scan QR code untuk bayar via mobile banking/e-wallet</li>}
+            {dokuEnabled && <li><strong>DOKU (Beta):</strong> Bayar via halaman DOKU — transfer bank, kartu, e-wallet</li>}
           </ul>
         </div>
+        )}
       </div>
 
 

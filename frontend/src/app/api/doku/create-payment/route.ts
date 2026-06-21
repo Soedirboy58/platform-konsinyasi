@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import crypto from 'crypto'
 
-const DOKU_IS_SANDBOX = process.env.DOKU_IS_SANDBOX !== 'false' // default: sandbox
+function getEnv(name: string) {
+  return process.env[name]?.trim()
+}
+
+const DOKU_IS_SANDBOX = getEnv('DOKU_IS_SANDBOX') !== 'false' // default: sandbox
 const DOKU_BASE_URL = DOKU_IS_SANDBOX
   ? 'https://api-sandbox.doku.com'
   : 'https://api.doku.com'
@@ -19,7 +23,7 @@ function generateSignature(
   requestId: string,
   requestTimestamp: string,
   requestBody: string
-): string {
+): { digest: string; signature: string } {
   const digest = crypto
     .createHash('sha256')
     .update(requestBody, 'utf8')
@@ -38,15 +42,18 @@ function generateSignature(
     .update(stringToSign, 'utf8')
     .digest('base64')
 
-  return `HMACSHA256=${hmac}`
+  return {
+    digest,
+    signature: `HMACSHA256=${hmac}`,
+  }
 }
 
 async function updateTransactionPayload(
   transactionId: string,
   payload: Record<string, unknown>
 ) {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  const supabaseUrl = getEnv('NEXT_PUBLIC_SUPABASE_URL')
+  const serviceRoleKey = getEnv('SUPABASE_SERVICE_ROLE_KEY')
   if (!supabaseUrl || !serviceRoleKey) return
 
   await fetch(
@@ -66,8 +73,8 @@ async function updateTransactionPayload(
 
 export async function POST(request: NextRequest) {
   try {
-    const dokuClientId = process.env.DOKU_CLIENT_ID
-    const dokuSecretKey = process.env.DOKU_SECRET_KEY
+    const dokuClientId = getEnv('DOKU_CLIENT_ID')
+    const dokuSecretKey = getEnv('DOKU_SECRET_KEY')
 
     if (!dokuClientId || !dokuSecretKey) {
       return NextResponse.json(
@@ -98,10 +105,10 @@ export async function POST(request: NextRequest) {
     // Gunakan NEXT_PUBLIC_SITE_URL jika ada (production/vercel),
     // fallback ke request origin (lokal dev). Ini penting karena DOKU
     // perlu callback_url yang bisa diakses dari internet.
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, '')
+    const siteUrl = getEnv('NEXT_PUBLIC_SITE_URL')?.replace(/\/$/, '')
     const origin = siteUrl || new URL(request.url).origin
     const slug = location_slug || 'smart-alley'
-    const webhookUrl = process.env.DOKU_WEBHOOK_URL || `${origin}/api/doku/notification`
+    const webhookUrl = getEnv('DOKU_WEBHOOK_URL') || `${origin}/api/doku/notification`
 
     // DOKU Checkout API request body
     const requestBody = JSON.stringify({
@@ -131,7 +138,7 @@ export async function POST(request: NextRequest) {
     // DOKU requires ISO 8601 without milliseconds
     const requestTimestamp = new Date().toISOString().replace(/\.\d{3}Z$/, 'Z')
 
-    const signature = generateSignature(
+    const { digest, signature } = generateSignature(
       dokuClientId,
       dokuSecretKey,
       requestId,
@@ -149,6 +156,7 @@ export async function POST(request: NextRequest) {
         'Client-Id': dokuClientId,
         'Request-Id': requestId,
         'Request-Timestamp': requestTimestamp,
+        Digest: digest,
         Signature: signature,
       },
       body: requestBody,

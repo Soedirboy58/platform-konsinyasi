@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import crypto from 'crypto'
 
+function getEnv(name: string) {
+  return process.env[name]?.trim()
+}
+
 type DokuNotificationPayload = {
   order?: {
     invoice_number?: string
@@ -171,11 +175,11 @@ async function patchTransactionDirectly(
 
 export async function POST(request: NextRequest) {
   try {
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-    const webhookSecret = process.env.DOKU_WEBHOOK_SECRET
-    const dokuClientId = process.env.DOKU_CLIENT_ID
-    const dokuSecretKey = process.env.DOKU_SECRET_KEY
+    const supabaseUrl = getEnv('NEXT_PUBLIC_SUPABASE_URL')
+    const serviceRoleKey = getEnv('SUPABASE_SERVICE_ROLE_KEY')
+    const webhookSecret = getEnv('DOKU_WEBHOOK_SECRET')
+    const dokuClientId = getEnv('DOKU_CLIENT_ID')
+    const dokuSecretKey = getEnv('DOKU_SECRET_KEY')
 
     if (!supabaseUrl || !serviceRoleKey) {
       return NextResponse.json(

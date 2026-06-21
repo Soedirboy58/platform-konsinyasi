@@ -760,129 +760,122 @@ export default function CommissionsPage() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
-        {/* Ready to Pay Alert - THRESHOLD FEATURE */}
+        {/* Ready to Pay Card */}
         {readyToPaySuppliers.length > 0 && (
-          <div className="bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-300 rounded-xl shadow-lg p-6 mb-6">
-            <div className="flex items-start gap-4">
-              <div className="p-3 bg-green-500 rounded-full shadow-md">
-                <Check className="w-7 h-7 text-white" />
+          <div className="rounded-2xl overflow-hidden shadow-md mb-4 border border-green-100">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-green-500 to-emerald-600 px-4 py-3.5 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-white/20 rounded-xl shrink-0">
+                  <Check className="w-4 h-4 text-white" />
+                </div>
+                <div>
+                  <p className="text-white/75 text-[10px] font-semibold uppercase tracking-widest">Siap Dibayar</p>
+                  <h3 className="text-white font-bold text-base leading-tight">
+                    {readyToPaySuppliers.length} Supplier
+                  </h3>
+                </div>
               </div>
-              <div className="flex-1">
-                <h3 className="font-bold text-green-900 text-lg mb-2 flex items-center gap-2">
-                  ✅ {readyToPaySuppliers.length} supplier READY untuk dibayar!
-                  <span className="px-3 py-1 bg-green-200 text-green-800 text-xs rounded-full font-bold">
-                    ≥ Rp {minThreshold.toLocaleString('id-ID')}
-                  </span>
-                </h3>
-                <p className="text-sm text-green-700 mb-4">
-                  Komisi supplier ini sudah mencapai minimum threshold. Segera transfer untuk menjaga kepuasan supplier.
-                </p>
-                  {/* TAMBAHKAN INI - Alert untuk Pending Threshold Suppliers */}
-{pendingThresholdSuppliers.length > 0 && (
-  <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6">
-    <div className="flex">
-      <div className="flex-shrink-0">
-        <Clock className="h-5 w-5 text-yellow-400" />
-      </div>
-      <div className="ml-3 flex-1">
-        <h3 className="text-sm font-medium text-yellow-800 flex items-center gap-2">
-          ⏳ {pendingThresholdSuppliers.length} supplier BELUM mencapai minimum threshold
-          <span className="px-3 py-1 bg-yellow-200 text-yellow-800 text-xs rounded-full font-bold">
-            &lt; Rp {minThreshold. toLocaleString('id-ID')}
-          </span>
-        </h3>
-        <p className="text-sm text-yellow-700 mb-4 mt-2">
-          Supplier ini punya komisi aktif tapi belum mencapai minimum Rp {minThreshold.toLocaleString('id-ID')}.  
-          Mereka akan otomatis masuk daftar "Ready to Pay" setelah threshold tercapai.
-        </p>
-        
-        {/* Supplier List Preview */}
-        <div className="bg-white rounded-lg p-4 mb-4 space-y-2 max-h-48 overflow-y-auto">
-          {pendingThresholdSuppliers.slice(0, 10).map(s => (
-            <div key={s.supplier_id} className="flex justify-between items-center text-sm border-b pb-2 last:border-0">
-              <div>
-                <span className="font-semibold text-gray-900">{s.supplier_name}</span>
-                <span className="text-gray-500 text-xs ml-2">({s.transactions} transaksi)</span>
-              </div>
-              <div className="text-right">
-                <span className="font-bold text-yellow-600">Rp {s.commission_amount.toLocaleString('id-ID')}</span>
-                <p className="text-xs text-gray-500">
-                  Kurang Rp {(minThreshold - s.commission_amount).toLocaleString('id-ID')}
-                </p>
-              </div>
+              <span className="bg-white/20 text-white text-xs font-bold px-2.5 py-1 rounded-full shrink-0">
+                ≥ Rp {minThreshold.toLocaleString('id-ID')}
+              </span>
             </div>
-          ))}
-        </div>
-        
-        <button
-          onClick={() => setStatusFilter('UNPAID')} 
-          className="text-sm text-yellow-700 hover:text-yellow-900 font-medium underline"
-        >
-          Lihat semua supplier pending →
-        </button>
-      </div>
-    </div>
-  </div>
-)}
-                {/* Supplier List Preview */}
-                <div className="bg-white rounded-lg p-4 mb-4 space-y-2 max-h-48 overflow-y-auto">
-                  {readyToPaySuppliers.slice(0, 5).map(s => (
-                    <div key={s.supplier_id} className="flex justify-between items-center text-sm border-b pb-2 last:border-0">
-                      <div>
-                        <span className="font-semibold text-gray-900">{s.supplier_name}</span>
-                        <span className="text-xs text-gray-500 ml-2">({s.transactions} transaksi)</span>
-                      </div>
-                      <span className="text-green-600 font-bold">
-                        Rp {s.commission_amount.toLocaleString('id-ID')}
-                      </span>
-                    </div>
-                  ))}
-                  {readyToPaySuppliers.length > 5 && (
-                    <p className="text-xs text-gray-500 text-center pt-2">
-                      +{readyToPaySuppliers.length - 5} supplier lainnya
-                    </p>
-                  )}
-                </div>
 
-                <div className="flex items-center gap-3">
-                  <button 
-                    onClick={handleBatchPayment}
-                    className="flex-1 px-6 py-4 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-lg hover:from-green-700 hover:to-green-800 font-bold shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2"
-                  >
-                    <DollarSign className="w-5 h-5" />
-                    <div className="text-left">
-                      <div>💳 Bayar Semua Sekarang</div>
-                      <div className="text-xs opacity-90 font-normal">
-                        Total: Rp {stats.totalReadyToPay.toLocaleString('id-ID')}
-                      </div>
+            {/* Body */}
+            <div className="bg-white px-4 pt-4 pb-4">
+              <p className="text-xs text-gray-500 mb-3 leading-relaxed">
+                Komisi sudah melewati minimum threshold. Segera transfer untuk menjaga kepuasan supplier.
+              </p>
+
+              {/* Supplier rows */}
+              <div className="space-y-1.5 mb-4">
+                {readyToPaySuppliers.slice(0, 5).map(s => (
+                  <div key={s.supplier_id} className="flex items-center justify-between px-3 py-2.5 bg-gray-50 rounded-xl">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="w-2 h-2 rounded-full bg-green-500 shrink-0" />
+                      <span className="text-sm font-semibold text-gray-900 truncate">{s.supplier_name}</span>
                     </div>
-                  </button>
-                  <a 
-                    href="/admin/settings"
-                    className="px-4 py-4 border-2 border-green-600 text-green-700 rounded-lg hover:bg-green-50 text-sm font-medium"
-                    title="Ubah threshold di Settings"
-                  >
-                    ⚙️ Settings
-                  </a>
-                </div>
+                    <span className="text-sm font-bold text-green-700 shrink-0 ml-2">
+                      Rp {s.commission_amount.toLocaleString('id-ID')}
+                    </span>
+                  </div>
+                ))}
+                {readyToPaySuppliers.length > 5 && (
+                  <p className="text-xs text-gray-400 text-center pt-1">
+                    +{readyToPaySuppliers.length - 5} supplier lainnya
+                  </p>
+                )}
               </div>
+
+              {/* Total row */}
+              <div className="flex items-center justify-between border-t pt-3 mb-3">
+                <div>
+                  <p className="text-xs text-gray-400 uppercase tracking-wide">Total Transfer</p>
+                  <p className="text-base font-bold text-gray-900">
+                    Rp {stats.totalReadyToPay.toLocaleString('id-ID')}
+                  </p>
+                </div>
+                <a
+                  href="/admin/settings"
+                  className="text-xs text-gray-400 hover:text-gray-600 flex items-center gap-1 transition-colors"
+                >
+                  ⚙️ Ubah threshold
+                </a>
+              </div>
+
+              {/* CTA */}
+              <button
+                onClick={handleBatchPayment}
+                className="w-full py-3.5 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-xl font-bold text-sm shadow hover:shadow-md active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+              >
+                <DollarSign className="w-4 h-4" />
+                Bayar Semua Sekarang
+              </button>
             </div>
           </div>
         )}
 
-        {/* Pending Threshold Info */}
+        {/* Pending Threshold Card */}
         {pendingThresholdSuppliers.length > 0 && (
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
-            <div className="flex items-center gap-2">
-              <Clock className="w-5 h-5 text-yellow-600" />
-              <div className="flex-1">
-                <p className="text-sm font-semibold text-yellow-900">
-                  {pendingThresholdSuppliers.length} supplier belum mencapai threshold (&lt; Rp {minThreshold.toLocaleString('id-ID')})
-                </p>
-                <p className="text-xs text-yellow-700 mt-1">
-                  Total: Rp {stats.totalPendingThreshold.toLocaleString('id-ID')} - Menunggu akumulasi komisi
-                </p>
+          <div className="rounded-2xl overflow-hidden shadow-sm border border-amber-200 mb-6">
+            {/* Header */}
+            <div className="bg-amber-50 px-4 py-3 flex items-center justify-between border-b border-amber-100">
+              <div className="flex items-center gap-2.5">
+                <Clock className="w-4 h-4 text-amber-500 shrink-0" />
+                <div>
+                  <p className="text-sm font-bold text-amber-900">
+                    {pendingThresholdSuppliers.length} Supplier Akumulasi
+                  </p>
+                  <p className="text-[11px] text-amber-600">Belum mencapai threshold minimum</p>
+                </div>
               </div>
+              <span className="bg-amber-100 text-amber-700 text-[11px] font-bold px-2.5 py-1 rounded-full shrink-0">
+                &lt; Rp {minThreshold.toLocaleString('id-ID')}
+              </span>
+            </div>
+
+            {/* Supplier rows */}
+            <div className="bg-white px-4 py-3 space-y-1">
+              {pendingThresholdSuppliers.slice(0, 5).map(s => (
+                <div key={s.supplier_id} className="flex items-center justify-between py-2 px-2 rounded-xl hover:bg-gray-50">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" />
+                    <span className="text-sm font-medium text-gray-800 truncate">{s.supplier_name}</span>
+                  </div>
+                  <div className="text-right shrink-0 ml-2">
+                    <p className="text-sm font-bold text-amber-600">Rp {s.commission_amount.toLocaleString('id-ID')}</p>
+                    <p className="text-[11px] text-gray-400">kurang Rp {(minThreshold - s.commission_amount).toLocaleString('id-ID')}</p>
+                  </div>
+                </div>
+              ))}
+              {pendingThresholdSuppliers.length > 5 && (
+                <button
+                  onClick={() => setStatusFilter('PENDING')}
+                  className="w-full text-xs text-amber-600 hover:text-amber-800 font-semibold pt-2 pb-1 text-center transition-colors"
+                >
+                  Lihat semua {pendingThresholdSuppliers.length} supplier →
+                </button>
+              )}
             </div>
           </div>
         )}

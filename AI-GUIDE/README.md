@@ -1,8 +1,8 @@
 # 🤖 AI AGENT GUIDE - Platform Konsinyasi
 
 > **Panduan lengkap untuk AI Agent dalam membangun dan maintain Platform Konsinyasi**  
-> **Last Updated:** 26 Mei 2026  
-> **Version:** 2.3.0  
+> **Last Updated:** 21 Juni 2026  
+> **Version:** 2.5.0  
 > **Production:** https://smartalley.katalara.com
 
 ---
@@ -865,6 +865,29 @@ await supabase.rpc('process_anonymous_checkout', {
     price: i.price
   }))
 })
+```
+
+#### **13. Vercel env trailing whitespace merusak HMAC signature**
+**Cause:** `echo "VALUE" | npx vercel env add` di PowerShell menyisakan trailing newline dalam value  
+**Fix runtime:** Semua route DOKU pakai helper `getEnv()` yang memanggil `.trim()`:  
+```typescript
+function getEnv(name: string) {
+  return process.env[name]?.trim()
+}
+```
+**Fix saat set env:** Gunakan `cmd /c "<nul set /p =VALUE | npx vercel env add KEY production --scope scope"`  
+**Cek:** `npx vercel env pull .env-check --environment=production` lalu buka file — value dengan trailing space terlihat jelas.
+
+#### **14. DOKU `Invalid Header Signature`**
+**Cause:** Header `Digest` (SHA-256 base64 dari request body) tidak ikut dikirim ke DOKU  
+**Fix:** `generateSignature()` return `{digest, signature}` dan request menyertakan header `Digest: <value>` serta `Signature: HMACSHA256=<hmac>`  
+**Format string-to-sign yang benar:**
+```
+Client-Id:<clientId>
+Request-Id:<requestId>
+Request-Timestamp:<timestamp>
+Request-Target:<path>
+Digest:<sha256base64ofBody>
 ```
 
 #### **10. Halaman admin masih pakai alert()/confirm() native**

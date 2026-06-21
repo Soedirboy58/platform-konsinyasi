@@ -17,29 +17,69 @@ Format: `MAJOR.MINOR.PATCH`
 
 ## 🚀 LATEST VERSION
 
-### **v2.4.1-dev** - 2026-06-06 (In Progress)
+### **v2.5.0** - 2026-06-21
 
-**Type:** DOKU Checkout Integration Hardening  
-**Status:** 🟡 Development / UAT Sandbox
+**Type:** DOKU Checkout Live Production + Stock Reservation Fix  
+**Status:** ✅ Production  
+**Deploy:** `npx vercel --prod --scope katalaras-projects`
 
 ---
 
-#### ✅ Yang Sudah Diimplementasikan
-- Route baru DOKU Checkout: `frontend/src/app/api/doku/create-payment/route.ts`
-- Integrasi button checkout customer: `frontend/src/app/kantin/[slug]/checkout/page.tsx` ("Bayar via DOKU")
-- Redirect flow ke `payment_url` dari DOKU
-- Mekanisme retry DOKU tanpa membuat transaksi DB baru (mencegah stok terpotong ganda saat retry)
-- Update env example: `DOKU_IS_SANDBOX=true`
+#### ✅ Yang Diimplementasikan
 
-#### 🧪 Hasil UAT Saat Ini
-- API DOKU sandbox masih mengembalikan `invalid_client_id` pada beberapa percobaan
-- Pernah muncul timeout jaringan `UND_ERR_CONNECT_TIMEOUT` saat request ke `api-sandbox.doku.com`
-- Alur QRIS existing tetap berjalan dan tidak terganggu
+**DOKU Checkout Live:**
+- `frontend/src/app/api/doku/create-payment/route.ts` — buat payment link DOKU (HMAC-SHA256 signature, header `Digest` + `Signature`)
+- `frontend/src/app/api/doku/notification/route.ts` — webhook handler verifikasi signature + finalisasi transaksi
+- `frontend/src/app/api/doku/test-credentials/route.ts` — diagnostic (diblokir di live mode `DOKU_IS_SANDBOX=false`)
+- `frontend/src/app/kantin/[slug]/checkout/page.tsx` — tombol ungu "Bayar via DOKU", state loading/error, retry
+- Helper `getEnv(name)` di semua route DOKU untuk `.trim()` env variable saat runtime
+
+**Credential Vercel Production (live):**
+- `DOKU_CLIENT_ID=BRN-0285-1779716792279`
+- `DOKU_SECRET_KEY=SK-WXTDR2IyRgWpICWwqTie`
+- `DOKU_IS_SANDBOX=false`
+- `DOKU_WEBHOOK_URL=https://smartalley.katalara.com/api/doku/notification`
+
+**Migration 051** — `backend/migrations/051_doku_webhook_audit_and_finalize.sql`
+- Tabel `doku_webhook_events` — audit log setiap webhook masuk dari DOKU
+- RPC `process_doku_checkout_notification(TEXT,TEXT,TEXT,TEXT,JSONB,JSONB)` — finalisasi transaksi idempotent
+- Logika: SUCCESS → COMPLETED; FAILED → dibiarkan (retryable); CANCELLED/EXPIRED → CANCELLED (tanpa downgrade dari COMPLETED)
+
+**Migration 052** — `backend/migrations/052_fix_doku_cancel_restore_stock.sql`
+- Perbaikan: saat DOKU memberi status CANCELLED/EXPIRED/VOIDED/DENIED, stok item dikembalikan ke `inventory_levels` sebelum update status transaksi
+- Melengkapi logika reservation: stok dipotong saat PENDING, dikembalikan saat cancel, terpotong permanen hanya saat COMPLETED
+- **Status: belum dijalankan di production — wajib segera**
+
+**Koreksi stok manual (21 Jun 2026):**
+- Stok produk "Tester Maintance" di Outlet Tester dikoreksi ke 3 (total IN 10 - total COMPLETED 7)
+- Kesalahan sebelumnya: terdapat 10 transaksi CANCELLED hari testing yang memotong stok tanpa dikembalikan
+
+#### 🐛 Bug yang Ditemukan dan Diselesaikan
+
+| Bug | Penyebab | Fix |
+|-----|----------|-----|
+| `Invalid Client-Id` | Vercel masih pakai credential sandbox lama | Update env ke credential live via Vercel CLI |
+| `Invalid Header Signature` | Header `Digest` tidak dikirim ke DOKU | `generateSignature()` sekarang return `{digest, signature}`, keduanya dikirim |
+| Signature tetap invalid setelah fix header | Env Vercel tersimpan dengan trailing whitespace | Helper `getEnv()` dengan `.trim()` di semua route DOKU |
+| Stok berkurang tanpa dikembalikan saat cancel DOKU | RPC lama tidak restore stok | Migration 052: loop items + restore inventory sebelum cancel |
 
 #### ⚠️ Catatan Operasional
-- Env lokal yang dipakai Next.js berada di `frontend/.env.local` (bukan root `/.env.local`)
-- Client ID dan Secret Key DOKU wajib berasal dari akun sandbox yang sama
-- Aktivasi produk DOKU Checkout/Payment Link pada akun sandbox perlu dikonfirmasi sebelum UAT final
+- Saat menambah env ke Vercel via PowerShell, gunakan `cmd /c "<nul set /p =VALUE | npx vercel env add KEY production"` agar tidak ada trailing newline
+- Semua env DOKU di runtime sudah ditrim via `getEnv()` sehingga trailing space tidak merusak HMAC
+- Migration 052 **wajib dijalankan** di Supabase SQL Editor sebelum menerima transaksi DOKU live dalam jumlah besar
+
+---
+
+### **v2.4.1** - 2026-06-06
+
+**Type:** DOKU Checkout Integration (Sandbox)  
+**Status:** ✅ Completed (dilanjutkan ke v2.5.0)
+
+#### Yang Diimplementasikan
+- Route `create-payment`, `notification`, `test-credentials` (awal)
+- Tombol "Bayar via DOKU" di halaman checkout
+- Signature HMAC format `HMACSHA256=base64` (tanpa prefix lain)
+- Override notification URL untuk webhook DOKU
 
 ---
 

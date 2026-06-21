@@ -8,12 +8,18 @@
 import { NextRequest, NextResponse } from 'next/server'
 import crypto from 'crypto'
 
-const DOKU_IS_SANDBOX = process.env.DOKU_IS_SANDBOX !== 'false'
+function getEnv(name: string) {
+  return process.env[name]?.trim()
+}
+
+const DOKU_IS_SANDBOX = getEnv('DOKU_IS_SANDBOX') !== 'false'
 const DOKU_BASE_URL = DOKU_IS_SANDBOX
   ? 'https://api-sandbox.doku.com'
   : 'https://api.doku.com'
 
 const DOKU_REQUEST_TARGET = '/checkout/v1/payment'
+const EXPECTED_SANDBOX_CLIENT_ID = 'BRN-0259-1780549926414'
+const EXPECTED_SANDBOX_SECRET_KEY = 'SK-VWNiiKJoTg9fmHRn4XFJ'
 
 function generateSignature(
   clientId: string,
@@ -21,7 +27,7 @@ function generateSignature(
   requestId: string,
   requestTimestamp: string,
   requestBody: string
-): string {
+): { digest: string; signature: string } {
   const digest = crypto
     .createHash('sha256')
     .update(requestBody, 'utf8')
@@ -40,14 +46,17 @@ function generateSignature(
     .update(stringToSign, 'utf8')
     .digest('base64')
 
-  return `HMACSHA256=${hmac}`
+  return {
+    digest,
+    signature: `HMACSHA256=${hmac}`,
+  }
 }
 
 export async function GET(request: NextRequest) {
   // Safety: hanya izinkan di development
   const isProduction =
     process.env.NODE_ENV === 'production' &&
-    process.env.DOKU_IS_SANDBOX === 'false'
+    getEnv('DOKU_IS_SANDBOX') === 'false'
 
   if (isProduction) {
     return NextResponse.json(
@@ -56,8 +65,8 @@ export async function GET(request: NextRequest) {
     )
   }
 
-  const clientId = process.env.DOKU_CLIENT_ID
-  const secretKey = process.env.DOKU_SECRET_KEY
+  const clientId = getEnv('DOKU_CLIENT_ID')
+  const secretKey = getEnv('DOKU_SECRET_KEY')
   const isSandbox = DOKU_IS_SANDBOX
 
   // --- Env var check ---
@@ -70,6 +79,8 @@ export async function GET(request: NextRequest) {
       : '❌ MISSING',
     DOKU_IS_SANDBOX: String(isSandbox),
     DOKU_BASE_URL: DOKU_BASE_URL,
+    sandbox_client_id_match: clientId === EXPECTED_SANDBOX_CLIENT_ID,
+    sandbox_secret_key_match: secretKey === EXPECTED_SANDBOX_SECRET_KEY,
   }
 
   if (!clientId || !secretKey) {
@@ -115,15 +126,16 @@ export async function GET(request: NextRequest) {
     },
   })
 
+  let digest: string
   let signature: string
   try {
-    signature = generateSignature(
+    ;({ digest, signature } = generateSignature(
       clientId,
       secretKey,
       requestId,
       requestTimestamp,
       testBody
-    )
+    ))
   } catch (err) {
     return NextResponse.json(
       {
@@ -153,6 +165,7 @@ export async function GET(request: NextRequest) {
         'Client-Id': clientId,
         'Request-Id': requestId,
         'Request-Timestamp': requestTimestamp,
+        Digest: digest,
         Signature: signature,
       },
       body: testBody,
@@ -191,6 +204,7 @@ export async function GET(request: NextRequest) {
           'Client-Id': clientId,
           'Request-Id': requestId,
           'Request-Timestamp': requestTimestamp,
+          Digest: digest,
           Signature: 'HMACSHA256=... (generated)',
         },
         raw_response_shape: responsePayload ? 'response.payment.url' : 'top-level payment.url',
