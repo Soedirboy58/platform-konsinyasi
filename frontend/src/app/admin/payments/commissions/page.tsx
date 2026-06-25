@@ -442,7 +442,7 @@ export default function CommissionsPage() {
             if (txSub > 0) qrFeeTotal += txFee * ((it.subtotal || 0) / txSub)
           }
         }
-        const dominantBearer = ([...bearerCounts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || null) as Commission['qr_fee_bearer']
+        const dominantBearer = (Array.from(bearerCounts.entries()).sort((a, b) => b[1] - a[1])[0]?.[0] || null) as Commission['qr_fee_bearer']
 
         commissionsData.push({
           supplier_id: supplierId,
