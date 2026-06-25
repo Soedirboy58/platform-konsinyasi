@@ -2402,11 +2402,11 @@ export default function Settings() {
                   </svg>
                 </div>
                 <div>
-                  <p className="font-semibold text-gray-900">Bayar dengan QRIS</p>
-                  <p className="text-sm text-gray-500">Pembayaran via scan QR code QRIS statis outlet (mobile banking / e-wallet)</p>
-                  <span className={`inline-block mt-1 text-xs font-medium px-2 py-0.5 rounded-full ${paymentMethodQrisEnabled ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
-                    {paymentMethodQrisEnabled ? 'Aktif' : 'Disembunyikan'}
-                  </span>
+                  <p className="font-semibold text-gray-900">QRIS Statis Outlet</p>
+                  <p className="text-sm text-gray-500">Scan QR code QRIS statis outlet (mobile banking / e-wallet).</p>
+                  <p className={`text-xs font-medium mt-1 ${paymentMethodQrisEnabled ? 'text-emerald-600' : 'text-slate-400'}`}>
+                    {paymentMethodQrisEnabled ? 'Aktif' : 'Tidak aktif'}
+                  </p>
                 </div>
               </div>
               <button
@@ -2427,11 +2427,11 @@ export default function Settings() {
                   </svg>
                 </div>
                 <div>
-                  <p className="font-semibold text-gray-900">Bayar via DOKU</p>
-                  <p className="text-sm text-gray-500">Pembayaran via halaman DOKU — transfer bank, kartu kredit/debit, e-wallet</p>
-                  <span className={`inline-block mt-1 text-xs font-medium px-2 py-0.5 rounded-full ${paymentMethodDokuEnabled ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-500'}`}>
-                    {paymentMethodDokuEnabled ? 'Aktif' : 'Disembunyikan'}
-                  </span>
+                  <p className="font-semibold text-gray-900">Pembayaran Online (Gateway)</p>
+                  <p className="text-sm text-gray-500">Transfer bank, kartu kredit/debit, e-wallet via halaman gateway pembayaran.</p>
+                  <p className={`text-xs font-medium mt-1 ${paymentMethodDokuEnabled ? 'text-emerald-600' : 'text-slate-400'}`}>
+                    {paymentMethodDokuEnabled ? 'Aktif' : 'Tidak aktif'}
+                  </p>
                 </div>
               </div>
               <button
@@ -2463,20 +2463,16 @@ export default function Settings() {
                 </div>
               )}
               {paymentMethodDokuEnabled ? (
-                <div className="w-full bg-gradient-to-r from-purple-600 to-purple-700 text-white py-3 rounded-xl font-bold text-base flex items-center justify-center gap-3 opacity-90">
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-                  </svg>
-                  Bayar via DOKU
-                  <span className="text-[10px] font-semibold bg-purple-900 text-purple-200 rounded px-1.5 py-0.5">BETA</span>
+                <div className="w-full bg-amber-500 text-white py-3 rounded-xl font-semibold text-base flex items-center justify-center gap-2">
+                  Bayar
                 </div>
               ) : (
-                <div className="w-full bg-gray-100 text-gray-400 py-3 rounded-xl font-medium text-sm flex items-center justify-center gap-2 border border-dashed">
-                  <EyeOff className="w-4 h-4" /> DOKU disembunyikan
+                <div className="w-full bg-slate-100 text-slate-500 py-3 rounded-xl font-medium text-sm flex items-center justify-center gap-2 border border-dashed border-slate-300">
+                  Pembayaran online disembunyikan
                 </div>
               )}
               {!paymentMethodQrisEnabled && !paymentMethodDokuEnabled && (
-                <p className="text-center text-xs text-red-500 font-medium pt-1">⚠️ Semua metode pembayaran disembunyikan — pelanggan tidak dapat checkout!</p>
+                <p className="text-center text-xs text-red-600 font-medium pt-1">Semua metode pembayaran disembunyikan — pelanggan tidak dapat checkout.</p>
               )}
             </div>
           </div>

@@ -43,7 +43,12 @@ export default function SalesReport() {
   const [filteredData, setFilteredData] = useState<SalesData[]>([])
   
   // Filters
-  const [dateRange, setDateRange] = useState<'today' | 'week' | 'month' | 'all'>('month')
+  const [dateRange, setDateRange] = useState<'today' | 'week' | 'month' | 'all' | 'custom'>('month')
+  const today = new Date().toISOString().split('T')[0]
+  const [customStart, setCustomStart] = useState<string>(() => {
+    const d = new Date(); d.setDate(d.getDate() - 30); return d.toISOString().split('T')[0]
+  })
+  const [customEnd, setCustomEnd] = useState<string>(today)
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedSupplier, setSelectedSupplier] = useState<string>('all')
   
@@ -64,7 +69,7 @@ export default function SalesReport() {
 
   useEffect(() => {
     loadData()
-  }, [dateRange])
+  }, [dateRange, customStart, customEnd])
 
   useEffect(() => {
     applyFilters()
@@ -77,12 +82,16 @@ export default function SalesReport() {
     try {
       // Calculate date range
       let startDate = new Date()
+      let endDate: Date | null = null
       if (dateRange === 'today') {
         startDate.setHours(0, 0, 0, 0)
       } else if (dateRange === 'week') {
         startDate.setDate(startDate.getDate() - 7)
       } else if (dateRange === 'month') {
         startDate.setDate(startDate.getDate() - 30)
+      } else if (dateRange === 'custom') {
+        startDate = new Date(`${customStart}T00:00:00`)
+        endDate = new Date(`${customEnd}T23:59:59.999`)
       } else {
         startDate = new Date('2020-01-01')
       }
@@ -115,6 +124,7 @@ export default function SalesReport() {
         `)
         .eq('sales_transactions.status', 'COMPLETED')
         .gte('sales_transactions.created_at', startDate.toISOString())
+        .lte('sales_transactions.created_at', (endDate ?? new Date()).toISOString())
 
       if (error) {
         console.error('Error loading sales:', error)
@@ -374,8 +384,28 @@ export default function SalesReport() {
                 <option value="today">Hari Ini</option>
                 <option value="week">7 Hari Terakhir</option>
                 <option value="month">30 Hari Terakhir</option>
+                <option value="custom">Custom (atur tanggal)</option>
                 <option value="all">Semua Data</option>
               </select>
+              {dateRange === 'custom' && (
+                <div className="grid grid-cols-2 gap-2 mt-2">
+                  <input
+                    type="date"
+                    value={customStart}
+                    max={customEnd}
+                    onChange={(e) => setCustomStart(e.target.value)}
+                    className="w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  <input
+                    type="date"
+                    value={customEnd}
+                    min={customStart}
+                    max={today}
+                    onChange={(e) => setCustomEnd(e.target.value)}
+                    className="w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              )}
             </div>
 
             {/* Supplier Filter */}

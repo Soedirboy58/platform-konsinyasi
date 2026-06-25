@@ -26,7 +26,12 @@ interface Expense {
 
 export default function FinancialReport() {
   const [loading, setLoading] = useState(true)
-  const [dateRange, setDateRange] = useState<'week' | 'month' | 'quarter' | 'semester' | 'year'>('month')
+  const [dateRange, setDateRange] = useState<'week' | 'month' | 'quarter' | 'semester' | 'year' | 'custom'>('month')
+  const todayStr = new Date().toISOString().split('T')[0]
+  const [customStart, setCustomStart] = useState<string>(() => {
+    const d = new Date(); d.setDate(d.getDate() - 30); return d.toISOString().split('T')[0]
+  })
+  const [customEnd, setCustomEnd] = useState<string>(todayStr)
   
   // Income data
   const [totalSales, setTotalSales] = useState(0)
@@ -57,7 +62,7 @@ export default function FinancialReport() {
 
   useEffect(() => {
     loadFinancialData()
-  }, [dateRange])
+  }, [dateRange, customStart, customEnd])
 
   useEffect(() => {
     calculateProfitMetrics()
@@ -80,6 +85,7 @@ export default function FinancialReport() {
       // Calculate date range
       const now = new Date()
       let startDate = new Date()
+      let endDate: Date = now
       
       if (dateRange === 'week') {
         startDate.setDate(now.getDate() - 7)
@@ -89,6 +95,9 @@ export default function FinancialReport() {
         startDate.setDate(now.getDate() - 90)
       } else if (dateRange === 'semester') {
         startDate.setDate(now.getDate() - 180)
+      } else if (dateRange === 'custom') {
+        startDate = new Date(`${customStart}T00:00:00`)
+        endDate = new Date(`${customEnd}T23:59:59.999`)
       } else {
         startDate.setFullYear(now.getFullYear() - 1)
       }
@@ -107,6 +116,7 @@ export default function FinancialReport() {
         `)
         .eq('sales_transactions.status', 'COMPLETED')
         .gte('sales_transactions.created_at', startDate.toISOString())
+        .lte('sales_transactions.created_at', endDate.toISOString())
 
       if (salesError) {
         console.error('Error fetching sales:', salesError)
@@ -146,9 +156,10 @@ export default function FinancialReport() {
       const storedExpenses = localStorage.getItem('platform_expenses')
       if (storedExpenses) {
         const allExpenses: Expense[] = JSON.parse(storedExpenses)
-        const filteredExpenses = allExpenses.filter(exp => 
-          new Date(exp.date) >= startDate
-        )
+        const filteredExpenses = allExpenses.filter(exp => {
+          const d = new Date(exp.date)
+          return d >= startDate && d <= endDate
+        })
         setExpenses(filteredExpenses)
         
         const total = filteredExpenses.reduce((sum, exp) => sum + exp.amount, 0)
@@ -512,7 +523,7 @@ export default function FinancialReport() {
 
       <main className="max-w-7xl mx-auto px-4 py-8">
         {/* Period Filter */}
-        <div className="mb-6 flex items-center gap-4">
+        <div className="mb-6 flex flex-wrap items-center gap-3">
           <Calendar className="w-5 h-5 text-gray-600" />
           <select
             value={dateRange}
@@ -524,7 +535,28 @@ export default function FinancialReport() {
             <option value="quarter">90 Hari Terakhir (3 Bulan)</option>
             <option value="semester">180 Hari Terakhir (6 Bulan)</option>
             <option value="year">1 Tahun Terakhir</option>
+            <option value="custom">Custom (atur tanggal)</option>
           </select>
+          {dateRange === 'custom' && (
+            <div className="flex items-center gap-2">
+              <input
+                type="date"
+                value={customStart}
+                max={customEnd}
+                onChange={(e) => setCustomStart(e.target.value)}
+                className="px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <span className="text-slate-500 text-sm">s/d</span>
+              <input
+                type="date"
+                value={customEnd}
+                min={customStart}
+                max={todayStr}
+                onChange={(e) => setCustomEnd(e.target.value)}
+                className="px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+          )}
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
