@@ -22,6 +22,7 @@ import {
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
+import { getAdminHeaderTheme } from '@/components/admin/AdminPageHeader'
 
 function formatRelativeTime(dateString: string): string {
   const now = new Date()
@@ -71,6 +72,18 @@ export default function AdminDashboard() {
   const [userName, setUserName] = useState('Admin')
   const [outlets, setOutlets] = useState<{ id: string; name: string; qr_code: string }[]>([])
   const [showOutletPicker, setShowOutletPicker] = useState<'etalase' | 'katalog' | null>(null)
+  const [headerTheme, setHeaderTheme] = useState({ from: '#2563eb', to: '#1e40af' })
+
+  useEffect(() => {
+    setHeaderTheme(getAdminHeaderTheme())
+    const handler = (e: any) => setHeaderTheme(e?.detail || getAdminHeaderTheme())
+    window.addEventListener('admin-header-theme-change', handler)
+    window.addEventListener('storage', handler)
+    return () => {
+      window.removeEventListener('admin-header-theme-change', handler)
+      window.removeEventListener('storage', handler)
+    }
+  }, [])
 
   useEffect(() => {
     loadDashboardData()
@@ -237,7 +250,7 @@ export default function AdminDashboard() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Modern Gradient Header */}
-      <div className="bg-gradient-to-r from-blue-600 to-blue-800 shadow-lg">
+      <div className="shadow-lg" style={{ background: `linear-gradient(to right, ${headerTheme.from}, ${headerTheme.to})` }}>
         <div className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between">
             <div>
@@ -245,7 +258,7 @@ export default function AdminDashboard() {
                 Dashboard Admin Platform
               </h1>
               <p className="text-blue-100 text-lg">
-                Selamat datang kembali, <span className="font-semibold text-white">{userName}</span>! 👋
+                Selamat datang kembali, <span className="font-semibold text-white">{userName}</span>
               </p>
             </div>
             <div className="hidden md:flex items-center gap-4">

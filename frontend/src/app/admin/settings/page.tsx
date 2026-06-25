@@ -5,6 +5,7 @@ import { Save, Info, DollarSign, Calculator, User, Bell, Database, Eye, EyeOff, 
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import ConfirmDialog from '@/components/admin/ConfirmDialog'
+import { getAdminHeaderTheme, saveAdminHeaderTheme } from '@/components/admin/AdminPageHeader'
 import dynamic from 'next/dynamic'
 import { getCdnUrl } from '@/lib/cdn'
 
@@ -974,7 +975,7 @@ export default function Settings() {
               <Database className="w-5 h-5 inline mr-2" />Backup
             </button>
             <button onClick={() => setActiveTab('banners')} className={`px-6 py-4 border-b-2 whitespace-nowrap ${activeTab === 'banners' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500'}`}>
-              <Monitor className="w-5 h-5 inline mr-2" />Banner Utama
+              <Monitor className="w-5 h-5 inline mr-2" />Tampilan
             </button>
             <button onClick={() => setActiveTab('users')} className={`px-6 py-4 border-b-2 whitespace-nowrap ${activeTab === 'users' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500'}`}>
               <Users className="w-5 h-5 inline mr-2" />Pengguna Admin
@@ -1782,6 +1783,9 @@ export default function Settings() {
 
         {activeTab === 'banners' && (
           <div className="space-y-6">
+            {/* Tema Header Admin Panel */}
+            <AdminHeaderThemeCard />
+
             {/* Header + quick-add */}
             <div className="bg-white rounded-lg shadow p-6">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -2598,6 +2602,104 @@ export default function Settings() {
         icon={confirmDialog.icon}
         confirmText={confirmDialog.confirmText}
       />
+    </div>
+  )
+}
+
+
+function AdminHeaderThemeCard() {
+  const [from, setFrom] = useState('#2563eb')
+  const [to, setTo] = useState('#1e40af')
+  const [saved, setSaved] = useState(false)
+
+  useEffect(() => {
+    const t = getAdminHeaderTheme()
+    setFrom(t.from)
+    setTo(t.to)
+  }, [])
+
+  const presets = [
+    { label: 'Biru (default)', from: '#2563eb', to: '#1e40af' },
+    { label: 'Slate', from: '#475569', to: '#1e293b' },
+    { label: 'Emerald', from: '#059669', to: '#065f46' },
+    { label: 'Amber', from: '#d97706', to: '#92400e' },
+    { label: 'Violet', from: '#7c3aed', to: '#4c1d95' },
+    { label: 'Rose', from: '#e11d48', to: '#881337' }
+  ]
+
+  function applyPreset(p: { from: string; to: string }) {
+    setFrom(p.from); setTo(p.to)
+  }
+
+  function handleSave() {
+    saveAdminHeaderTheme(from, to)
+    setSaved(true)
+    toast.success('Tema header diterapkan')
+    setTimeout(() => setSaved(false), 1500)
+  }
+
+  function handleReset() {
+    setFrom('#2563eb'); setTo('#1e40af')
+    saveAdminHeaderTheme('#2563eb', '#1e40af')
+    toast.success('Tema header direset ke default')
+  }
+
+  const previewStyle = { background: `linear-gradient(to right, ${from}, ${to})` }
+
+  return (
+    <div className="bg-white rounded-2xl border border-slate-200 p-5 lg:p-6 space-y-5">
+      <div>
+        <h3 className="text-base font-semibold text-slate-900">Tema Header Admin Panel</h3>
+        <p className="text-sm text-slate-500 mt-1">
+          Atur tone color gradient untuk banner judul halaman (Dashboard, Laporan, dst). Perubahan langsung diterapkan di semua tab admin.
+        </p>
+      </div>
+
+      <div className="rounded-xl px-5 py-6 text-white" style={previewStyle}>
+        <p className="text-xs uppercase tracking-wider text-white/70 font-medium">Preview</p>
+        <h4 className="text-xl font-semibold mt-1">Judul Halaman</h4>
+        <p className="text-sm text-white/80 mt-1">Subjudul / deskripsi singkat halaman.</p>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1">Warna Awal (kiri)</label>
+          <div className="flex items-center gap-2">
+            <input type="color" value={from} onChange={(e) => setFrom(e.target.value)} className="w-12 h-10 rounded-lg border border-slate-200 cursor-pointer" />
+            <input type="text" value={from} onChange={(e) => setFrom(e.target.value)} className="flex-1 px-3 py-2 border border-slate-200 rounded-xl text-sm font-mono" />
+          </div>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1">Warna Akhir (kanan)</label>
+          <div className="flex items-center gap-2">
+            <input type="color" value={to} onChange={(e) => setTo(e.target.value)} className="w-12 h-10 rounded-lg border border-slate-200 cursor-pointer" />
+            <input type="text" value={to} onChange={(e) => setTo(e.target.value)} className="flex-1 px-3 py-2 border border-slate-200 rounded-xl text-sm font-mono" />
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <p className="text-xs font-medium text-slate-600 mb-2">Preset</p>
+        <div className="flex flex-wrap gap-2">
+          {presets.map(p => (
+            <button
+              key={p.label}
+              onClick={() => applyPreset(p)}
+              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border border-slate-200 text-xs text-slate-700 hover:bg-slate-50"
+            >
+              <span className="w-5 h-5 rounded-md" style={{ background: `linear-gradient(to right, ${p.from}, ${p.to})` }} />
+              {p.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+        <button onClick={handleSave} className="inline-flex items-center justify-center gap-2 bg-amber-500 text-white px-6 py-2.5 rounded-xl hover:bg-amber-600 transition-colors w-full sm:w-auto sm:min-w-[200px]">
+          {saved ? 'Tersimpan' : 'Terapkan Tema'}
+        </button>
+        <button onClick={handleReset} className="text-sm text-slate-500 hover:text-slate-700 underline">Reset ke default</button>
+      </div>
     </div>
   )
 }

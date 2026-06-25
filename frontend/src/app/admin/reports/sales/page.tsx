@@ -298,25 +298,21 @@ export default function SalesReport() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100">
-      <header className="bg-white/80 backdrop-blur border-b border-slate-200">
-        <div className="max-w-7xl mx-auto px-4 lg:px-6 py-6">
-          <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
-            <div>
-              <p className="text-xs uppercase tracking-wider text-slate-500 font-medium">Reports</p>
-              <h1 className="text-2xl lg:text-3xl font-semibold text-slate-900 mt-1">Laporan Penjualan</h1>
-              <p className="text-slate-500 text-sm mt-1">Tracking dan monitoring penjualan produk konsinyasi</p>
-            </div>
-            <button
-              onClick={exportToCSV}
-              disabled={filteredData.length === 0}
-              className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-sm font-medium transition-colors"
-            >
-              <Download className="w-4 h-4" />
-              Export CSV
-            </button>
-          </div>
-        </div>
-      </header>
+      <AdminPageHeader
+        eyebrow="Reports"
+        title="Laporan Penjualan"
+        subtitle="Tracking dan monitoring penjualan produk konsinyasi"
+        rightSlot={
+          <button
+            onClick={exportToCSV}
+            disabled={filteredData.length === 0}
+            className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-white/15 hover:bg-white/25 text-white rounded-xl text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed backdrop-blur"
+          >
+            <Download className="w-4 h-4" />
+            Export CSV
+          </button>
+        }
+      />
 
       <main className="max-w-7xl mx-auto px-4 py-8">
         {/* Stats Cards */}
@@ -417,13 +413,14 @@ export default function SalesReport() {
           {/* Expandable detail row */}
           {activeFilter && (
             <div className="mt-4 pt-4 border-t border-slate-100">
+              <div className="max-w-sm mx-auto text-center">
               {activeFilter === 'date' && (
                 <div className="space-y-3">
                   <label className="block text-xs font-medium text-slate-600">Periode</label>
                   <select
                     value={dateRange}
                     onChange={(e) => setDateRange(e.target.value as any)}
-                    className="w-full sm:w-72 px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="today">Hari Ini</option>
                     <option value="week">7 Hari Terakhir</option>
@@ -432,7 +429,7 @@ export default function SalesReport() {
                     <option value="all">Semua Data</option>
                   </select>
                   {dateRange === 'custom' && (
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center justify-center gap-2">
                       <input
                         type="date"
                         value={customStart}
@@ -460,7 +457,7 @@ export default function SalesReport() {
                   <select
                     value={selectedSupplier}
                     onChange={(e) => setSelectedSupplier(e.target.value)}
-                    className="w-full sm:w-72 px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="all">Semua Supplier</option>
                     {Array.from(new Set(salesData.map(s => s.supplier_name))).sort().map(name => (
@@ -468,7 +465,7 @@ export default function SalesReport() {
                     ))}
                   </select>
                   {selectedSupplier !== 'all' && (
-                    <button onClick={() => setSelectedSupplier('all')} className="ml-2 text-xs text-slate-500 hover:text-slate-700 underline">Reset</button>
+                    <button onClick={() => setSelectedSupplier('all')} className="mt-2 text-xs text-slate-500 hover:text-slate-700 underline">Reset</button>
                   )}
                 </div>
               )}
@@ -479,7 +476,7 @@ export default function SalesReport() {
                   <select
                     value={selectedProduct}
                     onChange={(e) => setSelectedProduct(e.target.value)}
-                    className="w-full sm:w-72 px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="all">Semua Produk</option>
                     {Array.from(new Set(salesData.map(s => s.product_name))).sort().map(name => (
@@ -487,10 +484,11 @@ export default function SalesReport() {
                     ))}
                   </select>
                   {selectedProduct !== 'all' && (
-                    <button onClick={() => setSelectedProduct('all')} className="ml-2 text-xs text-slate-500 hover:text-slate-700 underline">Reset</button>
+                    <button onClick={() => setSelectedProduct('all')} className="mt-2 text-xs text-slate-500 hover:text-slate-700 underline">Reset</button>
                   )}
                 </div>
               )}
+              </div>
             </div>
           )}
 
