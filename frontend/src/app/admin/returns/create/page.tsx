@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { ArrowLeft, Package, AlertTriangle, Upload, X, Search } from 'lucide-react'
+import AdminPageHeader from '@/components/admin/AdminPageHeader'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
@@ -303,30 +304,19 @@ export default function CreateReturnPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Link 
-                href="/admin/returns/list"
-                className="p-2 hover:bg-gray-100 rounded-lg"
-              >
-                <ArrowLeft className="w-5 h-5" />
-              </Link>
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">Ajukan Retur Produk</h1>
-                <p className="text-gray-600 mt-1">Untuk produk rusak/cacat/expired di etalase</p>
-              </div>
-            </div>
-            <Link
-              href="/admin/returns/list"
-              className="px-4 py-2 text-blue-600 hover:bg-blue-50 rounded-lg font-medium"
-            >
-              📋 Lihat Riwayat Retur
-            </Link>
-          </div>
-        </div>
-      </header>
+      <AdminPageHeader
+        eyebrow="Retur"
+        title="Ajukan Retur Produk"
+        subtitle="Untuk produk rusak/cacat/expired di etalase"
+        rightSlot={
+          <Link
+            href="/admin/returns/list"
+            className="inline-flex items-center gap-2 px-4 py-2.5 bg-white/15 hover:bg-white/25 text-white rounded-xl text-sm font-medium transition-colors backdrop-blur"
+          >
+            Lihat Riwayat
+          </Link>
+        }
+      />
 
       <main className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { ArrowLeft, Package, AlertTriangle, CheckCircle, XCircle, Clock, Search, Filter } from 'lucide-react'
+import AdminPageHeader from '@/components/admin/AdminPageHeader'
 import Link from 'next/link'
 
 interface ReturnRequest {
@@ -196,34 +197,21 @@ export default function ReturnListPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 sm:p-6">
-      <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-          <div>
-            <div className="flex items-center gap-3">
-              <Link
-                href="/admin"
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-              >
-                <ArrowLeft className="w-5 h-5" />
-              </Link>
-              <div>
-                <h1 className="text-lg sm:text-2xl font-bold text-gray-900">Riwayat Retur</h1>
-                <p className="text-xs sm:text-sm text-gray-600 mt-1">
-                  Monitor status retur
-                </p>
-              </div>
-            </div>
-          </div>
+    <div className="min-h-screen bg-gray-50">
+      <AdminPageHeader
+        eyebrow="Retur"
+        title="Riwayat Retur"
+        subtitle="Monitor status retur produk supplier"
+        rightSlot={
           <Link
             href="/admin/returns/create"
-            className="w-full sm:w-auto px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium text-sm text-center"
+            className="inline-flex items-center gap-2 px-4 py-2.5 bg-white/15 hover:bg-white/25 text-white rounded-xl text-sm font-medium transition-colors backdrop-blur"
           >
-            + Ajukan Retur
+            Ajukan Retur
           </Link>
-        </div>
-
+        }
+      />
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 space-y-4 sm:space-y-6">
         {/* Filters & Search */}
         <div className="bg-white rounded-lg shadow p-4 sm:p-6">
           <div className="grid grid-cols-1 gap-3 sm:gap-4">

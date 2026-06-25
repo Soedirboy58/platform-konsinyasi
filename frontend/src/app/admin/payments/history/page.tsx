@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { History, Download, Eye, Search, Calendar, Filter, X, FileText, Building, CreditCard } from 'lucide-react'
+import AdminPageHeader from '@/components/admin/AdminPageHeader'
 
 interface PaymentHistory {
   id: string
@@ -200,21 +201,17 @@ export default function PaymentHistoryPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 py-4 sm:py-6 sm:px-6 lg:px-8">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-              <h1 className="text-lg sm:text-2xl font-bold text-gray-900">Riwayat Pembayaran</h1>
-              <p className="text-sm sm:text-base text-gray-600 mt-1">Histori semua pembayaran komisi ke supplier</p>
-            </div>
-            <button className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center justify-center gap-2 whitespace-nowrap">
-              <Download className="w-4 h-4" />
-              <span className="hidden sm:inline">Export PDF</span>
-              <span className="sm:hidden">Export</span>
-            </button>
-          </div>
-        </div>
-      </header>
+      <AdminPageHeader
+        eyebrow="Keuangan"
+        title="Riwayat Pembayaran"
+        subtitle="Histori semua pembayaran komisi ke supplier"
+        rightSlot={
+          <button className="inline-flex items-center gap-2 px-4 py-2.5 bg-white/15 hover:bg-white/25 text-white rounded-xl text-sm font-medium transition-colors backdrop-blur">
+            <Download className="w-4 h-4" />
+            Export PDF
+          </button>
+        }
+      />
 
       <main className="max-w-7xl mx-auto px-4 py-4 sm:py-8 sm:px-6 lg:px-8">
         {/* Last Refresh Indicator - More Prominent */}

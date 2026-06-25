@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { RefreshCw, CheckCircle, XCircle, AlertCircle, Search } from 'lucide-react'
+import AdminPageHeader from '@/components/admin/AdminPageHeader'
 
 type TxStatus = 'PENDING' | 'COMPLETED' | 'CANCELLED' | string
 
@@ -222,25 +223,20 @@ export default function SalesControlPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 py-5 sm:px-6 lg:px-8">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Kontrol Penjualan Manual</h1>
-              <p className="text-sm text-gray-600 mt-1">
-                Mitigasi QRIS statis: validasi transaksi terjual/batal dan sinkron stok secara manual oleh admin.
-              </p>
-            </div>
-            <button
-              onClick={loadData}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
-            >
-              <RefreshCw className="w-4 h-4" />
-              Refresh
-            </button>
-          </div>
-        </div>
-      </header>
+      <AdminPageHeader
+        eyebrow="Keuangan"
+        title="Kontrol Penjualan Manual"
+        subtitle="Mitigasi QRIS statis: validasi transaksi terjual/batal dan sinkron stok secara manual oleh admin"
+        rightSlot={
+          <button
+            onClick={loadData}
+            className="inline-flex items-center gap-2 px-4 py-2.5 bg-white/15 hover:bg-white/25 text-white rounded-xl text-sm font-medium transition-colors backdrop-blur"
+          >
+            <RefreshCw className="w-4 h-4" />
+            Refresh
+          </button>
+        }
+      />
 
       <main className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8 space-y-5">
         {flash && (

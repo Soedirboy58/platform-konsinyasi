@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import ConfirmDialog from '@/components/admin/ConfirmDialog'
 import { getAdminHeaderTheme, saveAdminHeaderTheme } from '@/components/admin/AdminPageHeader'
+import AdminPageHeader from '@/components/admin/AdminPageHeader'
 import dynamic from 'next/dynamic'
 import { getCdnUrl } from '@/lib/cdn'
 
@@ -150,6 +151,8 @@ export default function Settings() {
   const [savingPaymentMethods, setSavingPaymentMethods] = useState(false)
   const [qrFeeEnabled, setQrFeeEnabled] = useState(false)
   const [qrFeeRate, setQrFeeRate] = useState<number>(0.7)
+  const [commissionEnabled, setCommissionEnabled] = useState(true)
+  const [thresholdEnabled, setThresholdEnabled] = useState(true)
   const [qrFeeBearer, setQrFeeBearer] = useState<'CUSTOMER' | 'SUPPLIER' | 'PLATFORM'>('CUSTOMER')
 
   useEffect(() => {
@@ -332,6 +335,8 @@ export default function Settings() {
           if (row.key === 'payment_method_doku_enabled') setPaymentMethodDokuEnabled(row.value !== 'false')
           if (row.key === 'qr_fee_enabled') setQrFeeEnabled(row.value === 'true')
           if (row.key === 'qr_fee_rate') setQrFeeRate(parseFloat(row.value) || 0)
+          if (row.key === 'commission_enabled') setCommissionEnabled(row.value !== 'false')
+          if (row.key === 'min_payout_enabled') setThresholdEnabled(row.value !== 'false')
           if (row.key === 'qr_fee_bearer') {
             const v = (row.value || '').toUpperCase()
             if (v === 'CUSTOMER' || v === 'SUPPLIER' || v === 'PLATFORM') setQrFeeBearer(v)
@@ -396,7 +401,13 @@ export default function Settings() {
       // Save commission rate to platform_settings
       await supabase
         .from('platform_settings')
-        .upsert({ key: 'commission_rate', value: commissionRate.toString() }, { onConflict: 'key' })
+        .upsert([
+          { key: 'commission_rate', value: commissionRate.toString() },
+          { key: 'commission_enabled', value: String(commissionEnabled) },
+          { key: 'qr_fee_enabled', value: String(qrFeeEnabled) },
+          { key: 'qr_fee_rate', value: String(qrFeeRate) },
+          { key: 'min_payout_enabled', value: String(thresholdEnabled) }
+        ], { onConflict: 'key' })
       
       const { error } = await supabase
         .from('payment_settings')
@@ -941,21 +952,18 @@ export default function Settings() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 py-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold">Pengaturan Platform</h1>
-              <p className="text-gray-600 mt-1">Kelola konfigurasi sistem</p>
-            </div>
-            {activeTab !== 'backup' && (
-              <button onClick={savePaymentSettings} className="px-4 py-2 bg-blue-600 text-white rounded-lg flex items-center gap-2">
-                <Save className="w-4 h-4" />Simpan
-              </button>
-            )}
-          </div>
-        </div>
-      </header>
+      <AdminPageHeader
+        eyebrow="Sistem"
+        title="Pengaturan Platform"
+        subtitle="Kelola konfigurasi komisi, outlet, pembayaran, banner, dan tampilan"
+        rightSlot={
+          activeTab !== 'backup' ? (
+            <button onClick={savePaymentSettings} className="inline-flex items-center gap-2 px-4 py-2.5 bg-white/15 hover:bg-white/25 text-white rounded-xl text-sm font-medium transition-colors backdrop-blur">
+              <Save className="w-4 h-4" />Simpan
+            </button>
+          ) : null
+        }
+      />
       <main className="max-w-7xl mx-auto px-4 py-8">
         <div className="bg-white rounded-lg shadow mb-6">
           <nav className="flex border-b overflow-x-auto">
@@ -989,26 +997,93 @@ export default function Settings() {
           <div>
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
               <Info className="w-5 h-5 text-blue-600 inline mr-2" />
-              <span className="text-sm text-blue-800">Platform memotong {commissionRate}% dari harga jual. Supplier menerima {100-commissionRate}%</span>
+              <span className="text-sm text-blue-800">
+                {commissionEnabled
+                  ? `Platform memotong ${commissionRate}% dari harga jual. Supplier menerima ${100 - commissionRate}%.`
+                  : 'Komisi platform dinonaktifkan — supplier menerima 100% nilai penjualan.'}
+                {qrFeeEnabled && ` Fee QR ${qrFeeRate}% aktif.`}
+              </span>
             </div>
             
             {/* Commission Rate Section */}
-            <div className="bg-white rounded-lg shadow p-6 mb-6">
-              <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                <Calculator className="w-5 h-5 text-blue-600" />
-                Komisi Platform
-              </h3>
-              <label className="block text-sm font-medium mb-2">Persentase Komisi (%)</label>
-              <input type="number" min="0" max="100" value={commissionRate} onChange={(e) => setCommissionRate(parseFloat(e.target.value))} className="w-32 px-4 py-2 border rounded-lg" />
-              <div className="mt-4 p-4 bg-gray-50 rounded-lg">
-                <Calculator className="w-4 h-4 inline mr-2" />
-                <p className="text-sm font-medium mb-2">Simulasi:</p>
-                <div className="text-sm space-y-1">
-                  <div>Harga: Rp 100.000</div>
-                  <div className="text-red-600">Fee: -Rp {(100000 * commissionRate / 100).toLocaleString()}</div>
-                  <div className="text-green-600 font-bold">Supplier: Rp {(100000 * (100 - commissionRate) / 100).toLocaleString()}</div>
+            <div className="bg-white rounded-2xl border border-slate-200 p-5 lg:p-6 mb-6">
+              <div className="flex items-start justify-between gap-4 mb-4">
+                <div>
+                  <h3 className="text-base font-semibold text-slate-900">Komisi Platform</h3>
+                  <p className="text-sm text-slate-500 mt-1">Persentase potongan platform dari setiap transaksi.</p>
                 </div>
+                <button
+                  onClick={() => setCommissionEnabled(v => !v)}
+                  className={`relative inline-flex h-7 w-14 items-center rounded-full transition-colors focus:outline-none ${commissionEnabled ? 'bg-amber-500' : 'bg-slate-300'}`}
+                  aria-label="Toggle komisi"
+                >
+                  <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${commissionEnabled ? 'translate-x-8' : 'translate-x-1'}`} />
+                </button>
               </div>
+              <div className={commissionEnabled ? '' : 'opacity-50 pointer-events-none'}>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Persentase Komisi (%)</label>
+                <input type="number" min="0" max="100" step="0.1" value={commissionRate} onChange={(e) => setCommissionRate(parseFloat(e.target.value))} className="w-32 px-3 py-2 border border-slate-200 rounded-xl" />
+              </div>
+            </div>
+
+            {/* Fee QR Section */}
+            <div className="bg-white rounded-2xl border border-slate-200 p-5 lg:p-6 mb-6">
+              <div className="flex items-start justify-between gap-4 mb-4">
+                <div>
+                  <h3 className="text-base font-semibold text-slate-900">Fee QR / Gateway</h3>
+                  <p className="text-sm text-slate-500 mt-1">Persentase biaya layanan QR/gateway (mis. 0.7%). Bearer diatur di tab Metode Pembayaran.</p>
+                </div>
+                <button
+                  onClick={() => setQrFeeEnabled(v => !v)}
+                  className={`relative inline-flex h-7 w-14 items-center rounded-full transition-colors focus:outline-none ${qrFeeEnabled ? 'bg-amber-500' : 'bg-slate-300'}`}
+                  aria-label="Toggle fee QR"
+                >
+                  <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${qrFeeEnabled ? 'translate-x-8' : 'translate-x-1'}`} />
+                </button>
+              </div>
+              <div className={qrFeeEnabled ? '' : 'opacity-50 pointer-events-none'}>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Persentase Fee QR (%)</label>
+                <input type="number" min="0" max="10" step="0.01" value={qrFeeRate} onChange={(e) => setQrFeeRate(parseFloat(e.target.value) || 0)} className="w-32 px-3 py-2 border border-slate-200 rounded-xl" />
+              </div>
+            </div>
+
+            {/* Combined Simulation */}
+            <div className="bg-slate-50 rounded-2xl border border-slate-200 p-5 lg:p-6 mb-6">
+              <p className="text-xs uppercase tracking-wider text-slate-500 font-medium">Simulasi Transaksi Rp 100.000</p>
+              {(() => {
+                const sub = 100000
+                const eff_commission = commissionEnabled ? commissionRate : 0
+                const eff_fee = qrFeeEnabled ? qrFeeRate : 0
+                const komisi = Math.round(sub * eff_commission / 100)
+                const fee = Math.round(sub * eff_fee / 100)
+                const supplier = sub - komisi
+                const platform_net = komisi
+                return (
+                  <dl className="mt-3 text-sm divide-y divide-slate-200">
+                    <div className="flex justify-between py-1.5">
+                      <dt className="text-slate-600">Subtotal pelanggan</dt>
+                      <dd className="font-medium text-slate-900">Rp {sub.toLocaleString('id-ID')}</dd>
+                    </div>
+                    <div className="flex justify-between py-1.5">
+                      <dt className="text-slate-600">Komisi platform ({eff_commission}%)</dt>
+                      <dd className="font-medium text-red-600">-Rp {komisi.toLocaleString('id-ID')}</dd>
+                    </div>
+                    <div className="flex justify-between py-1.5">
+                      <dt className="text-slate-600">Fee QR ({eff_fee}%)</dt>
+                      <dd className="font-medium text-amber-700">Rp {fee.toLocaleString('id-ID')}</dd>
+                    </div>
+                    <div className="flex justify-between py-1.5">
+                      <dt className="text-slate-600">Supplier terima (sebelum fee)</dt>
+                      <dd className="font-semibold text-emerald-600">Rp {supplier.toLocaleString('id-ID')}</dd>
+                    </div>
+                    <div className="flex justify-between py-1.5">
+                      <dt className="text-slate-600">Platform terima (kotor)</dt>
+                      <dd className="font-semibold text-slate-900">Rp {platform_net.toLocaleString('id-ID')}</dd>
+                    </div>
+                  </dl>
+                )
+              })()}
+              <p className="text-xs text-slate-500 mt-3">Pembagian fee QR ke pelanggan/supplier/platform diatur di tab <span className="font-medium">Metode Pembayaran</span>.</p>
             </div>
 
             {/* Payment Settings Section - THRESHOLD */}
@@ -1020,10 +1095,19 @@ export default function Settings() {
               
               {/* Minimum Threshold */}
               <div className="mb-6">
-                <label className="block text-sm font-medium mb-2">
-                  💰 Minimum Threshold Pencairan
-                </label>
-                <div className="flex items-center gap-2">
+                <div className="flex items-start justify-between gap-4 mb-2">
+                  <label className="block text-sm font-medium">
+                    Minimum Threshold Pencairan
+                  </label>
+                  <button
+                    onClick={() => setThresholdEnabled(v => !v)}
+                    className={`relative inline-flex h-7 w-14 items-center rounded-full transition-colors focus:outline-none ${thresholdEnabled ? 'bg-amber-500' : 'bg-slate-300'}`}
+                    aria-label="Toggle threshold"
+                  >
+                    <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${thresholdEnabled ? 'translate-x-8' : 'translate-x-1'}`} />
+                  </button>
+                </div>
+                <div className={thresholdEnabled ? 'flex items-center gap-2' : 'flex items-center gap-2 opacity-50 pointer-events-none'}>
                   <span className="text-gray-700">Rp</span>
                   <input 
                     type="number" 
@@ -1033,18 +1117,20 @@ export default function Settings() {
                   />
                 </div>
                 <p className="text-xs text-gray-600 mt-2">
-                  Supplier yang komisinya mencapai ≥ Rp {minimumPayout.toLocaleString('id-ID')} akan otomatis masuk list "Ready to Pay"
+                  {thresholdEnabled
+                    ? `Supplier yang komisinya mencapai ≥ Rp ${minimumPayout.toLocaleString('id-ID')} akan otomatis masuk list "Ready to Pay".`
+                    : 'Threshold dinonaktifkan — semua supplier dengan saldo > 0 akan masuk "Ready to Pay".'}
                 </p>
-                <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg">
-                  <p className="text-sm text-green-800">
-                    <strong>✅ Keuntungan threshold:</strong>
-                  </p>
-                  <ul className="text-xs text-green-700 mt-2 space-y-1 ml-4">
-                    <li>• Hemat biaya transfer bank (bayar nominal besar)</li>
-                    <li>• Supplier volume tinggi dapat uang lebih cepat</li>
-                    <li>• Admin lebih efisien - tidak bayar supplier kecil tiap hari</li>
-                  </ul>
-                </div>
+                {thresholdEnabled && (
+                  <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+                    <p className="text-sm text-green-800 font-semibold">Keuntungan threshold</p>
+                    <ul className="text-xs text-green-700 mt-2 space-y-1 ml-4 list-disc">
+                      <li>Hemat biaya transfer bank (bayar nominal besar)</li>
+                      <li>Supplier volume tinggi dapat uang lebih cepat</li>
+                      <li>Admin lebih efisien — tidak bayar supplier kecil tiap hari</li>
+                    </ul>
+                  </div>
+                )}
               </div>
 
               <hr className="my-6" />

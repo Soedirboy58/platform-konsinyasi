@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
+import AdminPageHeader from '@/components/admin/AdminPageHeader'
 import { 
   DollarSign, 
   Upload, 
@@ -764,33 +765,30 @@ export default function CommissionsPage() {
           </button>
         </div>
       )}
-      <header className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 py-4 sm:py-6 sm:px-6 lg:px-8">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <div>
-              <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Pembayaran ke Supplier</h1>
-              <p className="text-sm text-gray-600 mt-1">Kelola transfer pembayaran hasil penjualan (sudah dipotong komisi platform)</p>
-            </div>
-            <div className="flex gap-2">
-              <Link
-                href="/admin/payments/control"
-                className="flex-1 sm:flex-none px-4 py-2.5 bg-gradient-to-r from-indigo-600 to-indigo-500 text-white rounded-lg hover:from-indigo-700 hover:to-indigo-600 flex items-center justify-center gap-2 font-semibold text-sm shadow-md hover:shadow-lg transition-all"
-              >
-                <CheckCircle className="w-4 h-4" />
-                Kontrol Penjualan
-              </Link>
-              <button className="flex-1 sm:flex-none px-4 py-2.5 bg-gradient-to-r from-green-600 to-green-500 text-white rounded-lg hover:from-green-700 hover:to-green-600 flex items-center justify-center gap-2 font-semibold text-sm shadow-md hover:shadow-lg transition-all">
-                <Download className="w-4 h-4" />
-                <span className="hidden sm:inline">Export</span> Excel
-              </button>
-              <button className="flex-1 sm:flex-none px-4 py-2.5 bg-gradient-to-r from-red-600 to-red-500 text-white rounded-lg hover:from-red-700 hover:to-red-600 flex items-center justify-center gap-2 font-semibold text-sm shadow-md hover:shadow-lg transition-all">
-                <Download className="w-4 h-4" />
-                <span className="hidden sm:inline">Export</span> PDF
-              </button>
-            </div>
-          </div>
-        </div>
-      </header>
+      <AdminPageHeader
+        eyebrow="Keuangan"
+        title="Pembayaran ke Supplier"
+        subtitle="Kelola transfer pembayaran hasil penjualan (sudah dipotong komisi platform)"
+        rightSlot={
+          <>
+            <Link
+              href="/admin/payments/control"
+              className="inline-flex items-center gap-2 px-4 py-2.5 bg-white/15 hover:bg-white/25 text-white rounded-xl text-sm font-medium transition-colors backdrop-blur"
+            >
+              <CheckCircle className="w-4 h-4" />
+              Kontrol Penjualan
+            </Link>
+            <button className="inline-flex items-center gap-2 px-4 py-2.5 bg-white/15 hover:bg-white/25 text-white rounded-xl text-sm font-medium transition-colors backdrop-blur">
+              <Download className="w-4 h-4" />
+              Excel
+            </button>
+            <button className="inline-flex items-center gap-2 px-4 py-2.5 bg-white/15 hover:bg-white/25 text-white rounded-xl text-sm font-medium transition-colors backdrop-blur">
+              <Download className="w-4 h-4" />
+              PDF
+            </button>
+          </>
+        }
+      />
 
       <main className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
         {/* Ready to Pay Card */}
