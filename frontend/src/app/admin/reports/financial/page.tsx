@@ -13,6 +13,7 @@ import {
   Save,
   X
 } from 'lucide-react'
+import AdminPageHeader from '@/components/admin/AdminPageHeader'
 import { createClient } from '@/lib/supabase/client'
 
 interface Expense {
@@ -489,37 +490,29 @@ export default function FinancialReport() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 py-6">
-          <div className="flex flex-col lg:flex-row items-center justify-between gap-4">
-            <div className="text-center lg:text-left w-full lg:w-auto">
-              <div className="flex items-center justify-center lg:justify-start gap-3 mb-2">
-                <div className="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center">
-                  <DollarSign className="w-6 h-6 text-green-600" />
-                </div>
-                <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">Laporan Keuangan</h1>
-              </div>
-              <p className="text-gray-600 text-sm lg:text-base">💰 Income statement & profit analysis</p>
-            </div>
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full lg:w-auto">
-              <button
-                onClick={exportToCSV}
-                className="px-5 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center justify-center gap-2 font-semibold transition-colors"
-              >
-                <Download className="w-5 h-5" />
-                <span>Export CSV</span>
-              </button>
-              <button
-                onClick={exportToPDF}
-                className="px-5 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 flex items-center justify-center gap-2 font-semibold transition-colors"
-              >
-                <Download className="w-5 h-5" />
-                <span>Export PDF</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      </header>
+      <AdminPageHeader
+        eyebrow="Reports"
+        title="Laporan Keuangan"
+        subtitle="Income statement dan analisa profitabilitas platform"
+        rightSlot={
+          <>
+            <button
+              onClick={exportToCSV}
+              className="inline-flex items-center gap-2 px-4 py-2.5 bg-white/15 hover:bg-white/25 text-white rounded-xl text-sm font-medium transition-colors backdrop-blur"
+            >
+              <Download className="w-4 h-4" />
+              CSV
+            </button>
+            <button
+              onClick={exportToPDF}
+              className="inline-flex items-center gap-2 px-4 py-2.5 bg-white/15 hover:bg-white/25 text-white rounded-xl text-sm font-medium transition-colors backdrop-blur"
+            >
+              <Download className="w-4 h-4" />
+              PDF
+            </button>
+          </>
+        }
+      />
 
       <main className="max-w-7xl mx-auto px-4 py-8">
         {/* Period Filter */}

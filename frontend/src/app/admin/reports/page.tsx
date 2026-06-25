@@ -14,6 +14,7 @@ import {
   CheckCircle,
   MapPin
 } from 'lucide-react'
+import AdminPageHeader from '@/components/admin/AdminPageHeader'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 
@@ -250,36 +251,24 @@ export default function ReportsAnalytics() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 py-6 sm:py-8">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div className="text-center sm:text-left">
-              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 flex items-center justify-center sm:justify-start gap-3">
-                <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
-                  <BarChart3 className="w-6 h-6 text-blue-600" />
-                </div>
-                Laporan & Analytics
-              </h1>
-              <p className="text-gray-600 mt-2 text-sm sm:text-base">
-                📊 Analisis performa dan laporan platform secara real-time
-              </p>
-            </div>
-            <div className="flex justify-center">
-              <select
-                value={period}
-                onChange={(e) => setPeriod(e.target.value as any)}
-                className="px-4 py-3 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent font-medium text-gray-700 cursor-pointer min-w-[200px]"
-              >
-                <option value="week">📅 7 Hari Terakhir</option>
-                <option value="month">📅 30 Hari Terakhir</option>
-                <option value="quarter">📅 90 Hari (3 Bulan)</option>
-                <option value="semester">📅 180 Hari (6 Bulan)</option>
-                <option value="year">📅 1 Tahun Terakhir</option>
-              </select>
-            </div>
-          </div>
-        </div>
-      </header>
+      <AdminPageHeader
+        eyebrow="Reports"
+        title="Laporan & Analytics"
+        subtitle="Analisis performa dan laporan platform secara real-time"
+        rightSlot={
+          <select
+            value={period}
+            onChange={(e) => setPeriod(e.target.value as any)}
+            className="px-4 py-2.5 bg-white/15 border border-white/20 rounded-xl text-sm font-medium text-white backdrop-blur focus:outline-none focus:ring-2 focus:ring-white/40 cursor-pointer min-w-[180px]"
+          >
+            <option className="text-slate-900" value="week">7 Hari Terakhir</option>
+            <option className="text-slate-900" value="month">30 Hari Terakhir</option>
+            <option className="text-slate-900" value="quarter">90 Hari (3 Bulan)</option>
+            <option className="text-slate-900" value="semester">180 Hari (6 Bulan)</option>
+            <option className="text-slate-900" value="year">1 Tahun Terakhir</option>
+          </select>
+        }
+      />
 
       <main className="max-w-7xl mx-auto px-4 py-8">
 

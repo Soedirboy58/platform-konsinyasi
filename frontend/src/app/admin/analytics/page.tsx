@@ -18,6 +18,7 @@ import {
   Hourglass,
   Store
 } from 'lucide-react'
+import AdminPageHeader from '@/components/admin/AdminPageHeader'
 import { createClient } from '@/lib/supabase/client'
 
 interface PurchasePattern {
@@ -405,34 +406,23 @@ export default function Analytics() {
         .anim-donut path:hover { transform: scale(1.04); }
         .anim-card { animation: fadeUp 0.5s ease-out both; }
       `}</style>
-      <header className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 py-6">
-          <div className="flex flex-col lg:flex-row items-center justify-between gap-4">
-            <div className="text-center lg:text-left w-full lg:w-auto">
-              <div className="flex items-center justify-center lg:justify-start gap-3 mb-2">
-                <div className="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center">
-                  <BarChart3 className="w-6 h-6 text-purple-600" />
-                </div>
-                <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">Analytics & Insights</h1>
-              </div>
-              <p className="text-gray-600 text-sm lg:text-base">Analisa perilaku pembeli untuk optimasi promo & bundling</p>
-            </div>
-            <div className="w-full lg:w-auto">
-              <label className="block text-gray-700 text-sm font-medium mb-2 text-center lg:text-left">Periode Analisa</label>
-              <select
-                value={period}
-                onChange={(e) => setPeriod(e.target.value as any)}
-                className="w-full lg:w-auto px-4 py-2.5 bg-white border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent font-medium text-gray-900"
-              >
-                <option value="today">Hari Ini</option>
-                <option value="week">7 Hari Terakhir</option>
-                <option value="month">30 Hari Terakhir</option>
-                <option value="all">Semua Data</option>
-              </select>
-            </div>
-          </div>
-        </div>
-      </header>
+      <AdminPageHeader
+        eyebrow="Analytics"
+        title="Analytics & Insights"
+        subtitle="Analisa perilaku pembeli untuk optimasi promo dan bundling"
+        rightSlot={
+          <select
+            value={period}
+            onChange={(e) => setPeriod(e.target.value as any)}
+            className="px-4 py-2.5 bg-white/15 border border-white/20 rounded-xl text-sm font-medium text-white backdrop-blur focus:outline-none focus:ring-2 focus:ring-white/40 cursor-pointer min-w-[180px]"
+          >
+            <option className="text-slate-900" value="today">Hari Ini</option>
+            <option className="text-slate-900" value="week">7 Hari Terakhir</option>
+            <option className="text-slate-900" value="month">30 Hari Terakhir</option>
+            <option className="text-slate-900" value="all">Semua Data</option>
+          </select>
+        }
+      />
 
       <main className="max-w-7xl mx-auto px-4 py-8">
 
