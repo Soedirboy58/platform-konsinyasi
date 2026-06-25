@@ -2,6 +2,7 @@
 
 import { useState, useEffect, Suspense } from 'react'
 import { Package, Check, X, Search, Edit, Trash2, Eye, Image as ImageIcon, Clock } from 'lucide-react'
+import AdminPageHeader from '@/components/admin/AdminPageHeader'
 import { createClient } from '@/lib/supabase/client'
 import { useSearchParams } from 'next/navigation'
 import ConfirmDialog from '@/components/admin/ConfirmDialog'
@@ -431,15 +432,13 @@ function ProductsApprovalContent() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow">
-        <div className="px-4 py-4">
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Produk Supplier</h1>
-          <p className="text-sm text-gray-600 mt-1">Review dan approve produk</p>
-        </div>
-      </header>
+      <AdminPageHeader
+        eyebrow="Management Supplier"
+        title="Produk Supplier"
+        subtitle="Review dan approve produk yang diajukan supplier"
+      />
 
-      <main className="px-4 py-4 sm:py-6">
+      <main className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
         {/* Stats Cards */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
           <div className="bg-white rounded-lg shadow p-4">

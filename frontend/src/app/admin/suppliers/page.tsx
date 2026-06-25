@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { Users, Phone, Mail, MapPin, CreditCard, Building, Check, X, Search, Eye } from 'lucide-react'
+import AdminPageHeader from '@/components/admin/AdminPageHeader'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 import { toast } from 'sonner'
@@ -304,14 +305,13 @@ export default function SupplierList() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="bg-white shadow">
-        <div className="px-4 py-4">
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Daftar Supplier</h1>
-          <p className="text-sm text-gray-600 mt-1">Kelola dan review supplier</p>
-        </div>
-      </header>
+      <AdminPageHeader
+        eyebrow="Management Supplier"
+        title="Daftar Supplier"
+        subtitle="Kelola dan review supplier yang bermitra dengan platform"
+      />
 
-      <main className="px-4 py-4 sm:py-6">
+      <main className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 mb-4">
           <div className="bg-white rounded-lg shadow p-4">
             <div className="flex items-center gap-3">

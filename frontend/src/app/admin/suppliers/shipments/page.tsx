@@ -9,6 +9,7 @@ import ConfirmDialog from '@/components/admin/ConfirmDialog'
 import AlertDialog from '@/components/admin/AlertDialog'
 import { toast } from 'sonner'
 import LostProductsTab from './LostProductsTab'
+import AdminPageHeader from '@/components/admin/AdminPageHeader'
 
 interface Product {
   id: string
@@ -1989,12 +1990,11 @@ function ShipmentsPageContent() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
-          <h1 className="text-2xl font-bold text-gray-900">Pengiriman & Retur</h1>
-          <p className="text-gray-600 mt-1">Review pengiriman produk dari supplier dan kelola retur</p>
-        </div>
-      </header>
+      <AdminPageHeader
+        eyebrow="Management Supplier"
+        title="Pengiriman & Retur"
+        subtitle="Review pengiriman produk dari supplier dan kelola retur"
+      />
 
       <main className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
         {/* Tab Navigation */}
