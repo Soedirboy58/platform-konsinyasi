@@ -18,6 +18,7 @@ import {
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { getCdnUrl } from '@/lib/cdn'
+import AdminPageHeader from '@/components/admin/AdminPageHeader'
 
 interface SalesData {
   id: string
