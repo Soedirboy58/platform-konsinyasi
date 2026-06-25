@@ -29,7 +29,7 @@ export default function SalesControlPage() {
   const [rows, setRows] = useState<TransactionRow[]>([])
   const [loading, setLoading] = useState(true)
   const [actingId, setActingId] = useState<string | null>(null)
-  const [statusFilter, setStatusFilter] = useState<'ALL' | 'PENDING' | 'COMPLETED' | 'CANCELLED'>('ALL')
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'PENDING' | 'COMPLETED' | 'CANCELLED' | 'HILANG'>('ALL')
   const [search, setSearch] = useState('')
   const [flash, setFlash] = useState<Flash>(null)
 
@@ -165,6 +165,55 @@ export default function SalesControlPage() {
     }
   }
 
+  async function convertLost(row: TransactionRow) {
+    const pm = window.prompt(`Konversi ${row.code} (HILANG) menjadi TERJUAL.\nMetode pembayaran: ketik CASH atau QRIS`, 'CASH') || ''
+    const method = pm.trim().toUpperCase()
+    if (!['CASH','QRIS'].includes(method)) {
+      setFlash({ type: 'error', message: 'Metode harus CASH atau QRIS' })
+      return
+    }
+    const notes = window.prompt('Catatan (wajib):', '') || ''
+    if (!notes.trim()) { setFlash({ type: 'error', message: 'Catatan wajib diisi' }); return }
+
+    try {
+      setActingId(row.id)
+      const res = await fetch('/api/admin/lost-products', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ transaction_id: row.id, action: 'CONVERT_SOLD', payment_method: method, notes })
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json?.error || 'Gagal konversi')
+      setFlash({ type: 'success', message: 'Konversi berhasil, saldo supplier dikredit' })
+      await loadData()
+    } catch (e: any) {
+      setFlash({ type: 'error', message: e?.message || 'Gagal konversi' })
+    } finally {
+      setActingId(null)
+    }
+  }
+
+  async function cancelLost(row: TransactionRow) {
+    if (!window.confirm(`Batalkan status HILANG transaksi ${row.code} dan kembalikan stok?`)) return
+    const notes = window.prompt('Catatan pembatalan (opsional):', '') || ''
+    try {
+      setActingId(row.id)
+      const res = await fetch('/api/admin/lost-products', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ transaction_id: row.id, action: 'CANCEL', notes })
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json?.error || 'Gagal')
+      setFlash({ type: 'success', message: 'Status HILANG dibatalkan' })
+      await loadData()
+    } catch (e: any) {
+      setFlash({ type: 'error', message: e?.message || 'Gagal' })
+    } finally {
+      setActingId(null)
+    }
+  }
+
   const stats = {
     pending: rows.filter((r) => r.status === 'PENDING').length,
     completed: rows.filter((r) => r.status === 'COMPLETED').length,
@@ -245,6 +294,7 @@ export default function SalesControlPage() {
               <option value="PENDING">PENDING</option>
               <option value="COMPLETED">COMPLETED</option>
               <option value="CANCELLED">CANCELLED</option>
+              <option value="HILANG">HILANG</option>
             </select>
           </div>
         </div>
@@ -289,6 +339,8 @@ export default function SalesControlPage() {
                           ? 'bg-green-100 text-green-700'
                           : row.status === 'CANCELLED'
                           ? 'bg-red-100 text-red-700'
+                          : row.status === 'HILANG'
+                          ? 'bg-orange-100 text-orange-700'
                           : 'bg-amber-100 text-amber-700'
                       }`}>
                         {row.status}
@@ -309,26 +361,47 @@ export default function SalesControlPage() {
                       )}
                     </td>
                     <td className="px-4 py-3">
-                      <div className="flex gap-2">
-                        {row.status !== 'COMPLETED' && (
-                          <button
-                            onClick={() => runAction(row, 'MARK_COMPLETED')}
-                            disabled={actingId === row.id}
-                            className="px-3 py-1.5 rounded-md text-xs font-semibold bg-green-600 text-white hover:bg-green-700 disabled:opacity-60 inline-flex items-center gap-1"
-                          >
-                            <CheckCircle className="w-3.5 h-3.5" />
-                            Terjual
-                          </button>
-                        )}
-                        {row.status !== 'CANCELLED' && (
-                          <button
-                            onClick={() => runAction(row, 'MARK_CANCELLED')}
-                            disabled={actingId === row.id}
-                            className="px-3 py-1.5 rounded-md text-xs font-semibold bg-red-600 text-white hover:bg-red-700 disabled:opacity-60 inline-flex items-center gap-1"
-                          >
-                            <XCircle className="w-3.5 h-3.5" />
-                            Batal + Stok
-                          </button>
+                      <div className="flex gap-2 flex-wrap">
+                        {row.status === 'HILANG' ? (
+                          <>
+                            <button
+                              onClick={() => convertLost(row)}
+                              disabled={actingId === row.id}
+                              className="px-3 py-1.5 rounded-md text-xs font-semibold bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-60"
+                            >
+                              Konversi Terjual
+                            </button>
+                            <button
+                              onClick={() => cancelLost(row)}
+                              disabled={actingId === row.id}
+                              className="px-3 py-1.5 rounded-md text-xs font-semibold bg-slate-200 text-slate-700 hover:bg-slate-300 disabled:opacity-60"
+                            >
+                              Batal HILANG
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            {row.status !== 'COMPLETED' && (
+                              <button
+                                onClick={() => runAction(row, 'MARK_COMPLETED')}
+                                disabled={actingId === row.id}
+                                className="px-3 py-1.5 rounded-md text-xs font-semibold bg-green-600 text-white hover:bg-green-700 disabled:opacity-60 inline-flex items-center gap-1"
+                              >
+                                <CheckCircle className="w-3.5 h-3.5" />
+                                Terjual
+                              </button>
+                            )}
+                            {row.status !== 'CANCELLED' && (
+                              <button
+                                onClick={() => runAction(row, 'MARK_CANCELLED')}
+                                disabled={actingId === row.id}
+                                className="px-3 py-1.5 rounded-md text-xs font-semibold bg-red-600 text-white hover:bg-red-700 disabled:opacity-60 inline-flex items-center gap-1"
+                              >
+                                <XCircle className="w-3.5 h-3.5" />
+                                Batal + Stok
+                              </button>
+                            )}
+                          </>
                         )}
                       </div>
                     </td>

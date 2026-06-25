@@ -122,7 +122,7 @@ export default function SalesReport() {
             location_id
           )
         `)
-        .eq('sales_transactions.status', 'COMPLETED')
+        .in('sales_transactions.status', ['COMPLETED', 'HILANG'])
         .gte('sales_transactions.created_at', startDate.toISOString())
         .lte('sales_transactions.created_at', (endDate ?? new Date()).toISOString())
 
