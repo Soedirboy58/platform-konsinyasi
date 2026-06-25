@@ -147,6 +147,9 @@ export default function Settings() {
   const [paymentMethodQrisEnabled, setPaymentMethodQrisEnabled] = useState(true)
   const [paymentMethodDokuEnabled, setPaymentMethodDokuEnabled] = useState(true)
   const [savingPaymentMethods, setSavingPaymentMethods] = useState(false)
+  const [qrFeeEnabled, setQrFeeEnabled] = useState(false)
+  const [qrFeeRate, setQrFeeRate] = useState<number>(0.7)
+  const [qrFeeBearer, setQrFeeBearer] = useState<'CUSTOMER' | 'SUPPLIER' | 'PLATFORM'>('CUSTOMER')
 
   useEffect(() => {
     loadProfile()
@@ -315,11 +318,23 @@ export default function Settings() {
       const { data } = await supabase
         .from('platform_settings')
         .select('key, value')
-        .in('key', ['payment_method_qris_enabled', 'payment_method_doku_enabled'])
+        .in('key', [
+          'payment_method_qris_enabled',
+          'payment_method_doku_enabled',
+          'qr_fee_enabled',
+          'qr_fee_rate',
+          'qr_fee_bearer',
+        ])
       if (data) {
         data.forEach(row => {
           if (row.key === 'payment_method_qris_enabled') setPaymentMethodQrisEnabled(row.value !== 'false')
           if (row.key === 'payment_method_doku_enabled') setPaymentMethodDokuEnabled(row.value !== 'false')
+          if (row.key === 'qr_fee_enabled') setQrFeeEnabled(row.value === 'true')
+          if (row.key === 'qr_fee_rate') setQrFeeRate(parseFloat(row.value) || 0)
+          if (row.key === 'qr_fee_bearer') {
+            const v = (row.value || '').toUpperCase()
+            if (v === 'CUSTOMER' || v === 'SUPPLIER' || v === 'PLATFORM') setQrFeeBearer(v)
+          }
         })
       }
     } catch (error) {
@@ -332,13 +347,18 @@ export default function Settings() {
     try {
       const supabase = createClient()
       await supabase.from('platform_settings').upsert(
-        [{ key: 'payment_method_qris_enabled', value: String(paymentMethodQrisEnabled) },
-         { key: 'payment_method_doku_enabled', value: String(paymentMethodDokuEnabled) }],
+        [
+          { key: 'payment_method_qris_enabled', value: String(paymentMethodQrisEnabled) },
+          { key: 'payment_method_doku_enabled', value: String(paymentMethodDokuEnabled) },
+          { key: 'qr_fee_enabled', value: String(qrFeeEnabled) },
+          { key: 'qr_fee_rate', value: String(qrFeeRate) },
+          { key: 'qr_fee_bearer', value: qrFeeBearer },
+        ],
         { onConflict: 'key' }
       )
-      toast.success('✅ Pengaturan metode pembayaran disimpan!')
+      toast.success('Pengaturan metode pembayaran disimpan')
     } catch (error: any) {
-      toast.error('❌ Gagal menyimpan: ' + error.message)
+      toast.error('Gagal menyimpan: ' + error.message)
     } finally {
       setSavingPaymentMethods(false)
     }
@@ -2461,13 +2481,111 @@ export default function Settings() {
             </div>
           </div>
 
+          {/* Fee QR Dinamis */}
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 lg:p-6 space-y-5">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h3 className="text-base font-semibold text-slate-900">Fee QR Dinamis</h3>
+                <p className="text-sm text-slate-500 mt-1">
+                  Biaya layanan gateway pembayaran (mis. DOKU 0.7%). Pembayaran tunai otomatis dikecualikan.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setQrFeeEnabled(v => !v)}
+                className={`relative inline-flex h-7 w-14 items-center rounded-full transition-colors focus:outline-none ${qrFeeEnabled ? 'bg-amber-500' : 'bg-slate-300'}`}
+                aria-label="Toggle Fee QR"
+              >
+                <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${qrFeeEnabled ? 'translate-x-8' : 'translate-x-1'}`} />
+              </button>
+            </div>
+
+            <div className={qrFeeEnabled ? 'space-y-5' : 'space-y-5 opacity-50 pointer-events-none'}>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Persentase Fee (%)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min={0}
+                  max={5}
+                  value={qrFeeRate}
+                  onChange={(e) => setQrFeeRate(parseFloat(e.target.value) || 0)}
+                  className="w-full sm:w-48 rounded-xl border border-slate-200 px-3 py-2 text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                />
+                <p className="text-xs text-slate-500 mt-1">Saran nilai 0.7% sesuai MDR gateway umum.</p>
+              </div>
+
+              <div>
+                <p className="block text-sm font-medium text-slate-700 mb-2">Fee ditanggung oleh</p>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  {(['CUSTOMER','SUPPLIER','PLATFORM'] as const).map(opt => {
+                    const label = opt === 'CUSTOMER' ? 'Pelanggan' : opt === 'SUPPLIER' ? 'Supplier' : 'Platform'
+                    const desc  = opt === 'CUSTOMER'
+                      ? 'Pelanggan bayar subtotal + fee.'
+                      : opt === 'SUPPLIER'
+                      ? 'Fee dipotong dari saldo supplier.'
+                      : 'Fee dipotong dari komisi platform.'
+                    const active = qrFeeBearer === opt
+                    return (
+                      <button
+                        key={opt}
+                        type="button"
+                        onClick={() => setQrFeeBearer(opt)}
+                        className={`text-left rounded-xl border px-4 py-3 transition-colors ${active ? 'border-amber-500 bg-amber-50' : 'border-slate-200 bg-white hover:border-slate-300'}`}
+                      >
+                        <p className={`font-medium ${active ? 'text-amber-700' : 'text-slate-900'}`}>{label}</p>
+                        <p className="text-xs text-slate-500 mt-0.5 leading-snug">{desc}</p>
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {/* Simulasi */}
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <p className="text-xs font-medium uppercase tracking-wide text-slate-500 mb-3">Simulasi transaksi Rp 100.000</p>
+                {(() => {
+                  const subtotal = 100000
+                  const fee = Math.round(subtotal * qrFeeRate / 100)
+                  const commission = Math.round(subtotal * commissionRate / 100)
+                  let customerPay = subtotal
+                  let supplierGet = subtotal - commission
+                  let platformGet = commission
+                  if (qrFeeBearer === 'CUSTOMER') {
+                    customerPay = subtotal + fee
+                  } else if (qrFeeBearer === 'SUPPLIER') {
+                    supplierGet = supplierGet - fee
+                  } else if (qrFeeBearer === 'PLATFORM') {
+                    platformGet = platformGet - fee
+                  }
+                  const rows: [string, string][] = [
+                    ['Pelanggan bayar', `Rp ${customerPay.toLocaleString('id-ID')}`],
+                    ['Supplier terima', `Rp ${supplierGet.toLocaleString('id-ID')}`],
+                    ['Platform terima (net)', `Rp ${platformGet.toLocaleString('id-ID')}`],
+                    ['Fee ke gateway', `Rp ${fee.toLocaleString('id-ID')}`],
+                  ]
+                  return (
+                    <dl className="divide-y divide-slate-200">
+                      {rows.map(([k, v]) => (
+                        <div key={k} className="flex justify-between py-2 text-sm">
+                          <dt className="text-slate-600">{k}</dt>
+                          <dd className="font-medium text-slate-900">{v}</dd>
+                        </div>
+                      ))}
+                    </dl>
+                  )
+                })()}
+                <p className="text-xs text-slate-500 mt-2">Perubahan hanya berlaku untuk transaksi baru setelah pengaturan disimpan.</p>
+              </div>
+            </div>
+          </div>
+
           <div className="flex justify-end">
             <button
               onClick={savePaymentMethodSettings}
               disabled={savingPaymentMethods}
-              className="flex items-center gap-2 bg-blue-600 text-white px-6 py-2.5 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-60"
+              className="inline-flex items-center gap-2 bg-amber-500 text-white px-6 py-2.5 rounded-xl hover:bg-amber-600 transition-colors disabled:opacity-60"
             >
-              <Save className="w-4 h-4" />
               {savingPaymentMethods ? 'Menyimpan...' : 'Simpan Pengaturan'}
             </button>
           </div>

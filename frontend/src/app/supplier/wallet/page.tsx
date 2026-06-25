@@ -70,6 +70,7 @@ export default function WalletPage() {
   const [showWithdrawModal, setShowWithdrawModal] = useState(false)
   const [selectedPaymentProof, setSelectedPaymentProof] = useState<string | null>(null)
   const [isSubmittingRequest, setIsSubmittingRequest] = useState(false)
+  const [qrFeeBorne, setQrFeeBorne] = useState(0)
   const [lastRequestTime, setLastRequestTime] = useState<Date | null>(null)
   
   // Pagination for sales payments
@@ -143,7 +144,9 @@ export default function WalletPage() {
             sales_transactions!inner(
               created_at,
               status,
-              location_id
+              location_id,
+              qr_fee_rate,
+              qr_fee_bearer
             )
           `)
           .eq('sales_transactions.status', 'COMPLETED')
@@ -180,6 +183,16 @@ export default function WalletPage() {
       const realTotalEarned = salesData.reduce((sum, item) =>
         sum + (item.supplier_revenue || 0), 0
       )
+
+      // QR fee yang ditanggung supplier (hanya saat bearer=SUPPLIER)
+      const feeBorne = salesData.reduce((sum, item: any) => {
+        const tx: any = Array.isArray(item.sales_transactions) ? item.sales_transactions[0] : item.sales_transactions
+        if (tx?.qr_fee_bearer !== 'SUPPLIER') return sum
+        const rate = Number(tx?.qr_fee_rate) || 0
+        const lineSubtotal = (item.price || 0) * (item.quantity || 0)
+        return sum + (lineSubtotal * rate / 100)
+      }, 0)
+      setQrFeeBorne(Math.round(feeBorne))
 
       // Total sudah dibayarkan admin (transfer bank ke supplier)
       const { data: paidData } = await supabase
@@ -479,6 +492,19 @@ export default function WalletPage() {
       </div>
 
       {/* Balance Cards */}
+      {qrFeeBorne > 0 && (
+        <div className="mb-6 rounded-2xl border border-slate-200 bg-white p-4 lg:p-5">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-sm font-medium text-slate-900">Fee QR Gateway yang Anda tanggung</p>
+              <p className="text-xs text-slate-500 mt-0.5">Dipotong dari saldo penjualan sesuai pengaturan platform.</p>
+            </div>
+            <p className="text-base font-semibold text-slate-900 whitespace-nowrap">
+              Rp {qrFeeBorne.toLocaleString('id-ID')}
+            </p>
+          </div>
+        </div>
+      )}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-8">
         <div className="bg-gradient-to-br from-green-500 to-green-600 text-white rounded-lg shadow-lg p-4 sm:p-6">
           <div className="flex items-center justify-between mb-2">

@@ -63,6 +63,11 @@ export default function CheckoutPage() {
   const [qrisEnabled, setQrisEnabled] = useState(true)
   const [dokuEnabled, setDokuEnabled] = useState(true)
 
+  // QR fee config (loaded from platform_settings)
+  const [qrFeeEnabled, setQrFeeEnabled] = useState(false)
+  const [qrFeeRate, setQrFeeRate] = useState(0)
+  const [qrFeeBearer, setQrFeeBearer] = useState<'CUSTOMER' | 'SUPPLIER' | 'PLATFORM' | 'NONE'>('NONE')
+
   // Render QR dari qr_string Midtrans via qrserver.com (tidak perlu auth)
   function buildQrImageUrl(qrString: string): string {
     return `https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=${encodeURIComponent(qrString)}`
@@ -81,11 +86,23 @@ export default function CheckoutPage() {
       const { data } = await supabase
         .from('platform_settings')
         .select('key, value')
-        .in('key', ['payment_method_qris_enabled', 'payment_method_doku_enabled'])
+        .in('key', [
+          'payment_method_qris_enabled',
+          'payment_method_doku_enabled',
+          'qr_fee_enabled',
+          'qr_fee_rate',
+          'qr_fee_bearer',
+        ])
       if (data) {
         data.forEach(row => {
           if (row.key === 'payment_method_qris_enabled') setQrisEnabled(row.value !== 'false')
           if (row.key === 'payment_method_doku_enabled') setDokuEnabled(row.value !== 'false')
+          if (row.key === 'qr_fee_enabled') setQrFeeEnabled(row.value === 'true')
+          if (row.key === 'qr_fee_rate') setQrFeeRate(parseFloat(row.value) || 0)
+          if (row.key === 'qr_fee_bearer') {
+            const v = (row.value || '').toUpperCase()
+            if (v === 'CUSTOMER' || v === 'SUPPLIER' || v === 'PLATFORM') setQrFeeBearer(v)
+          }
         })
       }
     } catch (e) {
@@ -262,7 +279,8 @@ export default function CheckoutPage() {
       const { data, error } = await supabase
         .rpc('process_anonymous_checkout', {
           p_location_slug: locationSlug,
-          p_items: items
+          p_items: items,
+          p_payment_method: paymentMethod,
         })
 
       if (error) throw error
@@ -361,6 +379,7 @@ export default function CheckoutPage() {
       const { data, error } = await supabase.rpc('process_anonymous_checkout', {
         p_location_slug: locationSlug,
         p_items: items,
+        p_payment_method: 'DOKU',
       })
       if (error) throw error
       if (!data || data.length === 0) throw new Error('Tidak ada data transaksi')
@@ -710,14 +729,33 @@ export default function CheckoutPage() {
             <span className="text-gray-600">Total Item:</span>
             <span className="font-semibold">{totalItems} item</span>
           </div>
-          <div className="flex justify-between items-center text-xl font-bold border-t pt-4">
+          {qrFeeEnabled && qrFeeBearer === 'CUSTOMER' && qrFeeRate > 0 && (
+            <>
+              <div className="flex justify-between items-center text-sm mt-3">
+                <span className="text-gray-600">Subtotal</span>
+                <span className="text-gray-900 font-medium">Rp {totalAmount.toLocaleString('id-ID')}</span>
+              </div>
+              <div className="flex justify-between items-center text-sm mt-1">
+                <span className="text-gray-600">Biaya layanan ({qrFeeRate}%)</span>
+                <span className="text-gray-900 font-medium">Rp {Math.round(totalAmount * qrFeeRate / 100).toLocaleString('id-ID')}</span>
+              </div>
+            </>
+          )}
+          <div className="flex justify-between items-center text-xl font-bold border-t pt-4 mt-3">
             <span>Total Bayar:</span>
             <div className="flex items-center gap-2">
               <span className="text-primary-600">
-                Rp {totalAmount.toLocaleString('id-ID')}
+                Rp {(qrFeeEnabled && qrFeeBearer === 'CUSTOMER'
+                  ? totalAmount + Math.round(totalAmount * qrFeeRate / 100)
+                  : totalAmount
+                ).toLocaleString('id-ID')}
               </span>
               <button
-                onClick={() => copyPaymentAmount(totalAmount)}
+                onClick={() => copyPaymentAmount(
+                  qrFeeEnabled && qrFeeBearer === 'CUSTOMER'
+                    ? totalAmount + Math.round(totalAmount * qrFeeRate / 100)
+                    : totalAmount
+                )}
                 className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-semibold bg-primary-100 text-primary-700 hover:bg-primary-200 transition-colors"
               >
                 <Copy className="w-3.5 h-3.5" />
@@ -772,16 +810,14 @@ export default function CheckoutPage() {
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                   </svg>
-                  <span>Coba Lagi via DOKU</span>
-                  <span className="text-[10px] font-semibold bg-purple-900 text-purple-200 rounded px-1.5 py-0.5 leading-tight">RETRY</span>
+                  <span>Coba Lagi</span>
                 </>
               ) : (
                 <>
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
                   </svg>
-                  <span>Bayar via DOKU</span>
-                  <span className="text-[10px] font-semibold bg-purple-900 text-purple-200 rounded px-1.5 py-0.5 leading-tight">BETA</span>
+                  <span>Bayar</span>
                 </>
               )}
             </button>
@@ -796,7 +832,7 @@ export default function CheckoutPage() {
           <p className="font-semibold mb-2">Informasi Pembayaran:</p>
           <ul className="space-y-1 text-xs">
             {qrisEnabled && <li><strong>QRIS:</strong> Scan QR code untuk bayar via mobile banking/e-wallet</li>}
-            {dokuEnabled && <li><strong>DOKU (Beta):</strong> Bayar via halaman DOKU — transfer bank, kartu, e-wallet</li>}
+            {dokuEnabled && <li><strong>Bayar:</strong> Transfer bank, kartu, atau e-wallet melalui halaman pembayaran aman.</li>}
           </ul>
         </div>
         )}

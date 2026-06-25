@@ -31,6 +31,8 @@ interface Commission {
   total_paid_alltime: number
   products_shipped: number
   total_transactions_alltime: number
+  qr_fee_total: number
+  qr_fee_bearer: 'CUSTOMER' | 'SUPPLIER' | 'PLATFORM' | null
   status: 'UNPAID' | 'PAID' | 'PENDING'
   payment_date?: string
   payment_proof?: string
@@ -196,7 +198,9 @@ export default function CommissionsPage() {
                 sales_transactions!inner(
                   id,
                   status,
-                  created_at
+                  created_at,
+                  qr_fee_amount,
+                  qr_fee_bearer
                 )
               `
             : `
@@ -209,7 +213,9 @@ export default function CommissionsPage() {
                 sales_transactions!inner(
                   id,
                   status,
-                  created_at
+                  created_at,
+                  qr_fee_amount,
+                  qr_fee_bearer
                 )
             `
 
@@ -330,6 +336,15 @@ export default function CommissionsPage() {
         shippedMap.set(supplierId, (shippedMap.get(supplierId) || 0) + totalQty)
       }
 
+      // Build per-transaction subtotal sum for proportional fee allocation
+      const txSubtotalSum = new Map<string, number>()
+      for (const it of allSalesItems) {
+        const tx: any = it.sales_transactions
+        const txId = Array.isArray(tx) ? tx[0]?.id : tx?.id
+        if (!txId) continue
+        txSubtotalSum.set(txId, (txSubtotalSum.get(txId) || 0) + (it.subtotal || 0))
+      }
+
       // Kelompokkan sales per supplier — ALL-TIME + PERIOD (in-memory split)
       const supplierAllTimeMap = new Map<string, any[]>()
       const supplierPeriodMap = new Map<string, any[]>()
@@ -413,6 +428,22 @@ export default function CommissionsPage() {
           }).filter(Boolean)
         ).size
 
+        // QR fee allocated to this supplier (proportional to item subtotal per transaction)
+        let qrFeeTotal = 0
+        const bearerCounts = new Map<string, number>()
+        for (const it of allSales as any[]) {
+          const tx: any = Array.isArray(it.sales_transactions) ? it.sales_transactions[0] : it.sales_transactions
+          const txId = tx?.id
+          const txFee = Number(tx?.qr_fee_amount) || 0
+          const bearer = tx?.qr_fee_bearer
+          if (bearer && bearer !== 'NONE') bearerCounts.set(bearer, (bearerCounts.get(bearer) || 0) + 1)
+          if (txFee > 0 && txId) {
+            const txSub = txSubtotalSum.get(txId) || 0
+            if (txSub > 0) qrFeeTotal += txFee * ((it.subtotal || 0) / txSub)
+          }
+        }
+        const dominantBearer = ([...bearerCounts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || null) as Commission['qr_fee_bearer']
+
         commissionsData.push({
           supplier_id: supplierId,
           supplier_name: supplier.business_name,
@@ -426,6 +457,8 @@ export default function CommissionsPage() {
           total_paid_alltime: Math.max(0, alltimePaid),
           products_shipped: shippedMap.get(supplierId) || 0,
           total_transactions_alltime: allTimeUniqueTransactions,
+          qr_fee_total: Math.round(qrFeeTotal),
+          qr_fee_bearer: dominantBearer,
           status,
           payment_date: latestPayment?.payment_date,
           payment_reference: latestPayment?.payment_reference,
@@ -1319,18 +1352,15 @@ export default function CommissionsPage() {
 
               {/* Sales Breakdown */}
               <div className="space-y-3">
-                <h3 className="font-semibold text-gray-900 flex items-center gap-2">
-                  <DollarSign className="w-5 h-5 text-blue-600" />
-                  Rincian Penjualan
-                </h3>
-                <div className="bg-white border border-gray-200 rounded-lg p-4 space-y-2">
+                <h3 className="font-semibold text-slate-900">Rincian Penjualan</h3>
+                <div className="bg-white border border-slate-200 rounded-xl p-4 space-y-2">
                   <div className="flex justify-between items-center">
-                    <span className="text-gray-700">Total Penjualan Kotor</span>
-                    <span className="font-semibold text-gray-900">
+                    <span className="text-slate-700">Total Penjualan Kotor</span>
+                    <span className="font-semibold text-slate-900">
                       Rp {selectedCommission.total_sales.toLocaleString('id-ID')}
                     </span>
                   </div>
-                  <div className="flex justify-between items-center text-sm text-gray-600">
+                  <div className="flex justify-between items-center text-sm text-slate-500">
                     <span>({selectedCommission.products_sold} produk × harga rata-rata)</span>
                     <span></span>
                   </div>
@@ -1339,21 +1369,31 @@ export default function CommissionsPage() {
 
               {/* Commission Calculation */}
               <div className="space-y-3">
-                <h3 className="font-semibold text-gray-900 flex items-center gap-2">
-                  <TrendingDown className="w-5 h-5 text-orange-600" />
-                  Perhitungan Komisi
-                </h3>
-                <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 space-y-3">
+                <h3 className="font-semibold text-slate-900">Perhitungan Komisi</h3>
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3">
                   <div className="flex justify-between items-center">
-                    <span className="text-gray-700">Komisi Platform ({(selectedCommission.commission_rate * 100).toFixed(0)}%)</span>
-                    <span className="font-semibold text-orange-600">
-                      - Rp {(selectedCommission.total_sales - selectedCommission.commission_amount).toLocaleString('id-ID')}
+                    <span className="text-slate-700">Komisi Platform ({(selectedCommission.commission_rate * 100).toFixed(0)}%)</span>
+                    <span className="font-semibold text-slate-900">
+                      − Rp {(selectedCommission.total_sales - selectedCommission.commission_amount).toLocaleString('id-ID')}
                     </span>
                   </div>
-                  <div className="border-t border-orange-300 pt-2">
+                  {selectedCommission.qr_fee_total > 0 && (
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <p className="text-slate-700">Fee QR Gateway</p>
+                        <p className="text-xs text-slate-500 mt-0.5">
+                          Ditanggung: {selectedCommission.qr_fee_bearer === 'CUSTOMER' ? 'Pelanggan' : selectedCommission.qr_fee_bearer === 'SUPPLIER' ? 'Supplier' : 'Platform'}
+                        </p>
+                      </div>
+                      <span className="font-semibold text-slate-900">
+                        Rp {selectedCommission.qr_fee_total.toLocaleString('id-ID')}
+                      </span>
+                    </div>
+                  )}
+                  <div className="border-t border-slate-200 pt-2">
                     <div className="flex justify-between items-center">
-                      <span className="font-medium text-gray-700">Total Revenue Supplier</span>
-                      <span className="font-bold text-green-600">
+                      <span className="font-medium text-slate-700">Total Revenue Supplier</span>
+                      <span className="font-bold text-emerald-600">
                         Rp {selectedCommission.commission_amount.toLocaleString('id-ID')}
                       </span>
                     </div>
