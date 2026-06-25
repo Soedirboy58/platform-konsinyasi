@@ -396,6 +396,15 @@ export default function Analytics() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <style>{`
+        @keyframes barGrow { from { width: 0%; opacity: 0.4; } to { opacity: 1; } }
+        @keyframes donutDraw { from { stroke-dashoffset: 999; } to { stroke-dashoffset: 0; } }
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        .anim-bar { animation: barGrow 0.9s cubic-bezier(.2,.8,.2,1) both; }
+        .anim-donut path { stroke: rgba(255,255,255,0.6); stroke-width: 1; stroke-dasharray: 999; animation: donutDraw 1.1s ease-out both; transform-origin: 100px 100px; transition: transform 0.25s ease; }
+        .anim-donut path:hover { transform: scale(1.04); }
+        .anim-card { animation: fadeUp 0.5s ease-out both; }
+      `}</style>
       <header className="bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 py-6">
           <div className="flex flex-col lg:flex-row items-center justify-between gap-4">
@@ -406,19 +415,19 @@ export default function Analytics() {
                 </div>
                 <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">Analytics & Insights</h1>
               </div>
-              <p className="text-gray-600 text-sm lg:text-base">📊 Analisa perilaku pembeli untuk optimasi promo & bundling</p>
+              <p className="text-gray-600 text-sm lg:text-base">Analisa perilaku pembeli untuk optimasi promo & bundling</p>
             </div>
             <div className="w-full lg:w-auto">
-              <label className="block text-gray-700 text-sm font-medium mb-2 text-center lg:text-left">📅 Periode Analisa</label>
+              <label className="block text-gray-700 text-sm font-medium mb-2 text-center lg:text-left">Periode Analisa</label>
               <select
                 value={period}
                 onChange={(e) => setPeriod(e.target.value as any)}
-                className="w-full lg:w-auto px-4 py-2.5 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent font-medium text-gray-900"
+                className="w-full lg:w-auto px-4 py-2.5 bg-white border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent font-medium text-gray-900"
               >
-                <option value="today">🕐 Hari Ini</option>
-                <option value="week">📆 7 Hari Terakhir</option>
-                <option value="month">📅 30 Hari Terakhir</option>
-                <option value="all">🌐 Semua Data</option>
+                <option value="today">Hari Ini</option>
+                <option value="week">7 Hari Terakhir</option>
+                <option value="month">30 Hari Terakhir</option>
+                <option value="all">Semua Data</option>
               </select>
             </div>
           </div>
@@ -710,7 +719,7 @@ export default function Analytics() {
             <div className="p-6 border-b">
               <div className="flex items-center gap-2">
                 <BarChart3 className="w-5 h-5 text-blue-600" />
-                <h2 className="text-lg font-semibold">📊 Jam Pembelian Tersibuk</h2>
+                <h2 className="text-lg font-semibold">Jam Pembelian Tersibuk</h2>
               </div>
               <p className="text-sm text-gray-600 mt-1">Optimalkan promo di jam peak - Data real-time dari transaksi</p>
             </div>
@@ -732,14 +741,15 @@ export default function Analytics() {
                         <div className="flex-1">
                           <div className="bg-gray-200 rounded-full h-8 relative overflow-hidden">
                             <div 
-                              className={`h-full rounded-full flex items-center justify-end pr-3 transition-all duration-500 ${
+                              className={`anim-bar h-full rounded-full flex items-center justify-end pr-3 transition-all duration-500 ${
                                 isTopHour 
                                   ? 'bg-gradient-to-r from-blue-600 to-blue-700' 
                                   : 'bg-gradient-to-r from-blue-400 to-blue-500'
                               }`}
                               style={{ 
                                 width: `${percentage}%`,
-                                minWidth: '40px'
+                                minWidth: '40px',
+                                animationDelay: `${index * 70}ms`
                               }}
                             >
                               <span className="text-xs text-white font-semibold">
@@ -775,7 +785,7 @@ export default function Analytics() {
             <div className="p-6 border-b">
               <div className="flex items-center gap-2">
                 <Zap className="w-5 h-5 text-yellow-600" />
-                <h2 className="text-lg font-semibold">🏆 Produk Terpopuler</h2>
+                <h2 className="text-lg font-semibold">Produk Terpopuler</h2>
               </div>
               <p className="text-sm text-gray-600 mt-1">Fast-moving products - Data dari transaksi</p>
             </div>
@@ -788,7 +798,7 @@ export default function Analytics() {
                   {popularProducts.length >= 3 && (
                     <div className="pb-6 border-b">
                       <p className="text-xs font-semibold text-gray-600 mb-3 text-center">TOP 5 PRODUCTS SHARE</p>
-                      <svg viewBox="0 0 200 200" className="w-full max-w-[180px] mx-auto">
+                      <svg viewBox="0 0 200 200" className="anim-donut w-full max-w-[200px] mx-auto drop-shadow-sm">
                         {(() => {
                           const centerX = 100
                           const centerY = 100
@@ -901,8 +911,8 @@ export default function Analytics() {
                           {/* Revenue Bar */}
                           <div className="ml-10 bg-gray-200 rounded-full h-1.5 overflow-hidden">
                             <div 
-                              className="h-full bg-gradient-to-r from-yellow-400 to-orange-500 transition-all duration-500"
-                              style={{ width: `${revenuePercentage}%` }}
+                              className="anim-bar h-full bg-gradient-to-r from-yellow-400 to-orange-500"
+                              style={{ width: `${revenuePercentage}%`, animationDelay: `${idx * 60}ms` }}
                             ></div>
                           </div>
                         </div>

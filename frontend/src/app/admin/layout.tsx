@@ -289,7 +289,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       {/* Topbar */}
       <div
         className={`fixed top-0 right-0 h-16 bg-white border-b border-gray-200 z-30 flex items-center justify-between px-4 transition-all duration-300 ${
-          sidebarOpen && isDesktop ? 'left-64' : 'left-0'
+          isDesktop ? (sidebarOpen ? 'left-64' : 'left-16') : 'left-0'
         }`}
       >
         {/* Left: Hamburger + Title */}
@@ -391,73 +391,89 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
       {/* Sidebar */}
       <aside
-        className={`fixed top-0 left-0 bottom-0 bg-white border-r border-gray-200 z-40 w-64 transition-transform duration-300 overflow-y-auto ${
-          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-        }`}
+        className={`fixed top-0 left-0 bottom-0 bg-white border-r border-gray-200 z-40 overflow-y-auto transition-all duration-300
+          ${isDesktop
+            ? (sidebarOpen ? 'w-64 translate-x-0' : 'w-16 translate-x-0')
+            : `w-64 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`
+          }`}
       >
         {/* Logo/Brand Section */}
-        <div className="h-16 flex items-center justify-between px-6 border-b border-gray-200">
-          <h2 className="text-lg font-bold text-blue-600">Konsinyasi Admin</h2>
-          <button
-            onClick={toggleSidebar}
-            className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors lg:hidden"
-          >
-            <X className="w-4 h-4 text-gray-500" />
-          </button>
+        <div className={`h-16 flex items-center border-b border-gray-200 ${isDesktop && !sidebarOpen ? 'justify-center px-2' : 'justify-between px-6'}`}>
+          {(!isDesktop || sidebarOpen) && (
+            <h2 className="text-lg font-bold text-blue-600 truncate">Konsinyasi Admin</h2>
+          )}
+          {isDesktop && !sidebarOpen && (
+            <div className="w-9 h-9 rounded-lg bg-blue-600 text-white font-bold flex items-center justify-center text-sm">KA</div>
+          )}
+          {!isDesktop && (
+            <button
+              onClick={toggleSidebar}
+              className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors lg:hidden"
+            >
+              <X className="w-4 h-4 text-gray-500" />
+            </button>
+          )}
         </div>
 
-        <nav className="p-4 space-y-2">
-          {menuItems.map((item, index) => (
-            <div key={index}>
-              <Link
-                href={item.href}
-                className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-                  item.active
-                    ? 'bg-blue-50 text-blue-600 font-medium'
-                    : 'text-gray-700 hover:bg-gray-50'
-                }`}
-                title={item.label}
-              >
-                {item.icon}
-                <span>{item.label}</span>
-                {item.submenu && item.submenu.length > 0 && (
-                  <ChevronRight
-                    className={`w-4 h-4 ml-auto transition-transform ${
-                      item.active ? 'rotate-90' : ''
-                    }`}
-                  />
-                )}
-              </Link>
-
-              {/* Submenu */}
-              {item.submenu && item.submenu.length > 0 && item.active && (
-                <div className="ml-12 mt-2 space-y-1">
-                  {item.submenu.map((subitem, subindex) => (
-                    <Link
-                      key={subindex}
-                      href={subitem.href}
-                      className={`block px-4 py-2 text-sm rounded-lg transition-colors ${
-                        pathname === subitem.href
-                          ? 'text-blue-600 bg-blue-50'
-                          : 'text-gray-600 hover:bg-gray-50'
+        <nav className={`py-4 space-y-1 ${isDesktop && !sidebarOpen ? 'px-2' : 'px-4'}`}>
+          {menuItems.map((item, index) => {
+            const collapsed = isDesktop && !sidebarOpen
+            return (
+              <div key={index}>
+                <Link
+                  href={item.href}
+                  className={`flex items-center rounded-lg transition-colors ${
+                    collapsed ? 'justify-center p-3' : 'gap-3 px-4 py-3'
+                  } ${
+                    item.active
+                      ? 'bg-blue-50 text-blue-600 font-medium'
+                      : 'text-gray-700 hover:bg-gray-50'
+                  }`}
+                  title={item.label}
+                >
+                  {item.icon}
+                  {!collapsed && <span className="truncate">{item.label}</span>}
+                  {!collapsed && item.submenu && item.submenu.length > 0 && (
+                    <ChevronRight
+                      className={`w-4 h-4 ml-auto transition-transform ${
+                        item.active ? 'rotate-90' : ''
                       }`}
-                    >
-                      {subitem.label}
-                    </Link>
-                  ))}
-                </div>
-              )}
-            </div>
-          ))}
+                    />
+                  )}
+                </Link>
+
+                {/* Submenu (only when expanded) */}
+                {!collapsed && item.submenu && item.submenu.length > 0 && item.active && (
+                  <div className="ml-12 mt-2 space-y-1">
+                    {item.submenu.map((subitem, subindex) => (
+                      <Link
+                        key={subindex}
+                        href={subitem.href}
+                        className={`block px-4 py-2 text-sm rounded-lg transition-colors ${
+                          pathname === subitem.href
+                            ? 'text-blue-600 bg-blue-50'
+                            : 'text-gray-600 hover:bg-gray-50'
+                        }`}
+                      >
+                        {subitem.label}
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )
+          })}
 
           {/* Logout Button */}
           <button
             onClick={handleLogout}
-            className="flex items-center gap-3 px-4 py-3 rounded-lg text-red-600 hover:bg-red-50 w-full transition-colors mt-8"
+            className={`flex items-center rounded-lg text-red-600 hover:bg-red-50 w-full transition-colors mt-8 ${
+              isDesktop && !sidebarOpen ? 'justify-center p-3' : 'gap-3 px-4 py-3'
+            }`}
             title="Logout"
           >
             <LogOut className="w-5 h-5" />
-            <span>Logout</span>
+            {(!isDesktop || sidebarOpen) && <span>Logout</span>}
           </button>
         </nav>
       </aside>
@@ -465,7 +481,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       {/* Main Content */}
       <main
         className={`pt-16 min-h-screen transition-all duration-300 ${
-          sidebarOpen && isDesktop ? 'ml-64' : 'ml-0'
+          isDesktop ? (sidebarOpen ? 'ml-64' : 'ml-16') : 'ml-0'
         }`}
       >
         <div className="w-full">
