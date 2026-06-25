@@ -51,6 +51,8 @@ export default function SalesReport() {
   const [customEnd, setCustomEnd] = useState<string>(today)
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedSupplier, setSelectedSupplier] = useState<string>('all')
+  const [selectedProduct, setSelectedProduct] = useState<string>('all')
+  const [activeFilter, setActiveFilter] = useState<'date' | 'supplier' | 'product' | null>(null)
   
   // Pagination
   const [currentPage, setCurrentPage] = useState(1)
@@ -73,7 +75,7 @@ export default function SalesReport() {
 
   useEffect(() => {
     applyFilters()
-  }, [salesData, searchTerm, selectedSupplier])
+  }, [salesData, searchTerm, selectedSupplier, selectedProduct])
 
   const loadData = async () => {
     setLoading(true)
@@ -229,6 +231,11 @@ export default function SalesReport() {
       filtered = filtered.filter(item => item.supplier_name === selectedSupplier)
     }
 
+    // Product filter
+    if (selectedProduct !== 'all') {
+      filtered = filtered.filter(item => item.product_name === selectedProduct)
+    }
+
     setFilteredData(filtered)
     setCurrentPage(1) // Reset to first page when filters change
   }
@@ -290,26 +297,22 @@ export default function SalesReport() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 py-6">
-          <div className="flex flex-col lg:flex-row items-center justify-between gap-4">
-            <div className="text-center lg:text-left w-full lg:w-auto">
-              <div className="flex items-center justify-center lg:justify-start gap-3 mb-2">
-                <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
-                  <FileText className="w-6 h-6 text-blue-600" />
-                </div>
-                <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">Laporan Penjualan</h1>
-              </div>
-              <p className="text-gray-600 text-sm lg:text-base">📈 Tracking & monitoring penjualan produk konsinyasi</p>
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100">
+      <header className="bg-white/80 backdrop-blur border-b border-slate-200">
+        <div className="max-w-7xl mx-auto px-4 lg:px-6 py-6">
+          <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+            <div>
+              <p className="text-xs uppercase tracking-wider text-slate-500 font-medium">Reports</p>
+              <h1 className="text-2xl lg:text-3xl font-semibold text-slate-900 mt-1">Laporan Penjualan</h1>
+              <p className="text-slate-500 text-sm mt-1">Tracking dan monitoring penjualan produk konsinyasi</p>
             </div>
             <button
               onClick={exportToCSV}
               disabled={filteredData.length === 0}
-              className="w-full lg:w-auto px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-2 font-semibold transition-colors"
+              className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-sm font-medium transition-colors"
             >
-              <Download className="w-5 h-5" />
-              <span>Export CSV</span>
+              <Download className="w-4 h-4" />
+              Export CSV
             </button>
           </div>
         </div>
@@ -368,95 +371,138 @@ export default function SalesReport() {
         </div>
 
         {/* Filters */}
-        <div className="bg-white rounded-lg shadow p-6 mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            {/* Date Range Filter */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                <Calendar className="w-4 h-4 inline mr-1" />
-                Periode
-              </label>
-              <select
-                value={dateRange}
-                onChange={(e) => setDateRange(e.target.value as any)}
-                className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="today">Hari Ini</option>
-                <option value="week">7 Hari Terakhir</option>
-                <option value="month">30 Hari Terakhir</option>
-                <option value="custom">Custom (atur tanggal)</option>
-                <option value="all">Semua Data</option>
-              </select>
-              {dateRange === 'custom' && (
-                <div className="grid grid-cols-2 gap-2 mt-2">
-                  <input
-                    type="date"
-                    value={customStart}
-                    max={customEnd}
-                    onChange={(e) => setCustomStart(e.target.value)}
-                    className="w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                  <input
-                    type="date"
-                    value={customEnd}
-                    min={customStart}
-                    max={today}
-                    onChange={(e) => setCustomEnd(e.target.value)}
-                    className="w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-              )}
-            </div>
-
-            {/* Supplier Filter */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                <Filter className="w-4 h-4 inline mr-1" />
-                Supplier
-              </label>
-              <select
-                value={selectedSupplier}
-                onChange={(e) => setSelectedSupplier(e.target.value)}
-                className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="all">Semua Supplier</option>
-                {suppliers.map((supplier) => (
-                  <option key={supplier.id} value={supplier.name}>
-                    {supplier.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Search */}
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                <Search className="w-4 h-4 inline mr-1" />
-                Cari Produk/Supplier
-              </label>
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 lg:p-5 mb-6">
+          {/* Top row: search + chips */}
+          <div className="flex flex-col lg:flex-row lg:items-center gap-3">
+            <div className="relative flex-1">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Ketik nama produk atau supplier..."
-                className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Cari produk atau supplier…"
+                className="w-full pl-9 pr-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white"
               />
+            </div>
+            <div className="flex items-center gap-2">
+              {[
+                { key: 'date' as const, icon: Calendar, label: 'Periode', active: dateRange !== 'month' },
+                { key: 'supplier' as const, icon: Filter, label: 'Supplier', active: selectedSupplier !== 'all' },
+                { key: 'product' as const, icon: Package, label: 'Produk', active: selectedProduct !== 'all' }
+              ].map(chip => {
+                const isOpen = activeFilter === chip.key
+                const Icon = chip.icon
+                return (
+                  <button
+                    key={chip.key}
+                    onClick={() => setActiveFilter(isOpen ? null : chip.key)}
+                    title={chip.label}
+                    className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border text-sm transition-colors ${
+                      isOpen
+                        ? 'bg-blue-50 border-blue-200 text-blue-700'
+                        : chip.active
+                          ? 'bg-amber-50 border-amber-200 text-amber-700'
+                          : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                    }`}
+                  >
+                    <Icon className="w-4 h-4" />
+                    <span className="hidden sm:inline">{chip.label}</span>
+                    {chip.active && <span className="w-1.5 h-1.5 bg-amber-500 rounded-full" />}
+                  </button>
+                )
+              })}
             </div>
           </div>
 
-          <div className="mt-4 flex items-center justify-between text-sm text-gray-600">
-            <div>
-              Menampilkan {filteredData.length} dari {salesData.length} transaksi
+          {/* Expandable detail row */}
+          {activeFilter && (
+            <div className="mt-4 pt-4 border-t border-slate-100">
+              {activeFilter === 'date' && (
+                <div className="space-y-3">
+                  <label className="block text-xs font-medium text-slate-600">Periode</label>
+                  <select
+                    value={dateRange}
+                    onChange={(e) => setDateRange(e.target.value as any)}
+                    className="w-full sm:w-72 px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="today">Hari Ini</option>
+                    <option value="week">7 Hari Terakhir</option>
+                    <option value="month">30 Hari Terakhir</option>
+                    <option value="custom">Custom (atur tanggal)</option>
+                    <option value="all">Semua Data</option>
+                  </select>
+                  {dateRange === 'custom' && (
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="date"
+                        value={customStart}
+                        max={customEnd}
+                        onChange={(e) => setCustomStart(e.target.value)}
+                        className="px-3 py-2 border border-slate-200 rounded-xl text-sm"
+                      />
+                      <span className="text-slate-400 text-sm">s/d</span>
+                      <input
+                        type="date"
+                        value={customEnd}
+                        min={customStart}
+                        max={today}
+                        onChange={(e) => setCustomEnd(e.target.value)}
+                        className="px-3 py-2 border border-slate-200 rounded-xl text-sm"
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {activeFilter === 'supplier' && (
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Supplier</label>
+                  <select
+                    value={selectedSupplier}
+                    onChange={(e) => setSelectedSupplier(e.target.value)}
+                    className="w-full sm:w-72 px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="all">Semua Supplier</option>
+                    {Array.from(new Set(salesData.map(s => s.supplier_name))).sort().map(name => (
+                      <option key={name} value={name}>{name}</option>
+                    ))}
+                  </select>
+                  {selectedSupplier !== 'all' && (
+                    <button onClick={() => setSelectedSupplier('all')} className="ml-2 text-xs text-slate-500 hover:text-slate-700 underline">Reset</button>
+                  )}
+                </div>
+              )}
+
+              {activeFilter === 'product' && (
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Produk</label>
+                  <select
+                    value={selectedProduct}
+                    onChange={(e) => setSelectedProduct(e.target.value)}
+                    className="w-full sm:w-72 px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="all">Semua Produk</option>
+                    {Array.from(new Set(salesData.map(s => s.product_name))).sort().map(name => (
+                      <option key={name} value={name}>{name}</option>
+                    ))}
+                  </select>
+                  {selectedProduct !== 'all' && (
+                    <button onClick={() => setSelectedProduct('all')} className="ml-2 text-xs text-slate-500 hover:text-slate-700 underline">Reset</button>
+                  )}
+                </div>
+              )}
             </div>
+          )}
+
+          {/* Footer status */}
+          <div className="mt-4 flex items-center justify-between text-xs text-slate-500">
+            <div>Menampilkan {filteredData.length} dari {salesData.length} transaksi</div>
             <div className="flex items-center gap-2">
-              <span>Items per page:</span>
+              <span>Items per halaman</span>
               <select
                 value={itemsPerPage}
-                onChange={(e) => {
-                  setItemsPerPage(Number(e.target.value))
-                  setCurrentPage(1)
-                }}
-                className="px-2 py-1 border rounded"
+                onChange={(e) => { setItemsPerPage(Number(e.target.value)); setCurrentPage(1) }}
+                className="px-2 py-1 border border-slate-200 rounded-lg"
               >
                 <option value={10}>10</option>
                 <option value={25}>25</option>
