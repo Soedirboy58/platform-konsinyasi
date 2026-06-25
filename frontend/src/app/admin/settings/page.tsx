@@ -2580,11 +2580,11 @@ export default function Settings() {
             </div>
           </div>
 
-          <div className="flex justify-end">
+          <div className="flex justify-center">
             <button
               onClick={savePaymentMethodSettings}
               disabled={savingPaymentMethods}
-              className="inline-flex items-center gap-2 bg-amber-500 text-white px-6 py-2.5 rounded-xl hover:bg-amber-600 transition-colors disabled:opacity-60"
+              className="inline-flex items-center justify-center gap-2 bg-amber-500 text-white px-6 py-2.5 rounded-xl hover:bg-amber-600 transition-colors disabled:opacity-60 w-full sm:w-auto sm:min-w-[240px]"
             >
               {savingPaymentMethods ? 'Menyimpan...' : 'Simpan Pengaturan'}
             </button>
