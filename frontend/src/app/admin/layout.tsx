@@ -240,7 +240,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     {
       icon: <TrendingUp className="w-5 h-5" />,
       label: 'Laporan & Analitik',
-      href: '/admin/reports',
+      href: '/admin/analytics',
       active: pathname?.startsWith('/admin/reports') || pathname?.startsWith('/admin/analytics'),
       roles: ['MANAGER', 'FINANCE'],
       submenu: [
@@ -311,7 +311,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
             {/* Notification Dropdown */}
             {showNotifPanel && (
-              <div className="absolute right-0 top-12 w-80 sm:w-96 bg-white rounded-xl shadow-2xl border border-gray-200 z-50 overflow-hidden">
+              <div className="absolute right-0 top-12 w-[calc(100vw-1.5rem)] max-w-sm sm:w-96 sm:max-w-none bg-white rounded-xl shadow-2xl border border-gray-200 z-50 overflow-hidden">
                 {/* Header */}
                 <div className="flex items-center justify-between px-4 py-3 border-b bg-gray-50">
                   <span className="font-semibold text-gray-800 text-sm">

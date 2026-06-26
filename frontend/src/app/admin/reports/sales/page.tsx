@@ -18,7 +18,6 @@ import {
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { getCdnUrl } from '@/lib/cdn'
-import AdminPageHeader from '@/components/admin/AdminPageHeader'
 
 interface SalesData {
   id: string
@@ -299,23 +298,17 @@ export default function SalesReport() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100">
-      <AdminPageHeader
-        eyebrow="Reports"
-        title="Laporan Penjualan"
-        subtitle="Tracking dan monitoring penjualan produk konsinyasi"
-        rightSlot={
+      <main className="max-w-7xl mx-auto px-4 py-8">
+        <div className="flex items-center justify-end mb-4">
           <button
             onClick={exportToCSV}
             disabled={filteredData.length === 0}
-            className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-white/15 hover:bg-white/25 text-white rounded-xl text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed backdrop-blur"
+            className="inline-flex items-center justify-center gap-2 px-3.5 py-2 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 rounded-xl text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
           >
             <Download className="w-4 h-4" />
             Export CSV
           </button>
-        }
-      />
-
-      <main className="max-w-7xl mx-auto px-4 py-8">
+        </div>
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <div className="bg-white rounded-lg shadow p-6">

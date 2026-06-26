@@ -14,7 +14,6 @@ import {
   CheckCircle,
   MapPin
 } from 'lucide-react'
-import AdminPageHeader from '@/components/admin/AdminPageHeader'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 
@@ -251,26 +250,20 @@ export default function ReportsAnalytics() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <AdminPageHeader
-        eyebrow="Reports"
-        title="Laporan & Analytics"
-        subtitle="Analisis performa dan laporan platform secara real-time"
-        rightSlot={
+      <main className="max-w-7xl mx-auto px-4 py-8">
+        <div className="flex items-center justify-end mb-4">
           <select
             value={period}
             onChange={(e) => setPeriod(e.target.value as any)}
-            className="px-4 py-2.5 bg-white/15 border border-white/20 rounded-xl text-sm font-medium text-white backdrop-blur focus:outline-none focus:ring-2 focus:ring-white/40 cursor-pointer min-w-[180px]"
+            className="px-3.5 py-2 bg-white border border-gray-200 rounded-xl text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer min-w-[180px] shadow-sm"
           >
-            <option className="text-slate-900" value="week">7 Hari Terakhir</option>
-            <option className="text-slate-900" value="month">30 Hari Terakhir</option>
-            <option className="text-slate-900" value="quarter">90 Hari (3 Bulan)</option>
-            <option className="text-slate-900" value="semester">180 Hari (6 Bulan)</option>
-            <option className="text-slate-900" value="year">1 Tahun Terakhir</option>
+            <option value="week">7 Hari Terakhir</option>
+            <option value="month">30 Hari Terakhir</option>
+            <option value="quarter">90 Hari (3 Bulan)</option>
+            <option value="semester">180 Hari (6 Bulan)</option>
+            <option value="year">1 Tahun Terakhir</option>
           </select>
-        }
-      />
-
-      <main className="max-w-7xl mx-auto px-4 py-8">
+        </div>
 
         {/* === TRAFFIC HARI INI === */}
         <div className="mb-8">

@@ -33,10 +33,10 @@ export default function SuppliersLayout({ children }: { children: React.ReactNod
   const { title, subtitle } = resolveHeader(pathname)
 
   return (
-    <>
+    <div className="overflow-x-hidden">
       <AdminPageHeader eyebrow="Management Supplier" title={title} subtitle={subtitle} />
       <SuppliersTabSwitch />
       {children}
-    </>
+    </div>
   )
 }

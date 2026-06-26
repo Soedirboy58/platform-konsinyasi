@@ -39,11 +39,11 @@ export default function PaymentsLayout({ children }: { children: React.ReactNode
   const { title, subtitle } = resolveHeader(pathname)
 
   return (
-    <>
+    <div className="overflow-x-hidden">
       <AdminPageHeader eyebrow="Keuangan & Pembayaran" title={title} subtitle={subtitle} />
       <PaymentsTabSwitch />
       {children}
-    </>
+    </div>
   )
 }
 

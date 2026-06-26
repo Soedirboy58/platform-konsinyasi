@@ -1996,38 +1996,38 @@ function ShipmentsPageContent() {
             <nav className="flex -mb-px">
               <button
                 onClick={() => setActiveTab('shipments')}
-                className={`flex items-center gap-2 px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
+                className={`flex-1 min-w-0 flex items-center justify-center gap-1.5 sm:gap-2 px-2 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm font-medium border-b-2 transition-colors ${
                   activeTab === 'shipments'
                     ? 'border-blue-600 text-blue-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
               >
-                <Package className="w-5 h-5" />
-                Review Pengiriman
+                <Package className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
+                <span className="truncate hidden sm:inline">Review Pengiriman</span>
               </button>
 
               <button
                 onClick={() => setActiveTab('returns')}
-                className={`flex items-center gap-2 px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
+                className={`flex-1 min-w-0 flex items-center justify-center gap-1.5 sm:gap-2 px-2 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm font-medium border-b-2 transition-colors ${
                   activeTab === 'returns'
                     ? 'border-blue-600 text-blue-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
               >
-                <RotateCcw className="w-5 h-5" />
-                Produk Retur
+                <RotateCcw className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
+                <span className="truncate hidden sm:inline">Produk Retur</span>
               </button>
 
               <button
                 onClick={() => setActiveTab('lost')}
-                className={`flex items-center gap-2 px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
+                className={`flex-1 min-w-0 flex items-center justify-center gap-1.5 sm:gap-2 px-2 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm font-medium border-b-2 transition-colors ${
                   activeTab === 'lost'
                     ? 'border-amber-500 text-amber-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
               >
-                <Search className="w-5 h-5" />
-                Produk Hilang
+                <Search className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
+                <span className="truncate hidden sm:inline">Produk Hilang</span>
               </button>
             </nav>
           </div>

@@ -37,8 +37,7 @@ export default function PaymentsTabSwitch() {
                   : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
               }`}
             >
-              <Icon className={`w-4 h-4 flex-shrink-0 ${active ? 'text-white' : 'text-gray-500'}`} />
-              <span className="truncate sm:hidden">{tab.shortLabel}</span>
+              <Icon className={`w-4 h-4 sm:w-4 sm:h-4 flex-shrink-0 ${active ? 'text-white' : 'text-gray-500'}`} />
               <span className="truncate hidden sm:inline">{tab.label}</span>
             </Link>
           )

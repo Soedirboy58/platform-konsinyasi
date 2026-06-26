@@ -18,9 +18,7 @@ import {
   Hourglass,
   Store
 } from 'lucide-react'
-import AdminPageHeader from '@/components/admin/AdminPageHeader'
 import { createClient } from '@/lib/supabase/client'
-
 interface PurchasePattern {
   hour: number
   count: number
@@ -406,25 +404,19 @@ export default function Analytics() {
         .anim-donut path:hover { transform: scale(1.04); }
         .anim-card { animation: fadeUp 0.5s ease-out both; }
       `}</style>
-      <AdminPageHeader
-        eyebrow="Analytics"
-        title="Analytics & Insights"
-        subtitle="Analisa perilaku pembeli untuk optimasi promo dan bundling"
-        rightSlot={
+      <main className="max-w-7xl mx-auto px-4 py-8">
+        <div className="flex items-center justify-end mb-4">
           <select
             value={period}
             onChange={(e) => setPeriod(e.target.value as any)}
-            className="px-4 py-2.5 bg-white/15 border border-white/20 rounded-xl text-sm font-medium text-white backdrop-blur focus:outline-none focus:ring-2 focus:ring-white/40 cursor-pointer min-w-[180px]"
+            className="px-3.5 py-2 bg-white border border-gray-200 rounded-xl text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer min-w-[180px] shadow-sm"
           >
-            <option className="text-slate-900" value="today">Hari Ini</option>
-            <option className="text-slate-900" value="week">7 Hari Terakhir</option>
-            <option className="text-slate-900" value="month">30 Hari Terakhir</option>
-            <option className="text-slate-900" value="all">Semua Data</option>
+            <option value="today">Hari Ini</option>
+            <option value="week">7 Hari Terakhir</option>
+            <option value="month">30 Hari Terakhir</option>
+            <option value="all">Semua Data</option>
           </select>
-        }
-      />
-
-      <main className="max-w-7xl mx-auto px-4 py-8">
+        </div>
 
         {/* ===== SECURITY MONITORING SECTION ===== */}
         <section className="mb-10">

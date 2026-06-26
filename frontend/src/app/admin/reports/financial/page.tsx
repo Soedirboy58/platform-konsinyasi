@@ -13,7 +13,6 @@ import {
   Save,
   X
 } from 'lucide-react'
-import AdminPageHeader from '@/components/admin/AdminPageHeader'
 import { createClient } from '@/lib/supabase/client'
 
 interface Expense {
@@ -490,31 +489,23 @@ export default function FinancialReport() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <AdminPageHeader
-        eyebrow="Reports"
-        title="Laporan Keuangan"
-        subtitle="Income statement dan analisa profitabilitas platform"
-        rightSlot={
-          <>
-            <button
-              onClick={exportToCSV}
-              className="inline-flex items-center gap-2 px-4 py-2.5 bg-white/15 hover:bg-white/25 text-white rounded-xl text-sm font-medium transition-colors backdrop-blur"
-            >
-              <Download className="w-4 h-4" />
-              CSV
-            </button>
-            <button
-              onClick={exportToPDF}
-              className="inline-flex items-center gap-2 px-4 py-2.5 bg-white/15 hover:bg-white/25 text-white rounded-xl text-sm font-medium transition-colors backdrop-blur"
-            >
-              <Download className="w-4 h-4" />
-              PDF
-            </button>
-          </>
-        }
-      />
-
       <main className="max-w-7xl mx-auto px-4 py-8">
+        <div className="flex flex-wrap items-center justify-end gap-2 mb-4">
+          <button
+            onClick={exportToCSV}
+            className="inline-flex items-center gap-2 px-3.5 py-2 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 rounded-xl text-sm font-medium transition-colors shadow-sm"
+          >
+            <Download className="w-4 h-4" />
+            CSV
+          </button>
+          <button
+            onClick={exportToPDF}
+            className="inline-flex items-center gap-2 px-3.5 py-2 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 rounded-xl text-sm font-medium transition-colors shadow-sm"
+          >
+            <Download className="w-4 h-4" />
+            PDF
+          </button>
+        </div>
         {/* Period Filter */}
         <div className="mb-6 flex flex-wrap items-center gap-3">
           <Calendar className="w-5 h-5 text-gray-600" />
