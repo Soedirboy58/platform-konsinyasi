@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { CheckCircle, XCircle, AlertCircle, RefreshCw, DollarSign, TrendingUp } from 'lucide-react'
-import AdminPageHeader from '@/components/admin/AdminPageHeader'
 
 interface Reconciliation {
   supplier_id: string
@@ -125,22 +124,17 @@ export default function ReconciliationPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <AdminPageHeader
-        eyebrow="Keuangan"
-        title="Rekonsiliasi Pembayaran"
-        subtitle="Verifikasi kesesuaian pembayaran dengan komisi"
-        rightSlot={
+      <main className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-end mb-4">
           <button
             onClick={loadReconciliation}
-            className="inline-flex items-center gap-2 px-4 py-2.5 bg-white/15 hover:bg-white/25 text-white rounded-xl text-sm font-medium transition-colors backdrop-blur"
+            className="inline-flex items-center gap-2 px-3.5 py-2 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 rounded-xl text-sm font-medium transition-colors shadow-sm"
           >
             <RefreshCw className="w-4 h-4" />
             Refresh
           </button>
-        }
-      />
+        </div>
 
-      <main className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
           <div className="bg-white rounded-lg shadow p-4">

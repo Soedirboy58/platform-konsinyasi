@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { History, Download, Eye, Search, Calendar, Filter, X, FileText, Building, CreditCard } from 'lucide-react'
-import AdminPageHeader from '@/components/admin/AdminPageHeader'
 
 interface PaymentHistory {
   id: string
@@ -201,19 +200,14 @@ export default function PaymentHistoryPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <AdminPageHeader
-        eyebrow="Keuangan"
-        title="Riwayat Pembayaran"
-        subtitle="Histori semua pembayaran komisi ke supplier"
-        rightSlot={
-          <button className="inline-flex items-center gap-2 px-4 py-2.5 bg-white/15 hover:bg-white/25 text-white rounded-xl text-sm font-medium transition-colors backdrop-blur">
+      <main className="max-w-7xl mx-auto px-4 py-4 sm:py-8 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-end mb-4">
+          <button className="inline-flex items-center gap-2 px-3.5 py-2 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 rounded-xl text-sm font-medium transition-colors shadow-sm">
             <Download className="w-4 h-4" />
             Export PDF
           </button>
-        }
-      />
+        </div>
 
-      <main className="max-w-7xl mx-auto px-4 py-4 sm:py-8 sm:px-6 lg:px-8">
         {/* Last Refresh Indicator - More Prominent */}
         <div className="mb-3 px-4 py-2 bg-blue-50 border border-blue-200 rounded-lg flex items-center justify-between">
           <div className="flex items-center gap-2 text-sm">

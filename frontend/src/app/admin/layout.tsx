@@ -235,11 +235,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       label: 'Keuangan & Pembayaran',
       href: '/admin/payments',
       active: pathname?.startsWith('/admin/payments'),
-      roles: ['MANAGER', 'FINANCE'],
-      submenu: [
-        { label: 'Pembayaran Supplier', href: '/admin/payments/commissions', roles: null },
-        { label: 'Riwayat Pembayaran', href: '/admin/payments/history', roles: null }
-      ]
+      roles: ['MANAGER', 'FINANCE']
     },
     {
       icon: <TrendingUp className="w-5 h-5" />,

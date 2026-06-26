@@ -2,8 +2,6 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import Link from 'next/link'
-import AdminPageHeader from '@/components/admin/AdminPageHeader'
 import { 
   DollarSign, 
   Upload, 
@@ -771,32 +769,19 @@ export default function CommissionsPage() {
           </button>
         </div>
       )}
-      <AdminPageHeader
-        eyebrow="Keuangan"
-        title="Pembayaran ke Supplier"
-        subtitle="Kelola transfer pembayaran hasil penjualan (sudah dipotong komisi platform)"
-        rightSlot={
-          <>
-            <Link
-              href="/admin/payments/control"
-              className="inline-flex items-center gap-2 px-4 py-2.5 bg-white/15 hover:bg-white/25 text-white rounded-xl text-sm font-medium transition-colors backdrop-blur"
-            >
-              <CheckCircle className="w-4 h-4" />
-              Kontrol Penjualan
-            </Link>
-            <button className="inline-flex items-center gap-2 px-4 py-2.5 bg-white/15 hover:bg-white/25 text-white rounded-xl text-sm font-medium transition-colors backdrop-blur">
-              <Download className="w-4 h-4" />
-              Excel
-            </button>
-            <button className="inline-flex items-center gap-2 px-4 py-2.5 bg-white/15 hover:bg-white/25 text-white rounded-xl text-sm font-medium transition-colors backdrop-blur">
-              <Download className="w-4 h-4" />
-              PDF
-            </button>
-          </>
-        }
-      />
-
       <main className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
+        {/* Action toolbar */}
+        <div className="flex flex-wrap items-center justify-end gap-2 mb-4">
+          <button className="inline-flex items-center gap-2 px-3.5 py-2 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 rounded-xl text-sm font-medium transition-colors shadow-sm">
+            <Download className="w-4 h-4" />
+            Excel
+          </button>
+          <button className="inline-flex items-center gap-2 px-3.5 py-2 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 rounded-xl text-sm font-medium transition-colors shadow-sm">
+            <Download className="w-4 h-4" />
+            PDF
+          </button>
+        </div>
+
         {/* Ready to Pay Card */}
         {readyToPaySuppliers.length > 0 && (
           <div className="rounded-2xl overflow-hidden shadow-md mb-4 border border-green-100">
