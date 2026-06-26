@@ -265,12 +265,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   // Filter menus based on role (null/MANAGER = all)
   const menuItems = allMenuItems
     .filter(item => !item.roles || isManager || item.roles.includes(adminRole as string))
-    .map(item => ({
-      ...item,
-      submenu: item.submenu?.filter(sub =>
-        !sub.roles || isManager || sub.roles.includes(adminRole as string)
-      )
-    }))
+    .map(item => ({ ...item, submenu: [] as { label: string; href: string }[] }))
 
   const roleLabel: Record<string, string> = {
     MANAGER: 'Manager Admin',
