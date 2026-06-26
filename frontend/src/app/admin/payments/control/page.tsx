@@ -222,8 +222,8 @@ export default function SalesControlPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <main className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-end mb-4">
+      <main className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8 space-y-5">
+        <div className="flex items-center justify-end">
           <button
             onClick={loadData}
             className="inline-flex items-center gap-2 px-3.5 py-2 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 rounded-xl text-sm font-medium transition-colors shadow-sm"
@@ -233,7 +233,6 @@ export default function SalesControlPage() {
           </button>
         </div>
 
-      <main className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8 space-y-5">
         {flash && (
           <div className={`rounded-lg border px-4 py-3 text-sm ${
             flash.type === 'success'
