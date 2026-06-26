@@ -55,6 +55,7 @@ export default function CommissionsPage() {
   
   // Payment settings (threshold)
   const [minThreshold, setMinThreshold] = useState(100000)
+  const [thresholdEnabled, setThresholdEnabled] = useState(true)
   const [readyToPaySuppliers, setReadyToPaySuppliers] = useState<Commission[]>([])
   const [pendingThresholdSuppliers, setPendingThresholdSuppliers] = useState<Commission[]>([])
 
@@ -85,19 +86,19 @@ export default function CommissionsPage() {
   async function loadPaymentSettings() {
     try {
       const supabase = createClient()
-      const { data, error } = await supabase
-        .from('payment_settings')
-        .select('minimum_payout_amount')
-        .single()
-      
+      const [{ data, error }, { data: flagRow }] = await Promise.all([
+        supabase.from('payment_settings').select('minimum_payout_amount').single(),
+        supabase.from('platform_settings').select('value').eq('key', 'min_payout_enabled').maybeSingle()
+      ])
+
       if (error) {
         console.error('Error loading payment settings:', error)
-        return
-      }
-      
-      if (data) {
+      } else if (data) {
         setMinThreshold(data.minimum_payout_amount || 100000)
       }
+
+      // Default: enabled (true). Hanya false bila value secara eksplisit 'false'.
+      setThresholdEnabled(flagRow?.value !== 'false')
     } catch (error) {
       console.error('Error:', error)
     }
@@ -131,14 +132,19 @@ export default function CommissionsPage() {
         startDate = new Date(2020, 0, 1)
       }
 
-      // Ambil commission rate & minimum threshold dari DB (local variable, bukan state)
-      const [{ data: platformSettings }, { data: settingsData }] = await Promise.all([
+      // Ambil commission rate, minimum threshold & flag enable dari DB (local variable, bukan state)
+      const [{ data: platformSettings }, { data: settingsData }, { data: thresholdFlag }] = await Promise.all([
         supabase.from('platform_settings').select('value').eq('key', 'commission_rate').single(),
-        supabase.from('payment_settings').select('minimum_payout_amount').single()
+        supabase.from('payment_settings').select('minimum_payout_amount').single(),
+        supabase.from('platform_settings').select('value').eq('key', 'min_payout_enabled').maybeSingle()
       ])
       const commissionRate = platformSettings?.value ? parseFloat(platformSettings.value) : 10
-      const localMinThreshold = settingsData?.minimum_payout_amount || 50000
-      setMinThreshold(localMinThreshold)
+      const rawMinThreshold = settingsData?.minimum_payout_amount || 50000
+      const localThresholdEnabled = thresholdFlag?.value !== 'false'
+      // Jika threshold di-disable, paksa 0 supaya semua saldo positif masuk UNPAID (Siap Dibayar)
+      const localMinThreshold = localThresholdEnabled ? rawMinThreshold : 0
+      setMinThreshold(rawMinThreshold)
+      setThresholdEnabled(localThresholdEnabled)
 
       // Supplier map (approved) + product map.
       // Gunakan basis yang sama dengan dashboard supplier agar saldo konsisten.
