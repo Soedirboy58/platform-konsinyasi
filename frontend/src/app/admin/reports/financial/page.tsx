@@ -37,6 +37,7 @@ export default function FinancialReport() {
   const [totalSales, setTotalSales] = useState(0)
   const [platformIncome, setPlatformIncome] = useState(0)
   const [supplierPayables, setSupplierPayables] = useState(0)
+  const [qrFeePlatformBorne, setQrFeePlatformBorne] = useState(0)
   const [commissionRate, setCommissionRate] = useState(0.10)
   
   // Expenses data
@@ -66,7 +67,7 @@ export default function FinancialReport() {
 
   useEffect(() => {
     calculateProfitMetrics()
-  }, [platformIncome, totalExpenses])
+  }, [platformIncome, qrFeePlatformBorne, totalExpenses])
 
   const loadFinancialData = async () => {
     setLoading(true)
@@ -122,6 +123,17 @@ export default function FinancialReport() {
         console.error('Error fetching sales:', salesError)
       }
 
+      // Fetch QR fee amounts borne by platform in the same window
+      const { data: feeTx } = await supabase
+        .from('sales_transactions')
+        .select('qr_fee_amount, qr_fee_bearer')
+        .eq('status', 'COMPLETED')
+        .eq('qr_fee_bearer', 'PLATFORM')
+        .gte('created_at', startDate.toISOString())
+        .lte('created_at', endDate.toISOString())
+      const totalQrFeePlatform = (feeTx || []).reduce((sum, t: any) => sum + Number(t.qr_fee_amount || 0), 0)
+      setQrFeePlatformBorne(totalQrFeePlatform)
+
       if (salesItems && salesItems.length > 0) {
         // Calculate totals from actual transaction data
         const totalSalesAmount = salesItems.reduce((sum, item) => sum + (item.subtotal || 0), 0)
@@ -174,11 +186,12 @@ export default function FinancialReport() {
   }
 
   const calculateProfitMetrics = () => {
-    const profit = platformIncome - totalExpenses
+    const netCommission = platformIncome - qrFeePlatformBorne
+    const profit = netCommission - totalExpenses
     setNetProfit(profit)
-    
-    if (platformIncome > 0) {
-      setProfitMargin((profit / platformIncome) * 100)
+
+    if (netCommission > 0) {
+      setProfitMargin((profit / netCommission) * 100)
     } else {
       setProfitMargin(0)
     }
@@ -567,6 +580,22 @@ export default function FinancialReport() {
                     {loading ? '...' : formatCurrency(platformIncome)}
                   </span>
                 </div>
+                {qrFeePlatformBorne > 0 && (
+                  <div className="flex justify-between items-center pl-4 border-l-2 border-red-500">
+                    <span className="text-red-700 font-medium">Fee QR (Ditanggung Platform)</span>
+                    <span className="text-lg font-semibold text-red-600">
+                      − {loading ? '...' : formatCurrency(qrFeePlatformBorne)}
+                    </span>
+                  </div>
+                )}
+                {qrFeePlatformBorne > 0 && (
+                  <div className="flex justify-between items-center pl-4 border-l-2 border-emerald-600 bg-emerald-50/50 rounded-r">
+                    <span className="text-emerald-800 font-semibold">Komisi Bersih Platform</span>
+                    <span className="text-lg font-bold text-emerald-700">
+                      {loading ? '...' : formatCurrency(platformIncome - qrFeePlatformBorne)}
+                    </span>
+                  </div>
+                )}
                 <div className="flex justify-between items-center pl-4 border-l-2 border-orange-500">
                   <span className="text-orange-700">Transfer ke Supplier ({((1 - commissionRate) * 100).toFixed(0)}%)</span>
                   <span className="text-lg font-semibold text-orange-600">
@@ -574,7 +603,7 @@ export default function FinancialReport() {
                   </span>
                 </div>
                 <div className="pt-4 border-t text-sm text-gray-600">
-                  <p>💡 Komisi {(commissionRate * 100).toFixed(0)}% adalah pendapatan platform dari penjualan konsinyasi</p>
+                  <p>💡 Komisi {(commissionRate * 100).toFixed(0)}% adalah pendapatan platform dari penjualan konsinyasi{qrFeePlatformBorne > 0 ? '. Fee QR ditanggung oleh platform, jadi mengurangi komisi bersih.' : ''}</p>
                 </div>
               </div>
             </div>
@@ -791,15 +820,17 @@ export default function FinancialReport() {
                       const centerY = 100
                       const radius = 80
                       const innerRadius = 50
-                      
+
                       const total = totalSales
-                      const platformPercent = (platformIncome / total) * 100
+                      const netCommission = Math.max(platformIncome - qrFeePlatformBorne, 0)
+                      const netCommissionPercent = (netCommission / total) * 100
+                      const feePercent = (qrFeePlatformBorne / total) * 100
                       const supplierPercent = (supplierPayables / total) * 100
-                      
-                      // Calculate angles (start from top, clockwise)
-                      const platformAngle = (platformPercent / 100) * 360
+
+                      const netCommissionAngle = (netCommissionPercent / 100) * 360
+                      const feeAngle = (feePercent / 100) * 360
                       const supplierAngle = (supplierPercent / 100) * 360
-                      
+
                       // Helper function to create arc path
                       const createArc = (startAngle: number, endAngle: number, outerR: number, innerR: number) => {
                         const start = {
@@ -818,30 +849,49 @@ export default function FinancialReport() {
                           x: centerX + innerR * Math.cos((startAngle - 90) * Math.PI / 180),
                           y: centerY + innerR * Math.sin((startAngle - 90) * Math.PI / 180)
                         }
-                        
+
                         const largeArc = endAngle - startAngle > 180 ? 1 : 0
-                        
+
                         return `M ${start.x} ${start.y}
                                 A ${outerR} ${outerR} 0 ${largeArc} 1 ${end.x} ${end.y}
                                 L ${innerStart.x} ${innerStart.y}
                                 A ${innerR} ${innerR} 0 ${largeArc} 0 ${innerEnd.x} ${innerEnd.y}
                                 Z`
                       }
-                      
+
+                      const a1Start = 0
+                      const a1End = netCommissionAngle
+                      const a2Start = a1End
+                      const a2End = a2Start + feeAngle
+                      const a3Start = a2End
+                      const a3End = 360
+
                       return (
                         <>
-                          {/* Platform Commission - Green */}
-                          <path
-                            d={createArc(0, platformAngle, radius, innerRadius)}
-                            fill="#10b981"
-                            className="hover:opacity-80 transition-opacity cursor-pointer"
-                          />
+                          {/* Net Platform Commission - Green */}
+                          {netCommissionAngle > 0 && (
+                            <path
+                              d={createArc(a1Start, a1End, radius, innerRadius)}
+                              fill="#10b981"
+                              className="hover:opacity-80 transition-opacity cursor-pointer"
+                            />
+                          )}
+                          {/* QR Fee (Platform) - Red */}
+                          {feeAngle > 0 && (
+                            <path
+                              d={createArc(a2Start, a2End, radius, innerRadius)}
+                              fill="#ef4444"
+                              className="hover:opacity-80 transition-opacity cursor-pointer"
+                            />
+                          )}
                           {/* Supplier Revenue - Orange */}
-                          <path
-                            d={createArc(platformAngle, 360, radius, innerRadius)}
-                            fill="#f59e0b"
-                            className="hover:opacity-80 transition-opacity cursor-pointer"
-                          />
+                          {supplierAngle > 0 && (
+                            <path
+                              d={createArc(a3Start, a3End, radius, innerRadius)}
+                              fill="#f59e0b"
+                              className="hover:opacity-80 transition-opacity cursor-pointer"
+                            />
+                          )}
                           {/* Center Text */}
                           <text x={centerX} y={centerY - 10} textAnchor="middle" className="text-xs fill-gray-600 font-medium">
                             Total Sales
@@ -853,18 +903,29 @@ export default function FinancialReport() {
                       )
                     })()}
                   </svg>
-                  
+
                   {/* Legend */}
                   <div className="mt-4 space-y-2">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                        <span className="text-sm text-gray-700">Komisi Platform</span>
+                        <span className="text-sm text-gray-700">Komisi Platform{qrFeePlatformBorne > 0 ? ' (Net)' : ''}</span>
                       </div>
                       <span className="text-sm font-semibold text-gray-900">
-                        {((platformIncome / totalSales) * 100).toFixed(1)}%
+                        {(((platformIncome - qrFeePlatformBorne) / totalSales) * 100).toFixed(1)}%
                       </span>
                     </div>
+                    {qrFeePlatformBorne > 0 && (
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+                          <span className="text-sm text-gray-700">Fee QR (Platform)</span>
+                        </div>
+                        <span className="text-sm font-semibold text-gray-900">
+                          {((qrFeePlatformBorne / totalSales) * 100).toFixed(1)}%
+                        </span>
+                      </div>
+                    )}
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <div className="w-3 h-3 bg-orange-500 rounded-full"></div>
