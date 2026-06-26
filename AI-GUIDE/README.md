@@ -1,9 +1,9 @@
 # 🤖 AI AGENT GUIDE - Platform Konsinyasi
 
 > **Panduan lengkap untuk AI Agent dalam membangun dan maintain Platform Konsinyasi**  
-> **Last Updated:** 21 Juni 2026  
-> **Version:** 2.5.0  
-> **Production:** https://smartalley.katalara.com
+> **Last Updated:** 26 Juni 2026  
+> **Version:** 2.6.0  
+> **Production:** https://smartvalley.katalara.com
 
 ---
 
@@ -77,7 +77,7 @@ Supplier → Kirim Produk → Toko (Location) → Customer Beli → Platform Fee
 - Branch: `main` (production)
 
 ### **Domains:**
-- **Production:** `https://smartalley.katalara.com` *(custom domain, Supabase Site URL)*
+- **Production:** `https://smartvalley.katalara.com` *(custom domain, Supabase Site URL)*
 - **Vercel:** `https://platform-konsinyasi.vercel.app` *(fallback)*
 
 ---
@@ -126,7 +126,7 @@ Route `/api/admin/users` menggunakan `SUPABASE_SERVICE_ROLE_KEY` (bukan anon key
 - `PATCH` — reset password: `supabase.auth.admin.generateLink({type:'recovery'})`
 - `DELETE` — hapus user: `supabase.auth.admin.deleteUser()`
 
-**Origin URL:** selalu gunakan `new URL(request.url).origin` agar cocok dengan domain yang dipakai (smartalley.katalara.com atau localhost).
+**Origin URL:** selalu gunakan `new URL(request.url).origin` agar cocok dengan domain yang dipakai (smartvalley.katalara.com atau localhost).
 
 ---
 
@@ -277,10 +277,19 @@ konsinyasi/
 - transaction_code: TEXT (unique)
 - customer_name: TEXT
 - total_amount: DECIMAL(15,2)
-- payment_method: TEXT ('CASH', 'QRIS', 'PENDING')
+- payment_method: TEXT ('CASH', 'QRIS', 'PENDING', 'LOST')
 - payment_proof_url: TEXT    -- URL bukti bayar customer
 - payment_provider: TEXT     -- 'XENDIT', 'MIDTRANS', 'MANUAL' (NULL = belum)
-- status: TEXT ('PENDING', 'PAID', 'CANCELLED')
+- status: TEXT ('PENDING', 'PAID', 'COMPLETED', 'CANCELLED', 'HILANG')
+- qr_fee_rate: DECIMAL(5,2)
+- qr_fee_amount: DECIMAL(15,2)
+- qr_fee_bearer: TEXT ('CUSTOMER','SUPPLIER','PLATFORM','NONE')
+- lost_notes: TEXT
+- lost_marked_by: UUID
+- lost_marked_at: TIMESTAMPTZ
+- lost_converted_by: UUID
+- lost_converted_at: TIMESTAMPTZ
+- lost_resolution: TEXT ('SOLD','CANCELLED',NULL)
 - paid_at: TIMESTAMPTZ       -- Diisi saat payment dikonfirmasi
 - created_at: TIMESTAMPTZ
 ```
@@ -612,6 +621,49 @@ if (['ADMIN', 'SUPER_ADMIN'].includes(profile.role)) {
   return
 }
 ```
+
+### **13. Dynamic QR Fee (Migration 053)**
+
+**Tujuan:** Fee QR tidak lagi hardcoded. Admin dapat mengatur persentase dan penanggung fee dari settings.
+
+**Settings keys:**
+- `qr_fee_enabled` (boolean)
+- `qr_fee_rate` (decimal, default 0.7)
+- `qr_fee_bearer` (`CUSTOMER | SUPPLIER | PLATFORM | NONE`)
+
+**Snapshot per transaksi (`sales_transactions`):**
+- `qr_fee_rate`, `qr_fee_amount`, `qr_fee_bearer`
+
+**Perilaku checkout:**
+- Jika pembayaran `QRIS` dan fee aktif:
+  - `CUSTOMER`: total bayar customer naik sebesar fee
+  - `SUPPLIER`: supplier revenue berkurang sebesar fee
+  - `PLATFORM`: platform menanggung fee (supplier tetap sesuai komisi)
+  - `NONE`: fee tidak diterapkan
+
+### **14. Lost Products Flow (Migration 054)**
+
+**Tujuan:** Pencatatan selisih stok offline tanpa menghilangkan jejak audit transaksi.
+
+**RPC baru:**
+- `mark_products_lost(p_location_id, p_items, p_notes, p_admin_id)`
+- `convert_lost_to_sold(p_transaction_id, p_payment_method, p_notes, p_admin_id)`
+- `cancel_lost(p_transaction_id, p_notes, p_admin_id)`
+
+**Aturan bisnis inti:**
+- Saat ditandai hilang: stok outlet berkurang, transaksi berstatus `HILANG`, item `commission_amount=0` dan `supplier_revenue=0`
+- Saat dikonversi jadi terjual: status jadi `COMPLETED`, komisi dihitung ulang normal sesuai `commission_rate`
+- Saat dibatalkan: status jadi `CANCELLED`, stok dikembalikan
+
+### **15. Admin Header Theme System**
+
+**Komponen reusable:**
+- `frontend/src/components/admin/AdminPageHeader.tsx`
+
+**Pola penggunaan:**
+- Semua halaman admin utama menggunakan header seragam (judul, deskripsi, aksen gradient)
+- Warna tema dikelola dari `/admin/settings` tab **Tampilan** (preset + color picker)
+- Tema disimpan di localStorage agar konsisten lintas halaman
 
 ---
 

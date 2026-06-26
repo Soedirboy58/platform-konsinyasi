@@ -1,15 +1,15 @@
-# Development Summary - Platform Konsinyasi v2.5.0
+# Development Summary - Platform Konsinyasi v2.6.0
 
 **Project:** Platform Konsinyasi Terintegrasi  
 **Status:** ✅ Production Active  
-**Last Updated:** 21 Juni 2026  
-**Primary Domain:** `https://smartalley.katalara.com`
+**Last Updated:** 26 Juni 2026  
+**Primary Domain:** `https://smartvalley.katalara.com`
 
 ---
 
 ## 1. Snapshot Progres
 
-Platform sudah berada pada fase production aktif untuk operasional inti konsinyasi. Area yang saat ini paling matang adalah admin operations, supplier workflow, outlet-based self-checkout, dan reporting dasar. Perkembangan terbaru berfokus pada stabilitas auth, administrasi internal, dan kesiapan fondasi untuk payment provider yang lebih dinamis.
+Platform sudah berada pada fase production aktif untuk operasional inti konsinyasi. Area yang saat ini paling matang adalah admin operations, supplier workflow, outlet-based self-checkout, reporting, dan payment controls. Perkembangan terbaru berfokus pada fee QR dinamis, pencatatan produk hilang, serta standardisasi UI admin berbasis tema.
 
 ---
 
@@ -17,6 +17,7 @@ Platform sudah berada pada fase production aktif untuk operasional inti konsinya
 
 | Version | Tanggal | Highlight |
 |---------|---------|-----------|
+| v2.6.0 | 26 Jun 2026 | Migration 053/054 (QR fee dinamis + produk hilang), Admin header theming rollout, revamp tab Komisi |
 | v2.5.0 | 21 Jun 2026 | DOKU Checkout live production, migration 051/052, stock reservation fix, env runtime trim |
 | v2.4.0 | 1–4 Jun 2026 | Supplier balance accuracy (snapshot), migration 048/049/050, UI mobile commissions |
 | v2.3.1 | 1 Jun 2026 | Checkout manual verification hardening, admin sales control page, migration 047, supplier card calculation fixes |
@@ -46,6 +47,8 @@ Dokumen release detail: [AI-GUIDE/CHANGELOG.md](../AI-GUIDE/CHANGELOG.md)
 - Banner homepage dan outlet customization
 - Manajemen user admin beserta role internal
 - Notification bell realtime
+- Header halaman admin bertema seragam (gradient/preset)
+- Settings tampilan global untuk tema header
 
 ### Supplier
 - Login, registrasi, verifikasi email
@@ -73,6 +76,11 @@ Dokumen release detail: [AI-GUIDE/CHANGELOG.md](../AI-GUIDE/CHANGELOG.md)
 - Aksi manual: tandai `COMPLETED` atau `CANCELLED + restore stock`
 - SQL diagnostic toolkit mismatch saldo supplier
 - UI mobile card "Siap Dibayar" dan "Akumulasi" dirancang ulang (v2.4.0)
+- Pengaturan komisi + fee QR + threshold toggle terintegrasi di tab Komisi
+
+### Admin Inventory Exception
+- Fitur "Produk Hilang" untuk pencatatan selisih stok outlet
+- Dapat dikonversi menjadi transaksi terjual atau dibatalkan dengan restore stok
 
 ---
 
@@ -192,6 +200,34 @@ Meski begitu, runtime sudah toleran karena semua `process.env.DOKU_*` di-trim le
 - Idempotent: skip jika status sudah CANCELLED atau sudah COMPLETED
 - **Wajib dijalankan di Supabase SQL Editor**
 
+### 4.12 Dynamic QR Fee & Bearer (v2.6.0)
+- Migration: `backend/migrations/053_qr_fee_dynamic.sql`
+- Menambah pengaturan fee QR dinamis berbasis `platform_settings`:
+  - `qr_fee_enabled`
+  - `qr_fee_rate`
+  - `qr_fee_bearer` (`CUSTOMER|SUPPLIER|PLATFORM|NONE`)
+- Menambah snapshot fee pada `sales_transactions`:
+  - `qr_fee_rate`, `qr_fee_amount`, `qr_fee_bearer`
+- Update `process_anonymous_checkout()` agar menerapkan fee sesuai payment method dan penanggung fee
+
+### 4.13 Produk Hilang (v2.6.0)
+- Migration: `backend/migrations/054_lost_products.sql`
+- Menambah audit kolom di `sales_transactions` untuk lifecycle kehilangan barang
+- Menambah RPC:
+  - `mark_products_lost` (tandai kehilangan, stok berkurang, status `HILANG`)
+  - `convert_lost_to_sold` (ubah jadi `COMPLETED`, hitung komisi normal)
+  - `cancel_lost` (ubah jadi `CANCELLED`, stok dikembalikan)
+
+### 4.14 Standardisasi Admin Header & Settings Komisi (v2.6.0)
+- Komponen baru: `frontend/src/components/admin/AdminPageHeader.tsx`
+- Rollout ke modul analytics, reports, suppliers, payments, returns, dan settings
+- Tab settings "Banner Utama" diubah menjadi "Tampilan" untuk konfigurasi tema header
+- Tab Komisi diperbarui dengan:
+  - Toggle `commission_enabled`
+  - Toggle + rate `qr_fee_enabled`/`qr_fee_rate`
+  - Toggle `min_payout_enabled`
+  - Simulasi perhitungan komisi dan fee QR
+
 ---
 
 ## 5. Status Payment & QRIS
@@ -207,9 +243,16 @@ Meski begitu, runtime sudah toleran karena semua `process.env.DOKU_*` di-trim le
 - Migration 051: tabel `doku_webhook_events` + RPC `process_doku_checkout_notification()`
 - Migration 052: restore stok saat DOKU cancel/expired
 
+### Yang Sudah Siap (Update 26 Jun 2026)
+- Dynamic QR fee configuration end-to-end (frontend + migration 053)
+- Lost products operation flow (frontend + migration 054)
+- Admin header theming dan settings tampilan
+
 ### Yang Belum Final di Production
 - Dynamic QRIS feature flag nonaktif (`NEXT_PUBLIC_ENABLE_DYNAMIC_QRIS=false`)
 - Migration 052 belum dijalankan di Supabase — perlu dieksekusi manual
+- Migration 053 belum dijalankan di Supabase — perlu dieksekusi manual
+- Migration 054 belum dijalankan di Supabase — perlu dieksekusi manual
 - Xendit hanya jejak eksperimen lama, bukan jalur aktif
 
 ---
@@ -217,7 +260,7 @@ Meski begitu, runtime sudah toleran karena semua `process.env.DOKU_*` di-trim le
 ## 6. Statistik Teknis
 
 ### Backend
-- 52 migration SQL di `backend/migrations` (001–052)
+- 54 migration SQL di `backend/migrations` (001–054)
 - 20+ tabel utama dan pendukung
 - RLS aktif untuk tabel inti
 - Trigger, function, dan cleanup jobs untuk inventory dan transaksi
@@ -241,6 +284,8 @@ Meski begitu, runtime sudah toleran karena semua `process.env.DOKU_*` di-trim le
 ## 7. Manual Tasks / Follow-up Operasional
 
 - [ ] **URGENT** Jalankan migration `052_fix_doku_cancel_restore_stock.sql` di Supabase SQL Editor agar DOKU cancel restore stok otomatis
+- [ ] Jalankan migration `053_qr_fee_dynamic.sql` agar fee QR dinamis aktif di database production
+- [ ] Jalankan migration `054_lost_products.sql` agar flow Produk Hilang aktif penuh
 - [ ] Pastikan migration `046_notification_triggers.sql` sudah dijalankan di environment production yang aktif
 - [ ] Jalankan migration `047_admin_adjust_sales_transactions.sql` sebelum operasional halaman kontrol manual penjualan
 - [ ] Jalankan migration `050_add_paid_at_to_supplier_payments.sql` jika belum dieksekusi di production
@@ -252,10 +297,11 @@ Meski begitu, runtime sudah toleran karena semua `process.env.DOKU_*` di-trim le
 
 ## 8. Rekomendasi Update Berikutnya
 
-1. Jalankan migration 052 di Supabase agar restore stok saat DOKU cancel berjalan otomatis.
+1. Jalankan migration 052, 053, dan 054 di Supabase agar flow DOKU cancel restore, fee QR dinamis, dan Produk Hilang aktif penuh.
 2. Lakukan test end-to-end transaksi live DOKU: checkout → bayar → konfirmasi webhook → cek `doku_webhook_events`.
-3. Rapikan abstraction payment provider agar Midtrans dan DOKU memakai kontrak service yang sama.
-4. Tambahkan audit log permanen untuk intervensi manual transaksi admin.
+3. Validasi simulasi dan hasil real transaksi untuk semua bearer fee QR (`CUSTOMER`, `SUPPLIER`, `PLATFORM`, `NONE`).
+4. Rapikan abstraction payment provider agar Midtrans dan DOKU memakai kontrak service yang sama.
+5. Tambahkan audit log permanen untuk intervensi manual transaksi admin dan resolution Produk Hilang.
 
 ---
 
@@ -267,5 +313,5 @@ Meski begitu, runtime sudah toleran karena semua `process.env.DOKU_*` di-trim le
 
 ---
 
-**Current Assessment:** DOKU Checkout sudah live di production dengan credential aktif. Stok reservation dan cancel-restore sudah didesain benar; tinggal jalankan migration 052 agar flow cancel-restore berjalan otomatis tanpa intervensi manual.  
-**Recommended Next Focus:** jalankan migration 052 → test live end-to-end DOKU → audit log intervensi manual.
+**Current Assessment:** Platform sudah menambah fondasi operasional penting: fee QR dinamis, fitur Produk Hilang, dan standardisasi UI admin. DOKU checkout live tetap stabil, namun migrasi 052/053/054 harus dijalankan agar semua capability backend aktif penuh di production.  
+**Recommended Next Focus:** jalankan migration 052/053/054 → validasi transaksi QRIS per bearer fee → uji flow Produk Hilang (mark/convert/cancel) end-to-end.

@@ -1,7 +1,7 @@
 # 📝 CHANGELOG & VERSION HISTORY
 
 > **Catatan perubahan dan riwayat versi Platform Konsinyasi**  
-> **Last Updated:** 6 Juni 2026
+> **Last Updated:** 26 Juni 2026
 
 ---
 
@@ -16,6 +16,58 @@ Format: `MAJOR.MINOR.PATCH`
 ---
 
 ## 🚀 LATEST VERSION
+
+### **v2.6.0** - 2026-06-26
+
+**Type:** Dynamic QR Fee + Lost Products + Admin UI Theming
+**Status:** ✅ Production (frontend) / ⚠️ DB migration required
+
+---
+
+#### ✅ Yang Diimplementasikan
+
+**Database & Flow Baru:**
+- Migration 053: `backend/migrations/053_qr_fee_dynamic.sql`
+  - `sales_transactions` tambah snapshot `qr_fee_rate`, `qr_fee_amount`, `qr_fee_bearer`
+  - `process_anonymous_checkout()` menerima `p_payment_method` dan menerapkan fee QR berdasarkan bearer (`CUSTOMER`, `SUPPLIER`, `PLATFORM`, `NONE`)
+  - Pengaturan platform: `qr_fee_enabled`, `qr_fee_rate`, `qr_fee_bearer`
+- Migration 054: `backend/migrations/054_lost_products.sql`
+  - Fitur produk hilang (`status='HILANG'`, `payment_method='LOST'`)
+  - RPC `mark_products_lost`, `convert_lost_to_sold`, `cancel_lost`
+  - Alur: mark hilang → konversi jadi terjual (CASH/QRIS) atau batalkan + restore stok
+
+**Admin UI/UX Improvement:**
+- Diterapkan komponen reusable `AdminPageHeader` dengan tema gradient global
+- Pengaturan tema dipindah ke `/admin/settings` tab **Tampilan** (rename dari "Banner Utama")
+  - Color picker manual + preset tone
+  - Theme disimpan di localStorage dan broadcast event `admin-header-theme-change`
+- Rollout banner header seragam ke halaman admin utama:
+  - Dashboard, Analytics, Reports index, Reports Sales, Reports Financial
+  - Suppliers (daftar/produk/pengiriman-retur)
+  - Payments (commissions/control/history/reconciliation)
+  - Returns (list/create)
+
+**Settings Komisi/Pembayaran:**
+- Tab Komisi diperbarui:
+  - Toggle `commission_enabled`
+  - Field dan toggle fee QR (`qr_fee_enabled`, `qr_fee_rate`) + simulasi terpadu
+  - Toggle minimum threshold (`min_payout_enabled`)
+- Simulasi komisi & fee QR menampilkan dampak ke supplier/platform untuk nominal referensi
+
+**Laporan & Navigasi:**
+- Sales report: custom date range (start/end), filter chips expandable (Periode/Supplier/Produk), detail filter dipusatkan
+- Sidebar admin desktop: mode collapse menjadi icon-only rail (bukan hilang total)
+- Analytics: animasi bar chart dan donut untuk tampilan lebih hidup
+
+#### 🐛 Fix Tambahan
+- Fix build TypeScript: spread `Map.entries()` diganti `Array.from(...)` (downlevelIteration compatibility)
+- Fix build import: menambahkan import `AdminPageHeader` yang hilang di sales report
+
+#### ⚠️ Catatan Operasional
+- Jalankan migration 053 dan 054 di Supabase SQL Editor agar fitur fee QR dinamis dan produk hilang aktif penuh di database production
+- Frontend sudah siap, namun tanpa migrasi tersebut sebagian alur akan gagal query/RPC
+
+---
 
 ### **v2.5.0** - 2026-06-21
 
