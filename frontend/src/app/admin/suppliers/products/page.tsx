@@ -3,6 +3,7 @@
 import { useState, useEffect, Suspense } from 'react'
 import { Package, Check, X, Search, Edit, Trash2, Eye, Image as ImageIcon, Clock } from 'lucide-react'
 import AdminPageHeader from '@/components/admin/AdminPageHeader'
+import SuppliersTabSwitch from '@/components/admin/SuppliersTabSwitch'
 import { createClient } from '@/lib/supabase/client'
 import { useSearchParams } from 'next/navigation'
 import ConfirmDialog from '@/components/admin/ConfirmDialog'
@@ -437,6 +438,8 @@ function ProductsApprovalContent() {
         title="Produk Supplier"
         subtitle="Review dan approve produk yang diajukan supplier"
       />
+
+      <SuppliersTabSwitch />
 
       <main className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
         {/* Stats Cards */}

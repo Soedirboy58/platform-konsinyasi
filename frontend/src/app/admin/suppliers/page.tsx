@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Users, Phone, Mail, MapPin, CreditCard, Building, Check, X, Search, Eye } from 'lucide-react'
 import AdminPageHeader from '@/components/admin/AdminPageHeader'
+import SuppliersTabSwitch from '@/components/admin/SuppliersTabSwitch'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 import { toast } from 'sonner'
@@ -310,6 +311,8 @@ export default function SupplierList() {
         title="Daftar Supplier"
         subtitle="Kelola dan review supplier yang bermitra dengan platform"
       />
+
+      <SuppliersTabSwitch />
 
       <main className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 mb-4">

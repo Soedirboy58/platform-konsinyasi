@@ -10,6 +10,7 @@ import AlertDialog from '@/components/admin/AlertDialog'
 import { toast } from 'sonner'
 import LostProductsTab from './LostProductsTab'
 import AdminPageHeader from '@/components/admin/AdminPageHeader'
+import SuppliersTabSwitch from '@/components/admin/SuppliersTabSwitch'
 
 interface Product {
   id: string
@@ -1995,6 +1996,8 @@ function ShipmentsPageContent() {
         title="Pengiriman & Retur"
         subtitle="Review pengiriman produk dari supplier dan kelola retur"
       />
+
+      <SuppliersTabSwitch />
 
       <main className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
         {/* Tab Navigation */}

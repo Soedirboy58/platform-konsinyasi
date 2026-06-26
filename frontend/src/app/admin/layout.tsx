@@ -228,12 +228,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       label: 'Management Supplier',
       href: '/admin/suppliers',
       active: pathname?.startsWith('/admin/suppliers'),
-      roles: ['MANAGER', 'PRODUCT', 'MITRA'],
-      submenu: [
-        { label: 'Daftar Supplier', href: '/admin/suppliers', roles: null },
-        { label: 'Produk Supplier', href: '/admin/suppliers/products', roles: ['MANAGER', 'PRODUCT'] },
-        { label: 'Pengiriman & Retur', href: '/admin/suppliers/shipments', roles: null }
-      ]
+      roles: ['MANAGER', 'PRODUCT', 'MITRA']
     },
     {
       icon: <Wallet className="w-5 h-5" />,
@@ -391,7 +386,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
       {/* Sidebar */}
       <aside
-        className={`fixed top-0 left-0 bottom-0 bg-white border-r border-gray-200 z-40 overflow-y-auto transition-all duration-300
+        className={`fixed top-0 left-0 bottom-0 bg-white border-r border-gray-200 z-40 flex flex-col transition-all duration-300
           ${isDesktop
             ? (sidebarOpen ? 'w-64 translate-x-0' : 'w-16 translate-x-0')
             : `w-64 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`
@@ -415,7 +410,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           )}
         </div>
 
-        <nav className={`py-4 space-y-1 ${isDesktop && !sidebarOpen ? 'px-2' : 'px-4'}`}>
+        <nav className={`flex-1 overflow-y-auto py-4 space-y-1 ${isDesktop && !sidebarOpen ? 'px-2' : 'px-4'}`}>
           {menuItems.map((item, index) => {
             const collapsed = isDesktop && !sidebarOpen
             return (
@@ -463,11 +458,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               </div>
             )
           })}
+        </nav>
 
-          {/* Logout Button */}
+        {/* Logout Button (sticky bottom) */}
+        <div className={`border-t border-gray-200 ${isDesktop && !sidebarOpen ? 'px-2 py-3' : 'px-4 py-3'}`}>
           <button
             onClick={handleLogout}
-            className={`flex items-center rounded-lg text-red-600 hover:bg-red-50 w-full transition-colors mt-8 ${
+            className={`flex items-center rounded-lg text-red-600 hover:bg-red-50 w-full transition-colors ${
               isDesktop && !sidebarOpen ? 'justify-center p-3' : 'gap-3 px-4 py-3'
             }`}
             title="Logout"
@@ -475,7 +472,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <LogOut className="w-5 h-5" />
             {(!isDesktop || sidebarOpen) && <span>Logout</span>}
           </button>
-        </nav>
+        </div>
       </aside>
 
       {/* Main Content */}
