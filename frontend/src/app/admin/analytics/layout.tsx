@@ -8,8 +8,8 @@ export default function AnalyticsLayout({ children }: { children: React.ReactNod
     <div className="overflow-x-hidden">
       <AdminPageHeader
         eyebrow="Laporan & Analitik"
-        title="Analytics Dashboard"
-        subtitle="Analisa perilaku pembeli untuk optimasi promo dan bundling"
+        title="Analytics Insight"
+        subtitle="Analisa perilaku pembeli, monitor keamanan, dan insight bundling produk"
       />
       <ReportsTabSwitch />
       {children}

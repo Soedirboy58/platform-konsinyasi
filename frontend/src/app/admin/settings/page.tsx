@@ -965,33 +965,35 @@ export default function Settings() {
         }
       />
       <main className="max-w-7xl mx-auto px-4 py-8">
-        <div className="bg-white rounded-lg shadow mb-6">
-          <nav className="flex border-b overflow-x-auto">
-            <button onClick={() => setActiveTab('commission')} className={`px-6 py-4 border-b-2 whitespace-nowrap ${activeTab === 'commission' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500'}`}>
-              <DollarSign className="w-5 h-5 inline mr-2" />Komisi
-            </button>
-            <button onClick={() => setActiveTab('outlets')} className={`px-6 py-4 border-b-2 whitespace-nowrap ${activeTab === 'outlets' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500'}`}>
-              <MapPin className="w-5 h-5 inline mr-2" />Kelola Outlet
-            </button>
-            <button onClick={() => setActiveTab('profile')} className={`px-6 py-4 border-b-2 whitespace-nowrap ${activeTab === 'profile' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500'}`}>
-              <User className="w-5 h-5 inline mr-2" />Profil
-            </button>
-            <button onClick={() => setActiveTab('notifications')} className={`px-6 py-4 border-b-2 whitespace-nowrap ${activeTab === 'notifications' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500'}`}>
-              <Bell className="w-5 h-5 inline mr-2" />Notifikasi
-            </button>
-            <button onClick={() => setActiveTab('backup')} className={`px-6 py-4 border-b-2 whitespace-nowrap hidden ${activeTab === 'backup' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500'}`}>
-              <Database className="w-5 h-5 inline mr-2" />Backup
-            </button>
-            <button onClick={() => setActiveTab('banners')} className={`px-6 py-4 border-b-2 whitespace-nowrap ${activeTab === 'banners' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500'}`}>
-              <Monitor className="w-5 h-5 inline mr-2" />Tampilan
-            </button>
-            <button onClick={() => setActiveTab('users')} className={`px-6 py-4 border-b-2 whitespace-nowrap ${activeTab === 'users' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500'}`}>
-              <Users className="w-5 h-5 inline mr-2" />Pengguna Admin
-            </button>
-            <button onClick={() => setActiveTab('payment-methods')} className={`px-6 py-4 border-b-2 whitespace-nowrap ${activeTab === 'payment-methods' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500'}`}>
-              <CreditCard className="w-5 h-5 inline mr-2" />Metode Pembayaran
-            </button>
-          </nav>
+        <div className="-mt-4 mb-6 relative z-10">
+          <div className="bg-white rounded-2xl shadow-sm border-2 border-blue-600 p-1 sm:p-1.5 flex gap-1 overflow-x-auto">
+            {([
+              { key: 'commission',       label: 'Komisi',            Icon: DollarSign },
+              { key: 'outlets',          label: 'Kelola Outlet',     Icon: MapPin },
+              { key: 'profile',          label: 'Profil',            Icon: User },
+              { key: 'notifications',    label: 'Notifikasi',        Icon: Bell },
+              { key: 'banners',          label: 'Tampilan',          Icon: Monitor },
+              { key: 'users',            label: 'Pengguna Admin',    Icon: Users },
+              { key: 'payment-methods',  label: 'Metode Pembayaran', Icon: CreditCard }
+            ] as const).map(({ key, label, Icon }) => {
+              const active = activeTab === key
+              return (
+                <button
+                  key={key}
+                  onClick={() => setActiveTab(key)}
+                  className={`flex items-center justify-center gap-1.5 sm:gap-2 px-2 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-medium transition-all flex-1 min-w-0 ${
+                    active
+                      ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md'
+                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                  }`}
+                  title={label}
+                >
+                  <Icon className={`w-4 h-4 flex-shrink-0 ${active ? 'text-white' : 'text-gray-500'}`} />
+                  <span className="truncate hidden lg:inline">{label}</span>
+                </button>
+              )
+            })}
+          </div>
         </div>
         {activeTab === 'commission' && (
           <div>

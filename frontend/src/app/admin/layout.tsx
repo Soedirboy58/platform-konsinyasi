@@ -10,8 +10,6 @@ import {
   TrendingUp,
   Settings,
   LogOut,
-  Menu,
-  X,
   Bell,
   ChevronRight,
   Wallet,
@@ -240,7 +238,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     {
       icon: <TrendingUp className="w-5 h-5" />,
       label: 'Laporan & Analitik',
-      href: '/admin/analytics',
+      href: '/admin/reports',
       active: pathname?.startsWith('/admin/reports') || pathname?.startsWith('/admin/analytics'),
       roles: ['MANAGER', 'FINANCE'],
       submenu: [
@@ -275,7 +273,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       {/* Topbar */}
       <div
         className={`fixed top-0 right-0 h-16 bg-white border-b border-gray-200 z-30 flex items-center justify-between px-4 transition-all duration-300 ${
-          isDesktop ? (sidebarOpen ? 'left-64' : 'left-16') : 'left-0'
+          isDesktop
+            ? (sidebarOpen ? 'left-64' : 'left-16')
+            : (sidebarOpen ? 'left-16' : 'left-0')
         }`}
       >
         {/* Left: Hamburger + Title */}
@@ -380,30 +380,21 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         className={`fixed top-0 left-0 bottom-0 bg-white border-r border-gray-200 z-40 flex flex-col transition-all duration-300
           ${isDesktop
             ? (sidebarOpen ? 'w-64 translate-x-0' : 'w-16 translate-x-0')
-            : `w-64 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`
+            : `w-16 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`
           }`}
       >
         {/* Logo/Brand Section */}
-        <div className={`h-16 flex items-center border-b border-gray-200 ${isDesktop && !sidebarOpen ? 'justify-center px-2' : 'justify-between px-6'}`}>
-          {(!isDesktop || sidebarOpen) && (
+        <div className={`h-16 flex items-center border-b border-gray-200 ${isDesktop && sidebarOpen ? 'justify-between px-6' : 'justify-center px-2'}`}>
+          {isDesktop && sidebarOpen ? (
             <h2 className="text-lg font-bold text-blue-600 truncate">Konsinyasi Admin</h2>
-          )}
-          {isDesktop && !sidebarOpen && (
+          ) : (
             <div className="w-9 h-9 rounded-lg bg-blue-600 text-white font-bold flex items-center justify-center text-sm">KA</div>
-          )}
-          {!isDesktop && (
-            <button
-              onClick={toggleSidebar}
-              className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors lg:hidden"
-            >
-              <X className="w-4 h-4 text-gray-500" />
-            </button>
           )}
         </div>
 
-        <nav className={`flex-1 overflow-y-auto py-4 space-y-1 ${isDesktop && !sidebarOpen ? 'px-2' : 'px-4'}`}>
+        <nav className={`flex-1 overflow-y-auto py-4 space-y-1 ${isDesktop && sidebarOpen ? 'px-4' : 'px-2'}`}>
           {menuItems.map((item, index) => {
-            const collapsed = isDesktop && !sidebarOpen
+            const collapsed = !(isDesktop && sidebarOpen)
             return (
               <div key={index}>
                 <Link
@@ -452,16 +443,16 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </nav>
 
         {/* Logout Button (sticky bottom) */}
-        <div className={`border-t border-gray-200 ${isDesktop && !sidebarOpen ? 'px-2 py-3' : 'px-4 py-3'}`}>
+        <div className={`border-t border-gray-200 ${isDesktop && sidebarOpen ? 'px-4 py-3' : 'px-2 py-3'}`}>
           <button
             onClick={handleLogout}
             className={`flex items-center rounded-lg text-red-600 hover:bg-red-50 w-full transition-colors ${
-              isDesktop && !sidebarOpen ? 'justify-center p-3' : 'gap-3 px-4 py-3'
+              isDesktop && sidebarOpen ? 'gap-3 px-4 py-3' : 'justify-center p-3'
             }`}
             title="Logout"
           >
             <LogOut className="w-5 h-5" />
-            {(!isDesktop || sidebarOpen) && <span>Logout</span>}
+            {isDesktop && sidebarOpen && <span>Logout</span>}
           </button>
         </div>
       </aside>
@@ -469,7 +460,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       {/* Main Content */}
       <main
         className={`pt-16 min-h-screen transition-all duration-300 ${
-          isDesktop ? (sidebarOpen ? 'ml-64' : 'ml-16') : 'ml-0'
+          isDesktop
+            ? (sidebarOpen ? 'ml-64' : 'ml-16')
+            : (sidebarOpen ? 'ml-16' : 'ml-0')
         }`}
       >
         <div className="w-full">

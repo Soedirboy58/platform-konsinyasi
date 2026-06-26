@@ -18,8 +18,8 @@ function resolveHeader(pathname: string) {
     }
   }
   return {
-    title: 'Laporan & Analitik',
-    subtitle: 'Analisis performa dan laporan platform secara real-time'
+    title: 'Dashboard Trafik & Penjualan',
+    subtitle: 'Trafik outlet real-time, KPI pengunjung, keranjang, dan checkout'
   }
 }
 
