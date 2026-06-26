@@ -2,20 +2,33 @@
 
 Platform digital manajemen konsinyasi yang menghubungkan supplier, admin toko, dan customer dalam satu ekosistem operasional untuk stok, penjualan, pembayaran, dan pelaporan.
 
-**Version:** `v2.4.0`  
+**Version:** `v2.7.0`  
 **Status:** ✅ Production Active  
-**Last Updated:** 6 Juni 2026  
+**Last Updated:** 26 Juni 2026  
 **Production URL:** [smartvalley.katalara.com](https://smartvalley.katalara.com)  
 **Repository:** `Soedirboy58/platform-konsinyasi`  
 **Branch:** `main`
 
 ## Ringkasan Status
 
-Platform saat ini sudah berjalan di production dengan modul utama admin, supplier, dan self-checkout kantin. Fokus pengembangan terbaru ada pada akurasi saldo supplier berbasis snapshot attribution, perbaikan kolom yang kurang di trigger notifikasi, serta peningkatan UI mobile halaman pembayaran komisi admin.
+Platform berjalan di production dengan modul admin, supplier, dan self-checkout kantin yang stabil. Fokus rilis terbaru (v2.7.0) ada pada **overhaul navigasi admin** — tab switch pattern (blue-framed gradient) menggantikan submenu sidebar di Management Supplier, Keuangan & Pembayaran, Laporan & Analitik, serta Pengaturan. Sidebar mobile dipersempit jadi icon-only saat unhide, dan tombol Logout dipindah ke bottom sticky. Backend menambah migration 055 untuk membuat toggle `commission_enabled` benar-benar memengaruhi perhitungan komisi di RPC checkout dan lost-to-sold. Laporan Keuangan kini menampilkan Fee QR yang ditanggung platform sebagai pengurang revenue dan slice pie chart.
 
-Domain production aktif: `smartvalley.katalara.com`. Migration 049 (kolom `supplier_id` snapshot di `sales_transaction_items`) sudah dijalankan di production DB. Migration 050 (`paid_at` di `supplier_payments`) perlu segera dijalankan untuk menghapus error konfirmasi pembayaran.
+Domain production: `smartvalley.katalara.com`. Migration 049 sudah live. Migration 050, 052, 053, 054, dan **055** perlu dijalankan manual di Supabase SQL Editor agar seluruh capability backend aktif.
 
-## Update Terakhir (6 Juni 2026)
+## Update Terakhir (26 Juni 2026 — v2.7.0)
+
+- ✅ Migration 055: `commission_enabled` flag terintegrasi ke `process_anonymous_checkout` + `convert_lost_to_sold`
+- ✅ Admin sidebar: Logout dipindah ke bottom sticky, submenu dihapus, mobile open jadi `w-16` icon-only rail
+- ✅ Tab switch komponen baru: `SuppliersTabSwitch`, `PaymentsTabSwitch`, `ReportsTabSwitch` (blue-framed gradient, icon-only mobile)
+- ✅ Settings page: nav underline lama diganti tab switch in-place dengan 7 tab
+- ✅ Layout konsolidasi: `AdminPageHeader` + tab switch dipusatkan di `layout.tsx` per modul agar transisi antar tab smooth (tanpa remount header)
+- ✅ `overflow-x-hidden` wrapper di layout admin agar konten tidak bisa di-geser horizontal di mobile
+- ✅ Notifikasi dropdown clamp viewport-aware di mobile
+- ✅ Laporan Keuangan: section PENDAPATAN dan pie chart Breakdown Pendapatan menampilkan Fee QR (Platform) sebagai pengurang ketika `qr_fee_bearer = 'PLATFORM'`
+- ✅ Net profit margin sekarang berbasis komisi bersih (setelah fee dikurangi)
+- ⚠️ Wajib jalankan migration 055 di Supabase SQL Editor untuk mengaktifkan toggle komisi
+
+## Update Sebelumnya (6 Juni 2026 — v2.5.0/DOKU)
 
 Update ini berfokus pada integrasi DOKU Checkout tanpa mengganggu alur QRIS yang sudah live:
 

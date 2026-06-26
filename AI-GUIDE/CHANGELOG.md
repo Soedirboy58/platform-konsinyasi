@@ -17,6 +17,72 @@ Format: `MAJOR.MINOR.PATCH`
 
 ## 🚀 LATEST VERSION
 
+### **v2.7.0** - 2026-06-26
+
+**Type:** Admin Navigation Overhaul + Commission Toggle Backend + Financial Fee Disclosure  
+**Status:** ✅ Production (frontend) / ⚠️ DB migration 055 required
+
+---
+
+#### ✅ Yang Diimplementasikan
+
+**Database:**
+- Migration 055: `backend/migrations/055_commission_enabled_flag.sql`
+  - Seed default `commission_enabled = 'true'` di `platform_settings`
+  - Recreate `process_anonymous_checkout(TEXT,JSONB,TEXT)` agar membaca flag `commission_enabled`; kalau `false`, paksa `commission_rate = 0` (supplier dapat 100%)
+  - Recreate `convert_lost_to_sold(UUID,TEXT,TEXT,UUID)` dengan logika yang sama
+  - **Status: belum dijalankan di production — wajib eksekusi manual di Supabase SQL Editor**
+
+**Admin Sidebar & Navigation:**
+- Tombol Logout dipindah ke bottom sidebar (sticky), terpisah dari menu utama
+- Submenu list di sidebar dihapus — navigasi sub-section pindah ke tab switch dalam halaman
+- Mobile sidebar: saat unhide jadi `w-16` icon-only rail (sebelumnya full `w-64`); saat hide hilang total (`-translate-x-full`)
+- Notifikasi dropdown clamp width ke viewport pada mobile (`w-[calc(100vw-1.5rem)] max-w-sm sm:w-96`)
+
+**Tab Switch Pattern (UI baru, blue-framed gradient badge):**
+- Komponen baru: `frontend/src/components/admin/SuppliersTabSwitch.tsx` — 3 tab (Daftar / Produk / Pengiriman & Retur)
+- Komponen baru: `frontend/src/components/admin/PaymentsTabSwitch.tsx` — 4 tab (Bayar / Kontrol / Riwayat / Rekonsiliasi)
+- Komponen baru: `frontend/src/components/admin/ReportsTabSwitch.tsx` — 4 tab (Dashboard Trafik / Analytics Insight / Penjualan / Keuangan)
+- Settings page: nav underline diganti tab switch in-place (7 tab dengan icon-only di <lg)
+- Mobile: icon-only, label muncul mulai `sm:` (atau `lg:` untuk settings)
+- Active state: gradient `from-blue-600 to-indigo-600` + shadow + border-2 frame biru pada kontainer
+
+**Layout Konsolidasi (smooth transition):**
+- `frontend/src/app/admin/suppliers/layout.tsx` — render AdminPageHeader + SuppliersTabSwitch, anak page tinggal konten
+- `frontend/src/app/admin/payments/layout.tsx` — sama dengan PaymentsTabSwitch
+- `frontend/src/app/admin/reports/layout.tsx` — header + ReportsTabSwitch (judul disesuaikan path)
+- `frontend/src/app/admin/analytics/layout.tsx` — header "Analytics Insight" + ReportsTabSwitch
+- Semua layout wrap `<div className="overflow-x-hidden">` agar konten tidak bisa di-geser horizontal di mobile
+- 4 page modul terkait: `AdminPageHeader` dihapus dari per-page, kontrol `rightSlot` (period selector / export buttons) dipindah jadi toolbar putih di atas konten
+
+**Sidebar Laporan & Analitik:**
+- href: `/admin/reports` (Dashboard Trafik) sebagai default landing
+- Submenu (Analytics / Sales / Financial) dihapus — sekarang lewat tab switch
+
+**Inner Tab Shipments:**
+- Tab Review Pengiriman / Produk Retur / Produk Hilang di `frontend/src/app/admin/suppliers/shipments/page.tsx` dibuat responsive `flex-1`, icon-only di mobile
+
+**Laporan Keuangan — Disclosure Fee QR Platform:**
+- `frontend/src/app/admin/reports/financial/page.tsx`: query baru sum `qr_fee_amount` dari `sales_transactions` WHERE `qr_fee_bearer = 'PLATFORM'`
+- Section PENDAPATAN: jika ada fee yang ditanggung platform → tampil baris merah "Fee QR (Ditanggung Platform)" sebagai pengurang + baris emerald "Komisi Bersih Platform"
+- Pie chart Breakdown Pendapatan: 3 slice (Komisi Net hijau + Fee QR merah + Supplier orange) saat bearer = PLATFORM; tetap 2 slice saat bearer lain
+- Net profit & margin sekarang berbasis komisi bersih (setelah fee dikurangi)
+- Tidak ada perubahan tampilan saat `qr_fee_bearer` = CUSTOMER/SUPPLIER/NONE
+
+**Frontend Commissions Threshold Toggle Integration:**
+- `frontend/src/app/admin/payments/commissions/page.tsx`: baca `min_payout_enabled` dari `platform_settings`; jika `false`, force `localMinThreshold = 0`
+
+#### 🐛 Fix
+- Vercel build error: duplicate `<main>` tag di `payments/control/page.tsx` setelah refactor toolbar — digabung jadi satu `<main>`
+- TS narrow `never` pada `submenu` setelah penghapusan submenu — explicit cast `submenu: [] as { label: string; href: string }[]`
+- Unused imports `AdminPageHeader`, `Menu`, `X` dihapus dari file yang sudah migrasi ke layout-based header
+
+#### ⚠️ Catatan Operasional
+- **Wajib jalankan migration 055** di Supabase SQL Editor agar toggle `commission_enabled` benar-benar memengaruhi `process_anonymous_checkout` dan `convert_lost_to_sold`
+- Tanpa migration 055, UI toggle di Settings → Komisi tidak akan mengubah hasil potongan komisi di transaksi baru
+
+---
+
 ### **v2.6.0** - 2026-06-26
 
 **Type:** Dynamic QR Fee + Lost Products + Admin UI Theming

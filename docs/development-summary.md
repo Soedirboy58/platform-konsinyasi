@@ -1,4 +1,4 @@
-# Development Summary - Platform Konsinyasi v2.6.0
+# Development Summary - Platform Konsinyasi v2.7.0
 
 **Project:** Platform Konsinyasi Terintegrasi  
 **Status:** ✅ Production Active  
@@ -9,7 +9,7 @@
 
 ## 1. Snapshot Progres
 
-Platform sudah berada pada fase production aktif untuk operasional inti konsinyasi. Area yang saat ini paling matang adalah admin operations, supplier workflow, outlet-based self-checkout, reporting, dan payment controls. Perkembangan terbaru berfokus pada fee QR dinamis, pencatatan produk hilang, serta standardisasi UI admin berbasis tema.
+Platform berada pada fase production aktif. Rilis v2.7.0 fokus pada **overhaul navigasi admin** (tab switch pattern menggantikan submenu sidebar di 4 modul utama), penyempurnaan responsiveness mobile (sidebar icon-only, notifikasi clamp viewport, tab icon-only), integrasi penuh toggle `commission_enabled` ke RPC checkout, dan disclosure Fee QR di Laporan Keuangan saat bearer = PLATFORM.
 
 ---
 
@@ -17,6 +17,7 @@ Platform sudah berada pada fase production aktif untuk operasional inti konsinya
 
 | Version | Tanggal | Highlight |
 |---------|---------|-----------|
+| v2.7.0 | 26 Jun 2026 | Migration 055 (`commission_enabled` flag aktif), tab switch pattern (Suppliers/Payments/Reports/Settings), mobile sidebar icon-only, Laporan Keuangan disclosure Fee QR Platform |
 | v2.6.0 | 26 Jun 2026 | Migration 053/054 (QR fee dinamis + produk hilang), Admin header theming rollout, revamp tab Komisi |
 | v2.5.0 | 21 Jun 2026 | DOKU Checkout live production, migration 051/052, stock reservation fix, env runtime trim |
 | v2.4.0 | 1–4 Jun 2026 | Supplier balance accuracy (snapshot), migration 048/049/050, UI mobile commissions |
@@ -228,6 +229,37 @@ Meski begitu, runtime sudah toleran karena semua `process.env.DOKU_*` di-trim le
   - Toggle `min_payout_enabled`
   - Simulasi perhitungan komisi dan fee QR
 
+### 4.15 Admin Navigation Overhaul & Tab Switch Pattern (v2.7.0)
+- **Tab switch komponen baru** (blue-framed gradient badge, mobile icon-only):
+  - `frontend/src/components/admin/SuppliersTabSwitch.tsx` — Daftar / Produk / Pengiriman & Retur
+  - `frontend/src/components/admin/PaymentsTabSwitch.tsx` — Bayar / Kontrol / Riwayat / Rekonsiliasi
+  - `frontend/src/components/admin/ReportsTabSwitch.tsx` — Dashboard Trafik / Analytics Insight / Penjualan / Keuangan
+  - Settings page: 7 tab in-place (Komisi, Outlet, Profil, Notifikasi, Tampilan, Pengguna, Metode Pembayaran)
+- **Layout konsolidasi** di `suppliers/`, `payments/`, `reports/`, `analytics/`:
+  - `AdminPageHeader` + tab switch dipindah ke `layout.tsx` agar persist antar route sibling (no remount, transisi smooth)
+  - Wrapper `overflow-x-hidden` untuk mengunci konten dari geser horizontal di mobile
+- **Sidebar**:
+  - Tombol Logout dipindah ke bottom sticky, terpisah dari menu
+  - Submenu list dihapus seluruhnya — navigasi sub-section pakai tab switch
+  - Mobile open: `w-16` icon-only rail; mobile close: hilang total
+  - Notifikasi dropdown clamp viewport (`w-[calc(100vw-1.5rem)] max-w-sm sm:w-96`)
+- **Inner tab Shipments** (Review/Retur/Hilang) dibuat responsive icon-only di mobile
+
+### 4.16 Commission Enabled Flag (v2.7.0)
+- Migration: `backend/migrations/055_commission_enabled_flag.sql`
+- Seed default `commission_enabled = 'true'` di `platform_settings`
+- `process_anonymous_checkout(TEXT,JSONB,TEXT)` di-recreate untuk membaca flag; kalau `false`, paksa `commission_rate = 0`
+- `convert_lost_to_sold(UUID,TEXT,TEXT,UUID)` di-recreate dengan logika yang sama
+- **Status:** Belum dijalankan di production — wajib eksekusi manual di Supabase SQL Editor agar toggle Settings → Komisi berfungsi
+
+### 4.17 Financial Report — QR Fee Platform Disclosure (v2.7.0)
+- `frontend/src/app/admin/reports/financial/page.tsx`:
+  - Query baru: sum `qr_fee_amount` dari `sales_transactions` WHERE `qr_fee_bearer = 'PLATFORM'` pada window tanggal aktif
+  - Section PENDAPATAN: baris merah "Fee QR (Ditanggung Platform)" + baris emerald "Komisi Bersih Platform" muncul hanya saat fee > 0
+  - Pie chart Breakdown Pendapatan: 3 slice (Komisi Net + Fee QR + Supplier) saat bearer = PLATFORM; tetap 2 slice saat bearer lain
+  - Net profit & margin direkomputasi pakai komisi bersih (setelah fee dikurangi)
+- Tidak ada perubahan saat `qr_fee_bearer` = CUSTOMER / SUPPLIER / NONE
+
 ---
 
 ## 5. Status Payment & QRIS
@@ -286,6 +318,7 @@ Meski begitu, runtime sudah toleran karena semua `process.env.DOKU_*` di-trim le
 - [ ] **URGENT** Jalankan migration `052_fix_doku_cancel_restore_stock.sql` di Supabase SQL Editor agar DOKU cancel restore stok otomatis
 - [ ] Jalankan migration `053_qr_fee_dynamic.sql` agar fee QR dinamis aktif di database production
 - [ ] Jalankan migration `054_lost_products.sql` agar flow Produk Hilang aktif penuh
+- [ ] **URGENT** Jalankan migration `055_commission_enabled_flag.sql` agar toggle `commission_enabled` di Settings → Komisi efektif di RPC checkout & lost-to-sold
 - [ ] Pastikan migration `046_notification_triggers.sql` sudah dijalankan di environment production yang aktif
 - [ ] Jalankan migration `047_admin_adjust_sales_transactions.sql` sebelum operasional halaman kontrol manual penjualan
 - [ ] Jalankan migration `050_add_paid_at_to_supplier_payments.sql` jika belum dieksekusi di production
