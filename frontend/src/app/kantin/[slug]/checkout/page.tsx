@@ -767,7 +767,7 @@ export default function CheckoutPage() {
 
         {/* Payment Method Selection */}
         <div className="mb-4">
-          <h2 className="text-lg font-semibold text-gray-900 mb-3">Pilih Metode Pembayaran:</h2>
+          <h2 className="text-lg font-semibold text-gray-900 mb-3">Lakukan Pembayaran</h2>
           
           <div className="space-y-3">
             {/* QRIS Button */}
@@ -814,9 +814,9 @@ export default function CheckoutPage() {
                 </>
               ) : (
                 <>
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-                  </svg>
+                  <span className="inline-flex items-center justify-center rounded-md bg-white/15 border border-white/40 px-2 py-0.5 text-[10px] font-extrabold tracking-wider leading-none">
+                    QRIS
+                  </span>
                   <span>Bayar</span>
                 </>
               )}
@@ -832,7 +832,7 @@ export default function CheckoutPage() {
           <p className="font-semibold mb-2">Informasi Pembayaran:</p>
           <ul className="space-y-1 text-xs">
             {qrisEnabled && <li><strong>QRIS:</strong> Scan QR code untuk bayar via mobile banking/e-wallet</li>}
-            {dokuEnabled && <li><strong>Bayar:</strong> Transfer bank, kartu, atau e-wallet melalui halaman pembayaran aman.</li>}
+            {dokuEnabled && <li>Pembayaran Via Qris Katalara melalui Laman Doku</li>}
           </ul>
         </div>
         )}
