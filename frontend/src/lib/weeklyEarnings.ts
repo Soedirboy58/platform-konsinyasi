@@ -62,10 +62,17 @@ export interface WeekBucket {
   weekEnd: string
   weekLabel: string
   earned: number
-  allocated: number
+  allocated: number    // dari tabel supplier_payment_allocations
+  credited: number      // bagian pembayaran lump-sum lama (tanpa alokasi) yang dikreditkan FIFO ke minggu ini
   outstanding: number  // 0 untuk minggu legacy / lunas
   isLegacy: boolean
   status: WeekStatus
+}
+
+export interface BuildOptions {
+  /** Total supplier_payments COMPLETED milik supplier ini (lump-sum lama + alokasi baru). */
+  priorPaidTotal?: number
+  trackingSince?: string
 }
 
 export interface OutletGroup {
@@ -100,8 +107,10 @@ export function buildOutletGroups(
   items: EarnItemInput[],
   allocations: AllocInput[],
   locationNames: Map<string, string>,
-  trackingSince: string = PAYOUT_TRACKING_SINCE,
+  opts: BuildOptions = {},
 ): OutletGroup[] {
+  const trackingSince = opts.trackingSince ?? PAYOUT_TRACKING_SINCE
+  const priorPaidTotal = Math.max(0, opts.priorPaidTotal ?? 0)
   const earned = new Map<string, number>()   // key -> earned
   const meta = new Map<string, { locationId: string; weekStart: string }>()
 
@@ -130,9 +139,6 @@ export function buildOutletGroups(
     const e = round2(earned.get(key) || 0)
     const al = round2(allocated.get(key) || 0)
     const isLegacy = m.weekStart < trackingSince
-    const rawOutstanding = round2(Math.max(0, e - al))
-    const outstanding = isLegacy ? 0 : rawOutstanding
-    const status: WeekStatus = isLegacy ? 'PAID_LEGACY' : (outstanding <= 0.01 ? 'PAID' : 'DUE')
     const wEnd = weekEndYmd(m.weekStart)
     buckets.push({
       key,
@@ -145,10 +151,26 @@ export function buildOutletGroups(
       weekLabel: weekLabel(m.weekStart, wEnd),
       earned: e,
       allocated: al,
-      outstanding,
+      credited: 0,
+      outstanding: 0,
       isLegacy,
-      status,
+      status: isLegacy ? 'PAID_LEGACY' : 'DUE',
     })
+  }
+
+  // Kreditkan pembayaran lump-sum lama (yang belum punya baris alokasi) ke minggu
+  // secara kronologis: minggu tertua dulu, termasuk minggu legacy, sampai kredit habis.
+  const totalAllocated = buckets.reduce((s, b) => s + b.allocated, 0)
+  let lump = round2(Math.max(0, priorPaidTotal - totalAllocated))
+  const chrono = [...buckets].sort((a, b) => (a.weekStart < b.weekStart ? -1 : a.weekStart > b.weekStart ? 1 : 0))
+  for (const b of chrono) {
+    const need = round2(Math.max(0, b.earned - b.allocated))
+    const applied = Math.min(need, lump)
+    b.credited = round2(applied)
+    lump = round2(lump - applied)
+    const paidSoFar = round2(b.allocated + b.credited)
+    b.outstanding = b.isLegacy ? 0 : round2(Math.max(0, b.earned - paidSoFar))
+    b.status = b.isLegacy ? 'PAID_LEGACY' : (b.outstanding <= 0.01 ? 'PAID' : 'DUE')
   }
 
   const groups = new Map<string, OutletGroup>()
