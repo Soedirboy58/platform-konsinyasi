@@ -16,6 +16,8 @@ type SalesData = {
   commission_amount: number
   gross_profit: number
   net_profit: number
+  fee_gateway: number      // fee payment gateway yang ditanggung supplier (Rp, 0 bila bearer bukan SUPPLIER)
+  fee_bearer: string       // 'Pelanggan' | 'Supplier' | 'Platform' | '—'
   sale_date: string
   location_name: string
 }
@@ -26,6 +28,7 @@ type ProductSalesSummary = {
   total_quantity: number
   total_gross_profit: number
   total_commission: number
+  total_fee_gateway: number
   total_net_profit: number
   last_sale: string
 }
@@ -49,6 +52,7 @@ export default function SalesReportPage() {
     totalSales: 0,
     totalRevenue: 0,
     totalCommission: 0,
+    totalFeeGateway: 0,
     productsSold: 0
   })
 
@@ -133,7 +137,7 @@ export default function SalesReportPage() {
             supplier_revenue,
             created_at,
             products(id, name, supplier_id, hpp),
-            sales_transactions!inner(id, transaction_code, status, created_at, location_id)
+            sales_transactions!inner(id, transaction_code, status, created_at, location_id, qr_fee_bearer, qr_fee_amount)
           `)
           .eq('sales_transactions.status', 'COMPLETED')
           .gte('created_at', startDate + 'T00:00:00')
@@ -175,6 +179,7 @@ export default function SalesReportPage() {
           totalSales: 0,
           totalRevenue: 0,
           totalCommission: 0,
+          totalFeeGateway: 0,
           productsSold: 0
         })
         setLoading(false)
@@ -206,10 +211,23 @@ export default function SalesReportPage() {
         const subtotal = item.subtotal || (sellingPrice * quantity)
         const hppPerUnit = item.products?.hpp || 0
         const totalHPP = hppPerUnit * quantity  // ✅ Total HPP for this transaction
-        
+
         // ✅ CORRECT NET PROFIT = Supplier Revenue - Total HPP
         const netProfit = supplierRevenue - totalHPP
-        
+
+        // Fee payment gateway per baris = subtotal - komisi - penerimaan supplier
+        // (eksak dari data RPC process_anonymous_checkout). Hanya benar-benar
+        // memotong supplier saat bearer = SUPPLIER; untuk PLATFORM/CUSTOMER ditampilkan Rp 0.
+        const tx = Array.isArray(item.sales_transactions) ? item.sales_transactions[0] : item.sales_transactions
+        const bearerRaw = String(tx?.qr_fee_bearer || '').toUpperCase()
+        const lineFee = item.supplier_revenue != null
+          ? Math.max(0, Math.round((subtotal - commissionAmount - supplierRevenue) * 100) / 100)
+          : 0
+        const feeOnSupplier = bearerRaw === 'SUPPLIER' ? lineFee : 0
+        const feeBearerLabel = bearerRaw === 'SUPPLIER' ? 'Supplier'
+          : bearerRaw === 'PLATFORM' ? 'Platform'
+          : bearerRaw === 'CUSTOMER' ? 'Pelanggan' : '—'
+
         return {
           id: item.id,
           product_id: item.product_id,
@@ -220,6 +238,8 @@ export default function SalesReportPage() {
           commission_amount: commissionAmount,
           gross_profit: subtotal,  // Total sales before commission
           net_profit: netProfit,  // ✅ FIXED: Revenue - HPP (actual supplier profit)
+          fee_gateway: feeOnSupplier,
+          fee_bearer: feeBearerLabel,
           sale_date: item.sales_transactions?.created_at || item.created_at,
           location_name: locationMap.get(item.sales_transactions?.location_id) || 'Unknown'
         }
@@ -231,6 +251,7 @@ export default function SalesReportPage() {
       const totalSales = transformed.reduce((sum: number, item) => sum + item.quantity, 0)
       const totalGrossProfit = transformed.reduce((sum: number, item) => sum + item.gross_profit, 0)
       const totalCommission = transformed.reduce((sum: number, item) => sum + item.commission_amount, 0)
+      const totalFeeGateway = transformed.reduce((sum: number, item) => sum + item.fee_gateway, 0)
       const totalNetProfit = transformed.reduce((sum: number, item) => sum + item.net_profit, 0)  // ✅ Sum of actual net profit
       const uniqueProducts = new Set(transformed.map((item) => item.product_id))
 
@@ -238,6 +259,7 @@ export default function SalesReportPage() {
         totalSales,
         totalRevenue: totalNetProfit,  // ✅ CHANGED: Actual net profit (after HPP & commission)
         totalCommission,
+        totalFeeGateway,
         productsSold: uniqueProducts.size
       })
 
@@ -250,6 +272,7 @@ export default function SalesReportPage() {
           existing.total_quantity += item.quantity
           existing.total_gross_profit += item.gross_profit
           existing.total_commission += item.commission_amount
+          existing.total_fee_gateway += item.fee_gateway
           existing.total_net_profit += item.net_profit
           if (new Date(item.sale_date) > new Date(existing.last_sale)) {
             existing.last_sale = item.sale_date
@@ -261,6 +284,7 @@ export default function SalesReportPage() {
             total_quantity: item.quantity,
             total_gross_profit: item.gross_profit,
             total_commission: item.commission_amount,
+            total_fee_gateway: item.fee_gateway,
             total_net_profit: item.net_profit,
             last_sale: item.sale_date
           })
@@ -284,7 +308,7 @@ export default function SalesReportPage() {
       return
     }
 
-    const headers = ['Tanggal', 'Produk', 'Lokasi', 'Jumlah', 'Harga Jual', 'HPP', 'Gross Profit', 'Komisi Platform', 'Net Profit']
+    const headers = ['Tanggal', 'Produk', 'Lokasi', 'Jumlah', 'Harga Jual', 'HPP', 'Gross Profit', 'Komisi Platform', 'Fee Gateway', 'Fee Ditanggung', 'Net Profit']
     const rows = salesData.map(s => [
       s.sale_date,
       s.product_name,
@@ -294,6 +318,8 @@ export default function SalesReportPage() {
       s.hpp,
       s.gross_profit,
       s.commission_amount,
+      s.fee_gateway,
+      s.fee_bearer,
       s.net_profit
     ])
 
@@ -441,8 +467,13 @@ export default function SalesReportPage() {
       {/* Summary by Product */}
       {summary.length > 0 && (
         <div className="bg-white rounded-lg shadow p-4 sm:p-6 mb-8">
-          <h2 className="text-lg sm:text-xl font-semibold mb-4">Ringkasan Per Produk</h2>
-          
+          <h2 className="text-lg sm:text-xl font-semibold mb-1">Ringkasan Per Produk</h2>
+          <p className="text-xs text-gray-500 mb-4">
+            Fee payment gateway ditanggung Anda pada periode ini:{' '}
+            <span className="font-semibold text-gray-700">Rp {stats.totalFeeGateway.toLocaleString('id-ID')}</span>
+            {stats.totalFeeGateway === 0 && ' (fee ditanggung pelanggan/platform)'}
+          </p>
+
           {/* Desktop Table */}
           <div className="hidden md:block overflow-x-auto">
             <table className="w-full">
@@ -452,6 +483,7 @@ export default function SalesReportPage() {
                   <th className="text-right py-3 px-4">Qty</th>
                   <th className="text-right py-3 px-4">Gross Profit</th>
                   <th className="text-right py-3 px-4">Komisi Platform</th>
+                  <th className="text-right py-3 px-4">Fee Gateway</th>
                   <th className="text-right py-3 px-4">Net Profit</th>
                   <th className="text-left py-3 px-4">Terakhir</th>
                 </tr>
@@ -466,6 +498,9 @@ export default function SalesReportPage() {
                     </td>
                     <td className="py-3 px-4 text-right text-orange-600">
                       -Rp {item.total_commission.toLocaleString('id-ID')}
+                    </td>
+                    <td className={`py-3 px-4 text-right ${item.total_fee_gateway > 0 ? 'text-orange-600' : 'text-gray-400'}`}>
+                      {item.total_fee_gateway > 0 ? `-Rp ${item.total_fee_gateway.toLocaleString('id-ID')}` : 'Rp 0'}
                     </td>
                     <td className="py-3 px-4 text-right font-semibold text-green-700">
                       Rp {item.total_net_profit.toLocaleString('id-ID')}
@@ -496,6 +531,12 @@ export default function SalesReportPage() {
                   <div>
                     <p className="text-gray-500 mb-0.5">Komisi</p>
                     <p className="font-semibold text-orange-600">-Rp {item.total_commission.toLocaleString('id-ID')}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500 mb-0.5">Fee Gateway</p>
+                    <p className={`font-semibold ${item.total_fee_gateway > 0 ? 'text-orange-600' : 'text-gray-400'}`}>
+                      {item.total_fee_gateway > 0 ? `-Rp ${item.total_fee_gateway.toLocaleString('id-ID')}` : 'Rp 0'}
+                    </p>
                   </div>
                   <div>
                     <p className="text-gray-500 mb-0.5">Net Profit</p>
@@ -559,6 +600,7 @@ export default function SalesReportPage() {
                     <th className="text-right py-3 px-4">HPP</th>
                     <th className="text-right py-3 px-4">Gross</th>
                     <th className="text-right py-3 px-4">Komisi</th>
+                    <th className="text-right py-3 px-4">Fee Gateway</th>
                     <th className="text-right py-3 px-4">Net Profit</th>
                   </tr>
                 </thead>
@@ -582,6 +624,12 @@ export default function SalesReportPage() {
                       </td>
                       <td className="py-3 px-4 text-right text-orange-600">
                         -Rp {sale.commission_amount.toLocaleString('id-ID')}
+                      </td>
+                      <td
+                        className={`py-3 px-4 text-right ${sale.fee_gateway > 0 ? 'text-orange-600' : 'text-gray-400'}`}
+                        title={`Fee gateway ditanggung: ${sale.fee_bearer}`}
+                      >
+                        {sale.fee_gateway > 0 ? `-Rp ${sale.fee_gateway.toLocaleString('id-ID')}` : 'Rp 0'}
                       </td>
                       <td className="py-3 px-4 text-right font-semibold text-green-700">
                         Rp {sale.net_profit.toLocaleString('id-ID')}
@@ -620,6 +668,12 @@ export default function SalesReportPage() {
                       <p className="font-medium text-orange-600">-Rp {sale.commission_amount.toLocaleString('id-ID')}</p>
                     </div>
                     <div className="text-right">
+                      <p className="text-gray-500 mb-0.5">Fee Gateway</p>
+                      <p className={`font-medium ${sale.fee_gateway > 0 ? 'text-orange-600' : 'text-gray-400'}`}>
+                        {sale.fee_gateway > 0 ? `-Rp ${sale.fee_gateway.toLocaleString('id-ID')}` : 'Rp 0'}
+                      </p>
+                    </div>
+                    <div>
                       <p className="text-gray-500 mb-0.5">Tanggal</p>
                       <p className="font-medium text-gray-900">{new Date(sale.sale_date).toLocaleDateString('id-ID', { day: '2-digit', month: 'short' })}</p>
                     </div>
