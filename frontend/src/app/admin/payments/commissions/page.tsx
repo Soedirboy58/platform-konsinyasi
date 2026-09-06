@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import PartnerPayoutModal, { type PayoutSupplier } from './PartnerPayoutModal'
 import { 
   DollarSign, 
   Upload, 
@@ -50,6 +51,7 @@ export default function CommissionsPage() {
   const [selectedCommission, setSelectedCommission] = useState<Commission | null>(null)
   const [showPaymentModal, setShowPaymentModal] = useState(false)
   const [showDetailModal, setShowDetailModal] = useState(false)
+  const [payoutSupplier, setPayoutSupplier] = useState<PayoutSupplier | null>(null)
   
   // Payment settings (threshold)
   const [minThreshold, setMinThreshold] = useState(100000)
@@ -1084,10 +1086,16 @@ export default function CommissionsPage() {
                   <div className="p-3 flex gap-2 mt-auto">
                     {commission.status === 'UNPAID' ? (
                       <button
-                        onClick={() => handleOpenPaymentModal(commission)}
+                        onClick={() => setPayoutSupplier({
+                          supplier_id: commission.supplier_id,
+                          supplier_name: commission.supplier_name,
+                          bank_name: commission.bank_name,
+                          bank_account: commission.bank_account,
+                          bank_holder: commission.bank_holder,
+                        })}
                         className="flex-1 py-2.5 bg-gradient-to-r from-blue-600 to-blue-500 text-white rounded-xl font-semibold text-xs hover:from-blue-700 hover:to-blue-600 transition-all shadow-sm"
                       >
-                        💳 Bayar — Rp {outstanding.toLocaleString('id-ID')}
+                        💳 Bayar Mitra — Rp {outstanding.toLocaleString('id-ID')}
                       </button>
                     ) : commission.status === 'PENDING' ? (
                       <button
@@ -1509,6 +1517,14 @@ export default function CommissionsPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {payoutSupplier && (
+        <PartnerPayoutModal
+          supplier={payoutSupplier}
+          onClose={() => setPayoutSupplier(null)}
+          onPaid={() => { loadCommissions() }}
+        />
       )}
     </div>
   )
