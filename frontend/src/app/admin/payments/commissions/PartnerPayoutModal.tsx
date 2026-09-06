@@ -117,6 +117,15 @@ export default function PartnerPayoutModal({ supplier, onClose, onPaid }: Props)
         }))
       }
 
+      // 2b) total pembayaran lama (lump-sum di supplier_payments, umumnya belum punya alokasi)
+      const { data: payRows } = await supabase
+        .from('supplier_payments')
+        .select('net_payment, amount, status')
+        .eq('supplier_id', supplier.supplier_id)
+      const priorPaidTotal = (payRows || [])
+        .filter((p: any) => p.status === 'COMPLETED')
+        .reduce((s: number, p: any) => s + (Number(p.net_payment) || Number(p.amount) || 0), 0)
+
       // 3) nama outlet
       const items: EarnItemInput[] = rawItems.map((it: any) => {
         const tx = Array.isArray(it.sales_transactions) ? it.sales_transactions[0] : it.sales_transactions
@@ -135,7 +144,7 @@ export default function PartnerPayoutModal({ supplier, onClose, onPaid }: Props)
         for (const l of locs || []) nameMap.set(l.id, (l as any).brand_name || l.name)
       }
 
-      setGroups(buildOutletGroups(items, allocs, nameMap))
+      setGroups(buildOutletGroups(items, allocs, nameMap, { priorPaidTotal }))
       setSelected(new Set())
     } catch (e: any) {
       console.error('PartnerPayoutModal load error:', e)
@@ -298,7 +307,7 @@ export default function PartnerPayoutModal({ supplier, onClose, onPaid }: Props)
             <div className="py-12 text-center text-gray-500 text-sm">
               Tidak ada tagihan minggu berjalan untuk supplier ini. Semua sudah terbayar.
               <p className="text-xs text-gray-400 mt-1">
-                (Minggu sebelum {PAYOUT_TRACKING_SINCE} ditandai &ldquo;Paid (legacy)&rdquo;.)
+                (Minggu sebelum {PAYOUT_TRACKING_SINCE} dianggap sudah lunas.)
               </p>
             </div>
           ) : (
@@ -339,16 +348,12 @@ export default function PartnerPayoutModal({ supplier, onClose, onPaid }: Props)
                               <p className="text-sm text-gray-800 truncate">{w.weekLabel}</p>
                               <p className="text-[11px] text-gray-400">
                                 Pendapatan {rupiah(w.earned)}
-                                {w.allocated > 0 && ` · sudah ${rupiah(w.allocated)}`}
+                                {w.allocated + w.credited > 0 && ` · sudah ${rupiah(w.allocated + w.credited)}`}
                               </p>
                             </div>
                           </div>
                           <div className="shrink-0 text-right">
-                            {w.status === 'PAID_LEGACY' ? (
-                              <span className="inline-flex items-center gap-1 text-xs text-gray-400">
-                                <Check className="w-3.5 h-3.5" /> Paid (legacy)
-                              </span>
-                            ) : w.status === 'PAID' ? (
+                            {w.status === 'PAID_LEGACY' || w.status === 'PAID' ? (
                               <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-600">
                                 <Check className="w-3.5 h-3.5" /> Paid
                               </span>
