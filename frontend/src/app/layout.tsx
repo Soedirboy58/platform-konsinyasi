@@ -3,6 +3,7 @@ import { Inter } from 'next/font/google'
 import './globals.css'
 import { Toaster } from 'sonner'
 import SplashScreen from '@/components/SplashScreen'
+import KillServiceWorker from '@/components/KillServiceWorker'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -70,6 +71,7 @@ export default function RootLayout({
   return (
     <html lang="id">
       <body className={inter.className}>
+        <KillServiceWorker />
         <SplashScreen />
         {children}
         <Toaster position="top-center" />

@@ -1,11 +1,12 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import { toast } from 'sonner'
 import { ArrowLeft, Package, DollarSign, Calendar, Hash, Tag, FileText, Image as ImageIcon } from 'lucide-react'
+import { computeFeeSplit, supplierSharePct, DEFAULT_FEE_SETTINGS, type PlatformFeeSettings } from '@/lib/feeModel'
 
 type ProductForm = {
   name: string
@@ -29,7 +30,8 @@ export default function EditProductPage() {
   const [supplierId, setSupplierId] = useState<string | null>(null)
   const [productStatus, setProductStatus] = useState<string>('PENDING')
   const [commissionRate, setCommissionRate] = useState('30')
-  
+  const [feeSettings, setFeeSettings] = useState<PlatformFeeSettings>(DEFAULT_FEE_SETTINGS)
+
   const [formData, setFormData] = useState<ProductForm>({
     name: '',
     description: '',
@@ -45,6 +47,12 @@ export default function EditProductPage() {
   const [photoFile, setPhotoFile] = useState<File | null>(null)
   const [photoPreview, setPhotoPreview] = useState<string | null>(null)
   const [currentPhotoUrl, setCurrentPhotoUrl] = useState<string | null>(null)
+
+  const feeSplit = useMemo(
+    () => computeFeeSplit(parseFloat(formData.price) || 0, parseFloat(formData.hpp) || 0, feeSettings),
+    [formData.price, formData.hpp, feeSettings],
+  )
+  const sharePct = useMemo(() => supplierSharePct(feeSettings), [feeSettings])
 
   useEffect(() => {
     checkAuth()
@@ -126,12 +134,22 @@ export default function EditProductPage() {
       const supabase = createClient()
       const { data } = await supabase
         .from('platform_settings')
-        .select('value')
-        .eq('key', 'commission_rate')
-        .single()
+        .select('key, value')
+        .in('key', ['commission_rate', 'commission_enabled', 'qr_fee_enabled', 'qr_fee_rate', 'qr_fee_bearer'])
 
       if (data) {
-        setCommissionRate(data.value)
+        const map = new Map(data.map((r: any) => [r.key, r.value]))
+        const rate = map.get('commission_rate')
+        if (rate != null) setCommissionRate(String(rate))
+
+        const bearerRaw = String(map.get('qr_fee_bearer') || 'CUSTOMER').toUpperCase()
+        setFeeSettings({
+          commissionRate: parseFloat(String(rate ?? DEFAULT_FEE_SETTINGS.commissionRate)) || DEFAULT_FEE_SETTINGS.commissionRate,
+          commissionEnabled: map.get('commission_enabled') !== 'false',
+          qrFeeEnabled: map.get('qr_fee_enabled') === 'true',
+          qrFeeRate: parseFloat(String(map.get('qr_fee_rate') ?? '0')) || 0,
+          qrFeeBearer: (bearerRaw === 'SUPPLIER' || bearerRaw === 'PLATFORM' || bearerRaw === 'CUSTOMER') ? bearerRaw : 'CUSTOMER',
+        })
       }
     } catch (error) {
       console.warn('Could not load platform settings, using default')
@@ -427,16 +445,29 @@ export default function EditProductPage() {
                       <div>
                         <span className="text-gray-600">Komisi Platform ({commissionRate}%):</span>
                         <span className="ml-2 font-semibold text-orange-600">
-                          -Rp {(parseFloat(formData.price) * (parseFloat(commissionRate) / 100)).toLocaleString('id-ID')}
+                          -Rp {feeSplit.commission.toLocaleString('id-ID')}
                         </span>
                       </div>
+                      {feeSplit.feeActive && (
+                        <div>
+                          <span className="text-gray-600">Fee Gateway ({feeSplit.qrFeeRate}%) — {feeSplit.bearerLabel}:</span>
+                          <span className={`ml-2 font-semibold ${feeSplit.qrFeeOnSupplier > 0 ? 'text-orange-600' : 'text-gray-400'}`}>
+                            {feeSplit.qrFeeOnSupplier > 0
+                              ? `-Rp ${feeSplit.qrFeeOnSupplier.toLocaleString('id-ID')}`
+                              : 'Rp 0'}
+                          </span>
+                        </div>
+                      )}
                       <div>
                         <span className="text-gray-600">Net Profit:</span>
                         <span className="ml-2 font-semibold text-green-700">
-                          Rp {(parseFloat(formData.price) - parseFloat(formData.hpp) - (parseFloat(formData.price) * (parseFloat(commissionRate) / 100))).toLocaleString('id-ID')}
+                          Rp {feeSplit.netProfit.toLocaleString('id-ID')}
                         </span>
                       </div>
                     </div>
+                    {feeSplit.feeActive && (
+                      <p className="mt-3 text-xs text-gray-500">{feeSplit.bearerNote}</p>
+                    )}
                   </div>
                 )}
 
@@ -585,15 +616,53 @@ export default function EditProductPage() {
               </div>
             </div>
 
-            {/* Commission Info (Read-only) */}
+            {/* Ringkasan Potongan & Fee (Read-only) */}
             <div className="border-t pt-6">
-              <div className="bg-gray-50 rounded-lg p-4">
-                <p className="text-sm text-gray-700 mb-2">
+              <div className="bg-gray-50 rounded-lg p-4 space-y-2">
+                <p className="text-sm text-gray-700">
                   <strong>Komisi Platform:</strong> {commissionRate}%
+                  {feeSplit.feeActive && (
+                    <>{' '}•{' '}<strong>Fee Payment Gateway:</strong> {feeSplit.qrFeeRate}%</>
+                  )}
                 </p>
+                {feeSplit.feeActive && (
+                  <p className="text-xs text-gray-500">
+                    Fee gateway ditanggung <strong>{feeSplit.bearerLabel}</strong>. {feeSplit.bearerNote}
+                  </p>
+                )}
                 <p className="text-xs text-gray-500">
-                  Platform: {commissionRate}% • Anda: {100 - parseFloat(commissionRate)}%
+                  Perkiraan Anda terima: <strong>{sharePct}%</strong> dari harga jual
+                  {feeSplit.bearer === 'SUPPLIER' ? ' (setelah komisi & fee gateway)' : ' (setelah komisi platform)'}.
                 </p>
+
+                {parseFloat(formData.price) > 0 && (
+                  <div className="mt-2 pt-2 border-t border-gray-200 text-xs text-gray-600 space-y-1">
+                    <div className="flex justify-between">
+                      <span>Harga jual</span>
+                      <span>Rp {feeSplit.price.toLocaleString('id-ID')}</span>
+                    </div>
+                    <div className="flex justify-between text-orange-600">
+                      <span>Komisi platform ({commissionRate}%)</span>
+                      <span>- Rp {feeSplit.commission.toLocaleString('id-ID')}</span>
+                    </div>
+                    {feeSplit.feeActive && (
+                      <div className={`flex justify-between ${feeSplit.qrFeeOnSupplier > 0 ? 'text-orange-600' : 'text-gray-400'}`}>
+                        <span>Fee gateway ({feeSplit.qrFeeRate}%) — {feeSplit.bearerLabel}</span>
+                        <span>{feeSplit.qrFeeOnSupplier > 0 ? `- Rp ${feeSplit.qrFeeOnSupplier.toLocaleString('id-ID')}` : 'Rp 0'}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between font-semibold text-green-700 border-t border-gray-200 pt-1">
+                      <span>Perkiraan Anda terima</span>
+                      <span>Rp {feeSplit.supplierRevenue.toLocaleString('id-ID')}</span>
+                    </div>
+                    {feeSplit.bearer === 'CUSTOMER' && (
+                      <div className="flex justify-between text-gray-400">
+                        <span>Pelanggan membayar</span>
+                        <span>Rp {feeSplit.customerPays.toLocaleString('id-ID')}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
 

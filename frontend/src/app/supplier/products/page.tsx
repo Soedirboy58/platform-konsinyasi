@@ -8,6 +8,7 @@ import { Package, Edit, Trash2, Plus, Boxes } from 'lucide-react'
 import { toast } from 'sonner'
 import ConfirmDialog from '@/components/supplier/ConfirmDialog'
 import { getCdnUrl } from '@/lib/cdn'
+import { DEFAULT_FEE_SETTINGS, type PlatformFeeSettings } from '@/lib/feeModel'
 
 type Product = {
   id: string
@@ -33,6 +34,7 @@ export default function ProductsPage() {
   const [stockMap, setStockMap] = useState<Record<string, StockEntry[]>>({})
   const [loading, setLoading] = useState(true)
   const [supplierId, setSupplierId] = useState<string | null>(null)
+  const [feeSettings, setFeeSettings] = useState<PlatformFeeSettings>(DEFAULT_FEE_SETTINGS)
   const [selectedProducts, setSelectedProducts] = useState<string[]>([])
   const [isDeleting, setIsDeleting] = useState(false)
   const [confirmDialog, setConfirmDialog] = useState<{
@@ -74,6 +76,23 @@ export default function ProductsPage() {
       if (!supplier) return
 
       setSupplierId(supplier.id)
+
+      // Load platform fee settings (untuk label komisi + fee gateway)
+      const { data: settingsRows } = await supabase
+        .from('platform_settings')
+        .select('key, value')
+        .in('key', ['commission_rate', 'commission_enabled', 'qr_fee_enabled', 'qr_fee_rate', 'qr_fee_bearer'])
+      if (settingsRows) {
+        const map = new Map(settingsRows.map((r: any) => [r.key, r.value]))
+        const bearerRaw = String(map.get('qr_fee_bearer') || 'CUSTOMER').toUpperCase()
+        setFeeSettings({
+          commissionRate: parseFloat(String(map.get('commission_rate') ?? DEFAULT_FEE_SETTINGS.commissionRate)) || DEFAULT_FEE_SETTINGS.commissionRate,
+          commissionEnabled: map.get('commission_enabled') !== 'false',
+          qrFeeEnabled: map.get('qr_fee_enabled') === 'true',
+          qrFeeRate: parseFloat(String(map.get('qr_fee_rate') ?? '0')) || 0,
+          qrFeeBearer: (bearerRaw === 'SUPPLIER' || bearerRaw === 'PLATFORM' || bearerRaw === 'CUSTOMER') ? bearerRaw : 'CUSTOMER',
+        })
+      }
 
       // Load products
       const { data, error } = await supabase
@@ -357,6 +376,9 @@ export default function ProductsPage() {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-sm text-gray-900">{product.commission_rate}%</div>
+                          {feeSettings.qrFeeEnabled && feeSettings.qrFeeRate > 0 && (
+                            <div className="text-xs text-gray-400">+ Fee gateway {feeSettings.qrFeeRate}%</div>
+                          )}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           {getStatusBadge(product.status)}
@@ -459,6 +481,9 @@ export default function ProductsPage() {
                       <div className="text-right">
                         <p className="text-xs text-gray-500">Komisi</p>
                         <p className="font-semibold text-primary-600 text-sm">{product.commission_rate}%</p>
+                        {feeSettings.qrFeeEnabled && feeSettings.qrFeeRate > 0 && (
+                          <p className="text-[11px] text-gray-400">+ Fee gateway {feeSettings.qrFeeRate}%</p>
+                        )}
                       </div>
                     </div>
 
