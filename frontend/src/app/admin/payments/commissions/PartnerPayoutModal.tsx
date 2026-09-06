@@ -54,9 +54,8 @@ export default function PartnerPayoutModal({ supplier, onClose, onPaid }: Props)
   function onProofChange(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0] || null
     if (f) {
-      const okType = f.type.startsWith('image/') || f.type === 'application/pdf'
-      if (!okType) {
-        setErrorMsg('Bukti transfer harus berupa gambar atau PDF.')
+      if (!f.type.startsWith('image/')) {
+        setErrorMsg('Bukti transfer harus berupa gambar (JPG/PNG).')
         e.target.value = ''
         return
       }
@@ -460,7 +459,7 @@ export default function PartnerPayoutModal({ supplier, onClose, onPaid }: Props)
                   <Paperclip className="w-3.5 h-3.5" />
                   {proofFile ? 'Ganti bukti transfer' : `Bukti transfer${REQUIRE_PROOF ? ' *' : ' (opsional)'}`}
                 </span>
-                <input type="file" accept="image/*,.pdf" onChange={onProofChange} className="hidden" />
+                <input type="file" accept="image/*" onChange={onProofChange} className="hidden" />
                 {proofFile && (
                   <span className="text-gray-500 truncate max-w-[160px]" title={proofFile.name}>
                     {proofFile.name}
