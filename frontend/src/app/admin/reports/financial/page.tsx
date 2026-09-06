@@ -14,6 +14,7 @@ import {
   X
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { useConfirm } from '@/hooks/useConfirm'
 
 interface Expense {
   id: string
@@ -25,6 +26,7 @@ interface Expense {
 }
 
 export default function FinancialReport() {
+  const { confirm, ConfirmPortal } = useConfirm()
   const [loading, setLoading] = useState(true)
   const [dateRange, setDateRange] = useState<'week' | 'month' | 'quarter' | 'semester' | 'year' | 'custom'>('month')
   const todayStr = new Date().toISOString().split('T')[0]
@@ -263,15 +265,21 @@ export default function FinancialReport() {
     loadFinancialData()
   }
 
-  const handleDeleteExpense = (id: string) => {
-    if (confirm('Yakin ingin hapus pengeluaran ini?')) {
-      const storedExpenses = localStorage.getItem('platform_expenses')
-      if (storedExpenses) {
-        const allExpenses: Expense[] = JSON.parse(storedExpenses)
-        const filtered = allExpenses.filter(exp => exp.id !== id)
-        localStorage.setItem('platform_expenses', JSON.stringify(filtered))
-        loadFinancialData()
-      }
+  const handleDeleteExpense = async (id: string) => {
+    const ok = await confirm({
+      title: 'Hapus Pengeluaran',
+      message: 'Yakin ingin menghapus pengeluaran ini? Tindakan ini tidak bisa dibatalkan.',
+      variant: 'danger',
+      icon: 'danger',
+      confirmText: 'Hapus',
+    })
+    if (!ok) return
+    const storedExpenses = localStorage.getItem('platform_expenses')
+    if (storedExpenses) {
+      const allExpenses: Expense[] = JSON.parse(storedExpenses)
+      const filtered = allExpenses.filter(exp => exp.id !== id)
+      localStorage.setItem('platform_expenses', JSON.stringify(filtered))
+      loadFinancialData()
     }
   }
 
@@ -502,6 +510,7 @@ export default function FinancialReport() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {ConfirmPortal}
       <main className="max-w-7xl mx-auto px-4 py-8">
         <div className="flex flex-wrap items-center justify-end gap-2 mb-4">
           <button

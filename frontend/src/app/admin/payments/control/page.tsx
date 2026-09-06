@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { RefreshCw, CheckCircle, XCircle, AlertCircle, Search } from 'lucide-react'
+import { useConfirm } from '@/hooks/useConfirm'
 
 type TxStatus = 'PENDING' | 'COMPLETED' | 'CANCELLED' | string
 
@@ -26,6 +27,7 @@ type Flash = {
 } | null
 
 export default function SalesControlPage() {
+  const { confirm, ConfirmPortal } = useConfirm()
   const [rows, setRows] = useState<TransactionRow[]>([])
   const [loading, setLoading] = useState(true)
   const [actingId, setActingId] = useState<string | null>(null)
@@ -135,7 +137,12 @@ export default function SalesControlPage() {
       ? `Tandai transaksi ${row.code} sebagai TERJUAL?`
       : `Batalkan transaksi ${row.code} dan kembalikan stok?`
 
-    if (!window.confirm(confirmText)) return
+    if (!(await confirm({
+      title: action === 'MARK_COMPLETED' ? 'Tandai Terjual' : 'Batalkan Transaksi',
+      message: confirmText,
+      variant: action === 'MARK_COMPLETED' ? 'success' : 'danger',
+      icon: action === 'MARK_COMPLETED' ? 'success' : 'danger',
+    }))) return
 
     const reason = window.prompt('Catatan alasan (opsional):', '') || ''
 
@@ -194,7 +201,12 @@ export default function SalesControlPage() {
   }
 
   async function cancelLost(row: TransactionRow) {
-    if (!window.confirm(`Batalkan status HILANG transaksi ${row.code} dan kembalikan stok?`)) return
+    if (!(await confirm({
+      title: 'Batalkan Status Hilang',
+      message: `Batalkan status HILANG transaksi ${row.code} dan kembalikan stok ke outlet?`,
+      variant: 'warning',
+      confirmText: 'Ya, Kembalikan Stok',
+    }))) return
     const notes = window.prompt('Catatan pembatalan (opsional):', '') || ''
     try {
       setActingId(row.id)
@@ -222,6 +234,7 @@ export default function SalesControlPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {ConfirmPortal}
       <main className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8 space-y-5">
         <div className="flex items-center justify-end">
           <button

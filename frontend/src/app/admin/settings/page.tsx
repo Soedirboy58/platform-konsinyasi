@@ -5,6 +5,7 @@ import { Save, Info, DollarSign, Calculator, User, Bell, Database, Eye, EyeOff, 
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import ConfirmDialog from '@/components/admin/ConfirmDialog'
+import { useConfirm } from '@/hooks/useConfirm'
 import { getAdminHeaderTheme, saveAdminHeaderTheme } from '@/components/admin/AdminPageHeader'
 import AdminPageHeader from '@/components/admin/AdminPageHeader'
 import dynamic from 'next/dynamic'
@@ -57,6 +58,7 @@ type HomepageBanner = {
 }
 
 export default function Settings() {
+  const { confirm, ConfirmPortal } = useConfirm()
   const [activeTab, setActiveTab] = useState('commission')
   const [commissionRate, setCommissionRate] = useState(10)
   const [minimumPayout, setMinimumPayout] = useState(100000)
@@ -212,7 +214,13 @@ export default function Settings() {
   }
 
   const handleDeleteAdminUser = async (userId: string, userName: string) => {
-    if (!confirm(`Hapus pengguna "${userName}"? Akun akan dihapus permanen.`)) return
+    if (!(await confirm({
+      title: 'Hapus Pengguna',
+      message: `Hapus pengguna "${userName}"? Akun akan dihapus permanen dan tidak bisa dipulihkan.`,
+      variant: 'danger',
+      icon: 'danger',
+      confirmText: 'Hapus Permanen',
+    }))) return
     try {
       const res = await fetch('/api/admin/users', {
         method: 'DELETE',
@@ -255,7 +263,13 @@ export default function Settings() {
   }
 
   const handleResetPassword = async (userId: string, userName: string) => {
-    if (!confirm(`Kirim link reset password ke "${userName}"?`)) return
+    if (!(await confirm({
+      title: 'Reset Password',
+      message: `Kirim link reset password ke email "${userName}"?`,
+      variant: 'primary',
+      icon: 'info',
+      confirmText: 'Kirim Link',
+    }))) return
     setResetingPassword(userId)
     try {
       const res = await fetch('/api/admin/users', {
@@ -952,6 +966,7 @@ export default function Settings() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {ConfirmPortal}
       <AdminPageHeader
         eyebrow="Sistem"
         title="Pengaturan Platform"
