@@ -27,6 +27,54 @@ type CheckoutResult = {
   message: string
 }
 
+/**
+ * Ubah error teknis dari proses checkout / pembayaran menjadi pesan
+ * yang sopan dan mudah dipahami pelanggan — tanpa istilah teknis / "bahasa skrip".
+ */
+function checkoutErrorMessage(err: unknown): string {
+  const anyErr = err as any
+  const raw = `${anyErr?.message ?? ''} ${anyErr?.details ?? ''} ${anyErr?.hint ?? ''}`.toLowerCase()
+  const code = String(anyErr?.code ?? '').toLowerCase()
+
+  // Stok habis akibat pembelian bersamaan (melanggar CHECK quantity >= 0)
+  if (
+    code === '23514' ||
+    raw.includes('inventory_levels_quantity_check') ||
+    (raw.includes('check constraint') && raw.includes('inventor')) ||
+    (raw.includes('violates check constraint') && raw.includes('quantity'))
+  ) {
+    return 'Mohon maaf, pembayaran tidak dapat diproses karena stok produk baru saja habis. Silakan muat ulang halaman lalu periksa kembali keranjang Anda.'
+  }
+
+  // Bentrok transaksi bersamaan (serialization failure / deadlock)
+  if (code === '40001' || code === '40p01' || raw.includes('could not serialize') || raw.includes('deadlock')) {
+    return 'Sistem sedang sibuk memproses banyak pesanan sekaligus. Mohon tunggu sebentar, lalu coba lagi.'
+  }
+
+  // Outlet tidak aktif / tidak ditemukan
+  if (raw.includes('location not found') || raw.includes('not found or inactive')) {
+    return 'Outlet ini sedang tidak menerima pesanan. Silakan hubungi petugas kasir.'
+  }
+
+  // Checkout sudah pernah diproses
+  if (raw.includes('sudah diproses') || raw.includes('already processed')) {
+    return 'Pesanan Anda sudah diproses sebelumnya. Silakan lanjutkan ke pembayaran.'
+  }
+
+  // Masalah jaringan / koneksi
+  if (
+    raw.includes('failed to fetch') ||
+    raw.includes('networkerror') ||
+    raw.includes('load failed') ||
+    raw.includes('timeout')
+  ) {
+    return 'Koneksi internet terputus. Periksa jaringan Anda, lalu coba lagi.'
+  }
+
+  // Default — jangan pernah tampilkan pesan teknis mentah ke pelanggan
+  return 'Mohon maaf, pembayaran gagal diproses. Silakan coba lagi, atau hubungi petugas kasir bila masalah berlanjut.'
+}
+
 export default function CheckoutPage() {
   const params = useParams()
   const router = useRouter()
@@ -313,11 +361,11 @@ export default function CheckoutPage() {
 
         toast.success('Checkout berhasil! Silakan lanjutkan pembayaran')
       } else {
-        toast.error('Tidak ada data transaksi')
+        toast.error('Transaksi gagal dibuat. Silakan coba lagi.', { duration: 6000 })
       }
     } catch (error) {
       console.error('Checkout error:', error)
-      toast.error('Gagal checkout: ' + (error as any).message)
+      toast.error(checkoutErrorMessage(error), { duration: 6000 })
     } finally {
       setProcessing(false)
     }
@@ -350,7 +398,7 @@ export default function CheckoutPage() {
       }
     } catch (err) {
       console.error('[DOKU API error]', err)
-      toast.error('Gagal hubungi DOKU: ' + (err as Error).message + ' — klik tombol retry untuk coba lagi')
+      toast.error('Gagal menghubungi layanan pembayaran. Silakan klik tombol coba lagi.', { duration: 6000 })
     } finally {
       setDokuLoading(false)
     }
@@ -400,7 +448,7 @@ export default function CheckoutPage() {
       await callDokuApi(result.transaction_id, result.total_amount, result.transaction_code)
     } catch (err) {
       console.error('[DOKU checkout error]', err)
-      toast.error('Gagal proses DOKU: ' + (err as Error).message)
+      toast.error(checkoutErrorMessage(err), { duration: 6000 })
       setSelectedPaymentMethod(null)
       // Tidak reset hasProcessed di sini — jika DB sudah insert, biarkan
     } finally {
@@ -437,7 +485,7 @@ export default function CheckoutPage() {
       }
     } catch (error) {
       console.error('Confirm error:', error)
-      toast.error('Gagal konfirmasi: ' + (error as any).message)
+      toast.error(checkoutErrorMessage(error), { duration: 6000 })
     } finally {
       setConfirming(false)
     }
