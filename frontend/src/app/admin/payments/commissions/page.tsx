@@ -3,10 +3,9 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import PartnerPayoutModal, { type PayoutSupplier } from './PartnerPayoutModal'
-import { 
-  DollarSign, 
-  Upload, 
-  Check, 
+import {
+  DollarSign,
+  Check,
   Clock, 
   Filter, 
   Download, 
@@ -49,21 +48,14 @@ export default function CommissionsPage() {
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'UNPAID' | 'PAID' | 'PENDING'>('ALL')
   const [periodFilter, setPeriodFilter] = useState<'THIS_MONTH' | 'LAST_MONTH' | 'THIS_YEAR' | 'ALL'>('THIS_MONTH')
   const [selectedCommission, setSelectedCommission] = useState<Commission | null>(null)
-  const [showPaymentModal, setShowPaymentModal] = useState(false)
   const [showDetailModal, setShowDetailModal] = useState(false)
   const [payoutSupplier, setPayoutSupplier] = useState<PayoutSupplier | null>(null)
-  
+
   // Payment settings (threshold)
   const [minThreshold, setMinThreshold] = useState(100000)
   const [thresholdEnabled, setThresholdEnabled] = useState(true)
   const [readyToPaySuppliers, setReadyToPaySuppliers] = useState<Commission[]>([])
   const [pendingThresholdSuppliers, setPendingThresholdSuppliers] = useState<Commission[]>([])
-
-  // Payment form
-  const [paymentReference, setPaymentReference] = useState('')
-  const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split('T')[0])
-  const [paymentNotes, setPaymentNotes] = useState('')
-  const [paymentProof, setPaymentProof] = useState<File | null>(null)
 
   // Toast notifications
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'warning' | 'info' } | null>(null)
@@ -493,212 +485,9 @@ export default function CommissionsPage() {
     setFilteredCommissions(filtered)
   }
 
-  function generatePaymentReference(supplierName: string): string {
-    // Format: TRF-YYYYMMDD-XXX-INITIALS
-    // Example: TRF-20241113-001-KBI (Kue Basah Ibu)
-    const now = new Date()
-    const dateStr = now.getFullYear().toString() + 
-                    (now.getMonth() + 1).toString().padStart(2, '0') + 
-                    now.getDate().toString().padStart(2, '0')
-    
-    // Generate random 3-digit number
-    const randomNum = Math.floor(Math.random() * 900) + 100 // 100-999
-    
-    // Get initials from supplier name (max 3 letters)
-    const initials = supplierName
-      .split(' ')
-      .map(word => word.charAt(0).toUpperCase())
-      .join('')
-      .substring(0, 3)
-    
-    return `TRF-${dateStr}-${randomNum}-${initials}`
-  }
-
-  function handleOpenPaymentModal(commission: Commission) {
-    setSelectedCommission(commission)
-    // Auto-generate payment reference
-    const autoReference = generatePaymentReference(commission.supplier_name)
-    setPaymentReference(autoReference)
-    setPaymentDate(new Date().toISOString().split('T')[0])
-    setPaymentNotes('')
-    setPaymentProof(null)
-    setShowPaymentModal(true)
-  }
-
   function handleOpenDetailModal(commission: Commission) {
     setSelectedCommission(commission)
     setShowDetailModal(true)
-  }
-
-  async function handleSubmitPayment() {
-    if (!selectedCommission) return
-    
-    if (!paymentReference.trim()) {
-      showToast('Masukkan nomor referensi pembayaran', 'warning')
-      return
-    }
-
-    // ⚠️ VALIDATION: Cek over-payment
-    if (selectedCommission.unpaid_amount < -0.01) {
-      const confirmOverpay = confirm(
-        `⚠️ WARNING: Supplier ini sudah OVER-PAYMENT sebesar Rp ${Math.abs(selectedCommission.unpaid_amount).toLocaleString('id-ID')}!\n\n` +
-        `Seharusnya terima: Rp ${selectedCommission.commission_amount.toLocaleString('id-ID')}\n` +
-        `Sudah dibayar sebelumnya: Rp ${(selectedCommission.commission_amount - selectedCommission.unpaid_amount).toLocaleString('id-ID')}\n\n` +
-        `Apakah Anda yakin ingin membayar LAGI?\n\n` +
-        `Ini akan menambah over-payment menjadi Rp ${(Math.abs(selectedCommission.unpaid_amount) + selectedCommission.commission_amount).toLocaleString('id-ID')}`
-      )
-      if (!confirmOverpay) return
-    }
-
-    // ⚠️ VALIDATION: Cek jika sudah fully paid
-    if (Math.abs(selectedCommission.unpaid_amount) <= 0.01) {
-      const confirmFullyPaid = confirm(
-        `ℹ️ INFO: Supplier ini sudah FULLY PAID untuk periode ini.\n\n` +
-        `Transfer amount: Rp ${selectedCommission.commission_amount.toLocaleString('id-ID')}\n` +
-        `Unpaid balance: Rp ${selectedCommission.unpaid_amount.toLocaleString('id-ID')}\n\n` +
-        `Lanjutkan pembayaran? (akan menjadi over-payment)`
-      )
-      if (!confirmFullyPaid) return
-    }
-
-    try {
-      const supabase = createClient()
-
-      // Get current user (admin)
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) {
-        showToast('Sesi telah berakhir, silakan login kembali.', 'error')
-        return
-      }
-
-      // Get supplier wallet ID
-      const { data: wallet } = await supabase
-        .from('supplier_wallets')
-        .select('id')
-        .eq('supplier_id', selectedCommission.supplier_id)
-        .single()
-
-      // Calculate period (current month)
-      const now = new Date()
-      const periodStart = new Date(now.getFullYear(), now.getMonth(), 1)
-      const periodEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0)
-
-      // ✅ FIX: Calculate platform commission correctly
-      // commission_amount in DB should be platform's 10%, not supplier's 90%
-      const platformCommission = selectedCommission.total_sales * 0.10
-
-      // ✅ FIX: net_payment should be the ACTUAL AMOUNT TRANSFERRED (unpaid_amount)
-      // This is what admin just paid to supplier, not total revenue
-      const actualPaymentAmount = selectedCommission.unpaid_amount
-
-      console.log('💰 Payment calculation:', {
-        total_sales: selectedCommission.total_sales,
-        platform_commission: platformCommission,
-        supplier_total_revenue: selectedCommission.commission_amount,
-        already_paid: selectedCommission.commission_amount - selectedCommission.unpaid_amount,
-        unpaid_amount: selectedCommission.unpaid_amount,
-        amount_to_transfer: actualPaymentAmount
-      })
-
-      const { data: payment, error } = await supabase
-        .from('supplier_payments')
-        .insert({
-          supplier_id: selectedCommission.supplier_id,
-          wallet_id: wallet?.id || null,
-          
-          // Period info
-          period_start: periodStart.toISOString().split('T')[0],
-          period_end: periodEnd.toISOString().split('T')[0],
-          
-          // Financial breakdown
-          gross_sales: selectedCommission.total_sales,  // Total sales before commission
-          commission_amount: platformCommission,  // ✅ Platform's 10% cut
-          net_payment: actualPaymentAmount,  // ✅ Amount ACTUALLY TRANSFERRED
-          adjustments_deduction: 0,
-          
-          // Legacy columns (backward compatibility)
-          amount: actualPaymentAmount,  // ✅ Same as net_payment
-          
-          // Payment details
-          payment_date: new Date(paymentDate + 'T00:00:00+07:00').toISOString(),
-          payment_reference: paymentReference,
-          payment_method: 'BANK_TRANSFER',
-          
-          // Bank info
-          bank_name: selectedCommission.bank_name,
-          bank_account_number: selectedCommission.bank_account,
-          bank_account_holder: selectedCommission.bank_holder,
-          
-          // Status & metadata
-          status: 'COMPLETED',
-          notes: paymentNotes || null,
-          created_by: user.id
-        })
-        .select()
-        .single()
-
-      if (error) {
-        console.error('Error saving payment:', error)
-        showToast(`Gagal menyimpan pembayaran: ${error.message}`, 'error')
-        return
-      }
-
-      // Upload payment proof if exists
-      let proofUrl: string | null = null
-      if (paymentProof && payment) {
-        try {
-          const fileExt = paymentProof.name.split('.').pop()
-          const fileName = `${payment.id}_${Date.now()}.${fileExt}`
-          const filePath = `payment-proofs/${fileName}`
-
-          const { data: uploadData, error: uploadError } = await supabase.storage
-            . from('payment_proofs')  // ✅ UBAH DARI 'documents'
-            .upload(filePath, paymentProof, {
-              cacheControl: '3600',
-              upsert: false
-            })
-
-          if (uploadError) {
-            console.error('Error uploading proof:', uploadError)
-            showToast('Pembayaran tersimpan, namun gagal upload bukti transfer.', 'warning')
-          } else {
-            // Get public URL
-            const { data } = supabase.storage
-              .from('payment_proofs')  // ✅ UBAH DARI 'documents'
-              .getPublicUrl(filePath)
-
-            proofUrl = data.publicUrl
-
-            // Update payment record with proof URL
-            await supabase
-              .from('supplier_payments')
-              .update({ payment_proof_url: data.publicUrl })
-              .eq('id', payment.id)
-
-            console.log('✅ Payment proof uploaded:', data.publicUrl)
-          }
-        } catch (uploadErr) {
-          console.error('Error in upload process:', uploadErr)
-        }
-      }
-
-      // Update local state
-      const updatedCommissions = commissions.map(c => 
-        c.supplier_id === selectedCommission.supplier_id
-          ? { ...c, status: 'PAID' as const, payment_date: paymentDate, payment_reference: paymentReference }
-          : c
-      )
-
-      setCommissions(updatedCommissions)
-      setShowPaymentModal(false)
-      showToast('Pembayaran berhasil dicatat!')
-      
-      // Reload to get fresh data
-      loadCommissions()
-    } catch (error) {
-      console.error('Error submitting payment:', error)
-      showToast('Terjadi kesalahan. Silakan coba lagi.', 'error')
-    }
   }
 
   const stats = {
@@ -1125,177 +914,6 @@ export default function CommissionsPage() {
         </div>
       </main>
 
-      {/* Payment Modal */}
-      {showPaymentModal && selectedCommission && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b flex items-center justify-between">
-              <h2 className="text-xl font-bold text-gray-900">Upload Bukti Pembayaran</h2>
-              <button
-                onClick={() => setShowPaymentModal(false)}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <X className="w-6 h-6" />
-              </button>
-            </div>
-
-            <div className="p-6 space-y-4">
-              {/* Over-payment Warning */}
-              {selectedCommission.unpaid_amount < -0.01 && (
-                <div className="bg-red-50 border-2 border-red-300 p-4 rounded-lg">
-                  <div className="flex items-start gap-3">
-                    <div className="text-red-600 text-2xl">⚠️</div>
-                    <div className="flex-1">
-                      <h4 className="font-bold text-red-800 mb-2">PERINGATAN: OVER-PAYMENT TERDETEKSI!</h4>
-                      <div className="text-sm text-red-700 space-y-1">
-                        <p>Supplier ini sudah <strong>dibayar lebih</strong> dari yang seharusnya:</p>
-                        <div className="bg-red-100 p-2 rounded mt-2 font-mono text-xs">
-                          <div>Seharusnya terima: Rp {selectedCommission.commission_amount.toLocaleString('id-ID')}</div>
-                          <div>Sudah dibayar: Rp {(selectedCommission.commission_amount - selectedCommission.unpaid_amount).toLocaleString('id-ID')}</div>
-                          <div className="font-bold mt-1 text-red-800">Over-payment: Rp {Math.abs(selectedCommission.unpaid_amount).toLocaleString('id-ID')}</div>
-                        </div>
-                        <p className="mt-2 font-semibold">⛔ Sebaiknya JANGAN bayar lagi sampai over-payment dikoreksi!</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Fully Paid Warning */}
-              {Math.abs(selectedCommission.unpaid_amount) <= 0.01 && selectedCommission.status === 'PAID' && (
-                <div className="bg-yellow-50 border-2 border-yellow-300 p-4 rounded-lg">
-                  <div className="flex items-start gap-3">
-                    <div className="text-yellow-600 text-2xl">ℹ️</div>
-                    <div className="flex-1">
-                      <h4 className="font-bold text-yellow-800 mb-1">Supplier Sudah Fully Paid</h4>
-                      <p className="text-sm text-yellow-700">
-                        Supplier ini sudah menerima pembayaran penuh untuk periode ini. 
-                        Pembayaran tambahan akan menyebabkan over-payment.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Supplier Info */}
-              <div className="bg-blue-50 p-4 rounded-lg">
-                <h3 className="font-semibold text-gray-900 mb-2">{selectedCommission.supplier_name}</h3>
-                <div className="grid grid-cols-2 gap-2 text-sm">
-                  <div>
-                    <span className="text-gray-600">Bank:</span>
-                    <span className="ml-2 font-medium">{selectedCommission.bank_name}</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-600">No. Rekening:</span>
-                    <span className="ml-2 font-medium">{selectedCommission.bank_account}</span>
-                  </div>
-                  <div className="col-span-2">
-                    <span className="text-gray-600">Atas Nama:</span>
-                    <span className="ml-2 font-medium">{selectedCommission.bank_holder}</span>
-                  </div>
-                </div>
-                <div className="mt-3 pt-3 border-t border-blue-200">
-                  <div className="text-lg font-bold text-blue-600">
-                    Jumlah Transfer: Rp {selectedCommission.commission_amount.toLocaleString('id-ID')}
-                  </div>
-                  {selectedCommission.unpaid_amount > 0.01 && (
-                    <div className="text-sm text-orange-600 mt-1">
-                      Belum dibayar: Rp {selectedCommission.unpaid_amount.toLocaleString('id-ID')}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Payment Form */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Nomor Referensi Transfer *
-                </label>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={paymentReference}
-                    onChange={(e) => setPaymentReference(e.target.value)}
-                    placeholder="Contoh: TRF-20241113-001-KBI"
-                    className="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (selectedCommission) {
-                        const newRef = generatePaymentReference(selectedCommission.supplier_name)
-                        setPaymentReference(newRef)
-                      }
-                    }}
-                    className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 text-sm whitespace-nowrap"
-                    title="Generate nomor referensi baru"
-                  >
-                    🔄 Generate
-                  </button>
-                </div>
-                <p className="text-xs text-gray-500 mt-1">
-                  Format: TRF-YYYYMMDD-XXX-INITIALS (otomatis dibuatkan)
-                </p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Tanggal Transfer *
-                </label>
-                <input
-                  type="date"
-                  value={paymentDate}
-                  onChange={(e) => setPaymentDate(e.target.value)}
-                  className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Upload Bukti Transfer
-                </label>
-                <input
-                  type="file"
-                  accept="image/*,.pdf"
-                  onChange={(e) => setPaymentProof(e.target.files?.[0] || null)}
-                  className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-                <p className="text-xs text-gray-500 mt-1">Format: JPG, PNG, PDF (Max 5MB)</p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Catatan (Opsional)
-                </label>
-                <textarea
-                  value={paymentNotes}
-                  onChange={(e) => setPaymentNotes(e.target.value)}
-                  rows={3}
-                  placeholder="Catatan tambahan..."
-                  className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-            </div>
-
-            <div className="p-6 border-t flex gap-3 justify-end">
-              <button
-                onClick={() => setShowPaymentModal(false)}
-                className="px-4 py-2 border rounded-lg hover:bg-gray-50"
-              >
-                Batal
-              </button>
-              <button
-                onClick={handleSubmitPayment}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
-              >
-                <Check className="w-4 h-4" />
-                Simpan Pembayaran
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Detail Modal */}
       {showDetailModal && selectedCommission && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -1505,13 +1123,19 @@ export default function CommissionsPage() {
               {selectedCommission.unpaid_amount > 0 && (
                 <button
                   onClick={() => {
+                    setPayoutSupplier({
+                      supplier_id: selectedCommission.supplier_id,
+                      supplier_name: selectedCommission.supplier_name,
+                      bank_name: selectedCommission.bank_name,
+                      bank_account: selectedCommission.bank_account,
+                      bank_holder: selectedCommission.bank_holder,
+                    })
                     setShowDetailModal(false)
-                    handleOpenPaymentModal(selectedCommission)
                   }}
                   className="px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium flex items-center gap-2"
                 >
-                  <Upload className="w-4 h-4" />
-                  Proses Pembayaran
+                  <DollarSign className="w-4 h-4" />
+                  Bayar Mitra
                 </button>
               )}
             </div>
