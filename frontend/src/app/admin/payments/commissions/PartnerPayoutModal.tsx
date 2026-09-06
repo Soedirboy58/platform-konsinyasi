@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { X, Check, Clock, Store, Loader2, Paperclip } from 'lucide-react'
+import ConfirmDialog from '@/components/admin/ConfirmDialog'
 import {
   buildOutletGroups,
   weekEndYmd,
@@ -47,6 +48,7 @@ export default function PartnerPayoutModal({ supplier, onClose, onPaid }: Props)
   const [groups, setGroups] = useState<OutletGroup[]>([])
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [submitting, setSubmitting] = useState(false)
+  const [confirmOpen, setConfirmOpen] = useState(false)
   const [reference, setReference] = useState('')
   const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split('T')[0])
   const [proofFile, setProofFile] = useState<File | null>(null)
@@ -188,6 +190,14 @@ export default function PartnerPayoutModal({ supplier, onClose, onPaid }: Props)
     () => dueWeeks.reduce((s, w) => s + w.outstanding, 0),
     [dueWeeks],
   )
+  const picked = useMemo(
+    () => dueWeeks.filter((w) => selected.has(w.key)),
+    [dueWeeks, selected],
+  )
+  const outletCount = useMemo(
+    () => new Set(picked.map((p) => p.locationId)).size,
+    [picked],
+  )
 
   function toggle(key: string) {
     setSelected((prev) => {
@@ -201,7 +211,7 @@ export default function PartnerPayoutModal({ supplier, onClose, onPaid }: Props)
     setSelected((prev) => (prev.size === dueWeeks.length ? new Set() : new Set(dueWeeks.map((w) => w.key))))
   }
 
-  async function submit() {
+  function requestSubmit() {
     if (selected.size === 0 || selectedTotal <= 0) return
     if (!reference.trim()) {
       setErrorMsg('Nomor referensi transfer wajib diisi.')
@@ -211,13 +221,13 @@ export default function PartnerPayoutModal({ supplier, onClose, onPaid }: Props)
       setErrorMsg('Lampirkan bukti transfer terlebih dahulu.')
       return
     }
-    const picked = dueWeeks.filter((w) => selected.has(w.key))
-    const ok = window.confirm(
-      `Catat pembayaran ${rupiah(selectedTotal)} ke ${supplier.supplier_name}\n` +
-        `untuk ${picked.length} minggu di ${new Set(picked.map((p) => p.locationId)).size} outlet?`,
-    )
-    if (!ok) return
+    setErrorMsg(null)
+    setConfirmOpen(true)
+  }
 
+  async function doSubmit() {
+    setConfirmOpen(false)
+    if (picked.length === 0) return
     setSubmitting(true)
     setErrorMsg(null)
     try {
@@ -474,7 +484,7 @@ export default function PartnerPayoutModal({ supplier, onClose, onPaid }: Props)
                 <span className="text-gray-400"> / {rupiah(grandOutstanding)}</span>
               </div>
               <button
-                onClick={submit}
+                onClick={requestSubmit}
                 disabled={submitting || selected.size === 0 || selectedTotal <= 0 || (REQUIRE_PROOF && !proofFile)}
                 className="px-5 py-2.5 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-xl font-bold text-sm shadow disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
               >
@@ -485,6 +495,23 @@ export default function PartnerPayoutModal({ supplier, onClose, onPaid }: Props)
           </div>
         )}
       </div>
+
+      <ConfirmDialog
+        isOpen={confirmOpen}
+        onClose={() => setConfirmOpen(false)}
+        onConfirm={doSubmit}
+        icon="info"
+        variant="success"
+        title="Konfirmasi Pembayaran Mitra"
+        message={
+          `Catat pembayaran ${rupiah(selectedTotal)} ke ${supplier.supplier_name} ` +
+          `untuk ${picked.length} minggu di ${outletCount} outlet. ` +
+          `Bukti transfer: ${proofFile?.name ?? '—'}.`
+        }
+        confirmText="Ya, Catat Pembayaran"
+        cancelText="Batal"
+        confirmLoading={submitting}
+      />
     </div>
   )
 }

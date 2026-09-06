@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { Plus, Trash2, RotateCcw, CheckCircle2 } from 'lucide-react'
+import { useConfirm } from '@/hooks/useConfirm'
 
 type Location = { id: string; name: string }
 type Product = { id: string; name: string; price: number; quantity: number; supplier_name: string }
@@ -21,6 +22,7 @@ type LostTx = {
 type LineItem = { product_id: string; quantity: number; price: number; product_name: string }
 
 export default function LostProductsTab() {
+  const { confirm, ConfirmPortal } = useConfirm()
   const [locations, setLocations] = useState<Location[]>([])
   const [selectedLocation, setSelectedLocation] = useState<string>('')
   const [products, setProducts] = useState<Product[]>([])
@@ -149,7 +151,13 @@ export default function LostProductsTab() {
   }
 
   async function cancelLost(txId: string) {
-    if (!confirm('Batalkan status HILANG dan kembalikan stok?')) return
+    const ok = await confirm({
+      title: 'Batalkan Status Hilang',
+      message: 'Batalkan status HILANG produk ini dan kembalikan stok ke outlet?',
+      variant: 'warning',
+      confirmText: 'Ya, Kembalikan Stok',
+    })
+    if (!ok) return
     const reason = prompt('Catatan pembatalan (opsional):') || ''
     try {
       const res = await fetch('/api/admin/lost-products', {
@@ -167,6 +175,7 @@ export default function LostProductsTab() {
 
   return (
     <div className="space-y-6">
+      {ConfirmPortal}
       {/* Mark as Lost Form */}
       <div className="bg-white rounded-2xl border border-slate-200 p-5 lg:p-6">
         <h3 className="text-base font-semibold text-slate-900">Tandai Produk Hilang</h3>

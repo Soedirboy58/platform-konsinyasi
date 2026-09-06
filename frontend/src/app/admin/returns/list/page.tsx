@@ -5,6 +5,8 @@ import { createClient } from '@/lib/supabase/client'
 import { ArrowLeft, Package, AlertTriangle, CheckCircle, XCircle, Clock, Search, Filter } from 'lucide-react'
 import AdminPageHeader from '@/components/admin/AdminPageHeader'
 import Link from 'next/link'
+import { toast } from 'sonner'
+import { useConfirm } from '@/hooks/useConfirm'
 
 interface ReturnRequest {
   id: string
@@ -37,6 +39,7 @@ interface ReturnRequest {
 
 export default function ReturnListPage() {
   const supabase = createClient()
+  const { confirm, ConfirmPortal } = useConfirm()
   const [loading, setLoading] = useState(true)
   const [returnsList, setReturnsList] = useState<ReturnRequest[]>([])
   const [filteredReturns, setFilteredReturns] = useState<ReturnRequest[]>([])
@@ -138,18 +141,24 @@ export default function ReturnListPage() {
   }
 
   async function cancelReturn(id: string) {
-    if (!confirm('Yakin ingin membatalkan permintaan retur ini?')) return
+    const ok = await confirm({
+      title: 'Batalkan Retur',
+      message: 'Yakin ingin membatalkan permintaan retur ini?',
+      variant: 'warning',
+      confirmText: 'Ya, Batalkan',
+    })
+    if (!ok) return
 
     setProcessingId(id)
     try {
       const { error } = await supabase.rpc('cancel_return_request', { p_return_id: id })
       if (error) throw error
-      
-      alert('✅ Retur dibatalkan')
+
+      toast.success('Retur dibatalkan')
       await loadReturns()
     } catch (e: any) {
       console.error(e)
-      alert('❌ Gagal: ' + (e.message || 'Unknown error'))
+      toast.error('Gagal: ' + (e.message || 'Unknown error'))
     } finally {
       setProcessingId(null)
     }
@@ -198,6 +207,7 @@ export default function ReturnListPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {ConfirmPortal}
       <AdminPageHeader
         eyebrow="Retur"
         title="Riwayat Retur"
