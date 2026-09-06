@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { X, Check, Clock, Store, Loader2 } from 'lucide-react'
+import { X, Check, Clock, Store, Loader2, Paperclip } from 'lucide-react'
 import {
   buildOutletGroups,
   weekEndYmd,
@@ -28,6 +28,9 @@ interface Props {
 
 const PAGE = 1000
 const rupiah = (n: number) => 'Rp ' + Math.round(n).toLocaleString('id-ID')
+const MAX_PROOF_MB = 5
+// Wajib lampirkan bukti transfer sebelum "Bayar". Ubah ke false untuk menjadikannya opsional.
+const REQUIRE_PROOF = true
 
 function genReference(name: string): string {
   const now = new Date()
@@ -46,6 +49,26 @@ export default function PartnerPayoutModal({ supplier, onClose, onPaid }: Props)
   const [submitting, setSubmitting] = useState(false)
   const [reference, setReference] = useState('')
   const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split('T')[0])
+  const [proofFile, setProofFile] = useState<File | null>(null)
+
+  function onProofChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0] || null
+    if (f) {
+      const okType = f.type.startsWith('image/') || f.type === 'application/pdf'
+      if (!okType) {
+        setErrorMsg('Bukti transfer harus berupa gambar atau PDF.')
+        e.target.value = ''
+        return
+      }
+      if (f.size > MAX_PROOF_MB * 1024 * 1024) {
+        setErrorMsg(`Ukuran file maksimal ${MAX_PROOF_MB}MB.`)
+        e.target.value = ''
+        return
+      }
+      setErrorMsg(null)
+    }
+    setProofFile(f)
+  }
 
   useEffect(() => {
     setReference(genReference(supplier.supplier_name))
@@ -185,6 +208,10 @@ export default function PartnerPayoutModal({ supplier, onClose, onPaid }: Props)
       setErrorMsg('Nomor referensi transfer wajib diisi.')
       return
     }
+    if (REQUIRE_PROOF && !proofFile) {
+      setErrorMsg('Lampirkan bukti transfer terlebih dahulu.')
+      return
+    }
     const picked = dueWeeks.filter((w) => selected.has(w.key))
     const ok = window.confirm(
       `Catat pembayaran ${rupiah(selectedTotal)} ke ${supplier.supplier_name}\n` +
@@ -262,6 +289,32 @@ export default function PartnerPayoutModal({ supplier, onClose, onPaid }: Props)
         setSubmitting(false)
         onPaid()
         return
+      }
+
+      // Unggah bukti transfer & tautkan ke pembayaran
+      if (proofFile) {
+        try {
+          const ext = (proofFile.name.split('.').pop() || 'jpg').toLowerCase()
+          const path = `payment-proofs/${payment.id}_${Date.now()}.${ext}`
+          const { error: upErr } = await supabase.storage
+            .from('payment_proofs')
+            .upload(path, proofFile, { cacheControl: '3600', upsert: false })
+          if (upErr) throw upErr
+          const { data: pub } = supabase.storage.from('payment_proofs').getPublicUrl(path)
+          await supabase
+            .from('supplier_payments')
+            .update({ payment_proof_url: pub.publicUrl })
+            .eq('id', payment.id)
+        } catch (upe: any) {
+          console.error('proof upload failed:', upe)
+          setErrorMsg(
+            `Pembayaran tersimpan (${reference}), tetapi bukti transfer gagal diunggah. ` +
+              'Unggah manual nanti dari Riwayat Pembayaran.',
+          )
+          setSubmitting(false)
+          onPaid()
+          return
+        }
       }
 
       onPaid()
@@ -402,6 +455,18 @@ export default function PartnerPayoutModal({ supplier, onClose, onPaid }: Props)
                   className="px-2 py-1 border rounded text-xs"
                 />
               </div>
+              <label className="flex items-center gap-2 text-xs text-gray-600 cursor-pointer">
+                <span className="inline-flex items-center gap-1 px-2 py-1 border border-dashed border-gray-300 rounded hover:bg-gray-50">
+                  <Paperclip className="w-3.5 h-3.5" />
+                  {proofFile ? 'Ganti bukti transfer' : `Bukti transfer${REQUIRE_PROOF ? ' *' : ' (opsional)'}`}
+                </span>
+                <input type="file" accept="image/*,.pdf" onChange={onProofChange} className="hidden" />
+                {proofFile && (
+                  <span className="text-gray-500 truncate max-w-[160px]" title={proofFile.name}>
+                    {proofFile.name}
+                  </span>
+                )}
+              </label>
             </div>
             <div className="flex items-center justify-between gap-3">
               <div className="text-sm">
@@ -411,7 +476,7 @@ export default function PartnerPayoutModal({ supplier, onClose, onPaid }: Props)
               </div>
               <button
                 onClick={submit}
-                disabled={submitting || selected.size === 0 || selectedTotal <= 0}
+                disabled={submitting || selected.size === 0 || selectedTotal <= 0 || (REQUIRE_PROOF && !proofFile)}
                 className="px-5 py-2.5 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-xl font-bold text-sm shadow disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
               >
                 {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
