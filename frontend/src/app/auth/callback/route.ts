@@ -14,7 +14,8 @@ export async function GET(request: Request) {
     
     if (error) {
       console.error('Auth callback error:', error)
-      return NextResponse.redirect(`${requestUrl.origin}/login?error=verification_failed`)
+      const reason = type === 'recovery' ? 'link_expired' : 'verification_failed'
+      return NextResponse.redirect(`${requestUrl.origin}/login?error=${reason}`)
     }
 
     // If a specific next path is provided (e.g. admin invite → set-password), use it directly

@@ -31,6 +31,18 @@ function LoginContent() {
       toast.error('Link verifikasi tidak valid atau kadaluarsa.', { duration: 5000 })
       window.history.replaceState({}, '', '/login')
     }
+    if (err === 'link_expired' || err === 'link_invalid') {
+      toast.error('Link reset password sudah kedaluwarsa atau sudah dipakai.', {
+        duration: 8000,
+        description: 'Silakan minta link baru, lalu buka link terbaru di email Anda.',
+      })
+      setIsForgot(true)
+      window.history.replaceState({}, '', '/login')
+    }
+    if (searchParams.get('forgot') === '1') {
+      setIsForgot(true)
+      window.history.replaceState({}, '', '/login')
+    }
   }, [searchParams])
 
   function set(field: string, value: string) {

@@ -50,9 +50,14 @@ export default function SupplierLayout({ children }: { children: React.ReactNode
   const [showNotifPanel, setShowNotifPanel] = useState(false)
   const notifRef = useRef<HTMLDivElement>(null)
 
+  // Halaman tanpa layout dashboard (reset password harus tampil polos, bukan di balik sidebar)
+  const isBarePage = pathname === '/supplier/login'
+    || pathname === '/supplier/onboarding'
+    || pathname === '/supplier/reset-password'
+
   useEffect(() => {
-    // Skip auth check if on login page or onboarding
-    if (pathname === '/supplier/login' || pathname === '/supplier/onboarding') {
+    // Skip auth check if on login page, onboarding, or reset password
+    if (isBarePage) {
       setLoading(false)
       return
     }
@@ -70,8 +75,8 @@ export default function SupplierLayout({ children }: { children: React.ReactNode
     return () => document.removeEventListener('mousedown', handleOutsideClick)
   }, [])
 
-  // If on login or onboarding page, render children without layout
-  if (pathname === '/supplier/login' || pathname === '/supplier/onboarding') {
+  // If on login, onboarding, or reset password page, render children without layout
+  if (isBarePage) {
     return <>{children}</>
   }
 
