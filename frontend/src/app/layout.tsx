@@ -4,6 +4,7 @@ import './globals.css'
 import { Toaster } from 'sonner'
 import SplashScreen from '@/components/SplashScreen'
 import KillServiceWorker from '@/components/KillServiceWorker'
+import AuthLinkErrorHandler from '@/components/AuthLinkErrorHandler'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -72,6 +73,7 @@ export default function RootLayout({
     <html lang="id">
       <body className={inter.className}>
         <KillServiceWorker />
+        <AuthLinkErrorHandler />
         <SplashScreen />
         {children}
         <Toaster position="top-center" />

@@ -1,16 +1,50 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { toast } from 'sonner'
+
+function resetErrorMessage(err: unknown): string {
+  const msg = err instanceof Error ? err.message : ''
+  if (/session/i.test(msg)) return 'Sesi reset sudah berakhir. Silakan minta link reset baru.'
+  if (/different from the old/i.test(msg)) return 'Password baru harus berbeda dari password lama.'
+  if (/at least|weak/i.test(msg)) return 'Password terlalu lemah. Gunakan minimal 6 karakter.'
+  return 'Gagal menyimpan password baru. Silakan coba lagi.'
+}
 
 export default function ResetPasswordPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
+  const [sessionState, setSessionState] = useState<'checking' | 'ready' | 'missing'>('checking')
+
+  // Halaman ini hanya berguna jika ada sesi dari link reset yang valid.
+  useEffect(() => {
+    const supabase = createClient()
+    let settled = false
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (session && (event === 'PASSWORD_RECOVERY' || event === 'SIGNED_IN')) {
+        settled = true
+        setSessionState('ready')
+      }
+    })
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        settled = true
+        setSessionState('ready')
+      } else {
+        // beri waktu singkat jika sesi masih diproses dari URL
+        setTimeout(() => { if (!settled) setSessionState('missing') }, 1500)
+      }
+    })
+
+    return () => subscription.unsubscribe()
+  }, [])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -41,10 +75,36 @@ export default function ResetPasswordPage() {
       await supabase.auth.signOut()
       router.push('/supplier/login')
     } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : 'Terjadi kesalahan'
-      toast.error(msg)
+      console.error('Reset password error:', error)
+      toast.error(resetErrorMessage(error))
       setLoading(false)
     }
+  }
+
+  if (sessionState !== 'ready') {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-primary-50 to-white flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-white rounded-xl shadow-lg p-8 text-center">
+          {sessionState === 'checking' ? (
+            <p className="text-gray-600">Memeriksa link reset...</p>
+          ) : (
+            <>
+              <h1 className="text-xl font-bold text-gray-900 mb-2">Link reset tidak valid</h1>
+              <p className="text-gray-600 mb-6">
+                Link sudah kedaluwarsa, sudah pernah dipakai, atau bukan link terbaru.
+                Silakan minta link reset baru lalu buka link <strong>terbaru</strong> di email Anda.
+              </p>
+              <Link
+                href="/login?forgot=1"
+                className="inline-block w-full bg-primary-600 text-white py-3 rounded-lg font-semibold hover:bg-primary-700 transition-colors"
+              >
+                Minta Link Reset Baru
+              </Link>
+            </>
+          )}
+        </div>
+      </div>
+    )
   }
 
   return (
